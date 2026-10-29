@@ -1,0 +1,10 @@
+{
+  "origin": "<ORIGIN>",
+  "prefix": "/coding-tools",
+  "connector": "<CONNECTOR_UUID>",
+  "owner_subject": "<OWNER_SUBJECT_UUID>",
+  "client_id": "<CLIENT_ID>",
+  "redirect_uri": "<REDIRECT_URI>",
+  "client_authentication": "public",
+  "bind": "127.0.0.1:28880"
+}

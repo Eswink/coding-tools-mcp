@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::settings::AppSettings;
 use super::endpoint::{normalize_public_origin, FrpRouteOptions};
+use crate::settings::AppSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceProfile {
@@ -200,7 +200,11 @@ fn default_allowed_commands() -> String {
     let platform = "sh,bash";
     #[cfg(not(any(windows, unix)))]
     let platform = "";
-    if platform.is_empty() { common.to_string() } else { format!("{common},{platform}") }
+    if platform.is_empty() {
+        common.to_string()
+    } else {
+        format!("{common},{platform}")
+    }
 }
 
 fn default_workspace_local_entries() -> bool {
@@ -209,14 +213,22 @@ fn default_workspace_local_entries() -> bool {
 
 fn default_workspace_script_extensions() -> String {
     #[cfg(windows)]
-    { return ".exe,.bat,.cmd,.ps1".to_string(); }
+    {
+        return ".exe,.bat,.cmd,.ps1".to_string();
+    }
     #[cfg(unix)]
-    { return ".sh".to_string(); }
+    {
+        return ".sh".to_string();
+    }
     #[cfg(not(any(windows, unix)))]
-    { String::new() }
+    {
+        String::new()
+    }
 }
 
-fn default_max_task_timeout_ms() -> u64 { 86_400_000 }
+fn default_max_task_timeout_ms() -> u64 {
+    86_400_000
+}
 
 fn default_max_patch_bytes() -> u32 {
     200_000
@@ -440,16 +452,28 @@ mod platform_default_tests {
         let runtime = RuntimeConfig::default();
         #[cfg(windows)]
         {
-            assert!(runtime.allowed_commands.split(',').any(|v| v == "powershell"));
-            assert!(runtime.workspace_script_extensions.split(',').any(|v| v == ".ps1"));
+            assert!(runtime
+                .allowed_commands
+                .split(',')
+                .any(|v| v == "powershell"));
+            assert!(runtime
+                .workspace_script_extensions
+                .split(',')
+                .any(|v| v == ".ps1"));
             assert!(!runtime.allowed_commands.split(',').any(|v| v == "sh"));
         }
         #[cfg(unix)]
         {
             assert!(runtime.allowed_commands.split(',').any(|v| v == "sh"));
             assert!(runtime.allowed_commands.split(',').any(|v| v == "bash"));
-            assert!(runtime.workspace_script_extensions.split(',').any(|v| v == ".sh"));
-            assert!(!runtime.allowed_commands.split(',').any(|v| v == "powershell"));
+            assert!(runtime
+                .workspace_script_extensions
+                .split(',')
+                .any(|v| v == ".sh"));
+            assert!(!runtime
+                .allowed_commands
+                .split(',')
+                .any(|v| v == "powershell"));
         }
     }
 }

@@ -6,8 +6,8 @@ use std::collections::HashSet;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-use crate::data::DataStore;
 use crate::auth::PublicOrigin;
+use crate::data::DataStore;
 use crate::error::AppResult;
 use crate::platform::platform;
 use crate::settings::AppSettings;
@@ -43,9 +43,7 @@ pub fn ensure_frp_health_loop() {
             let recovered = update_host_network_state(online);
             let mut guard = supervisor().lock().await;
             if recovered {
-                let _ = guard
-                    .restart_frpc_after_network_recovery(&settings)
-                    .await;
+                let _ = guard.restart_frpc_after_network_recovery(&settings).await;
             }
             let _ = guard.heal_unhealthy_frpc(&settings).await;
         }
@@ -87,7 +85,9 @@ pub async fn maybe_start_for_runtime(
     let status = guard.start(profile, kind, &settings).await?;
     // Publish while still holding the route lock, so another reconfiguration
     // cannot finish and then be overwritten by this operation's late result.
-    if let Some(origin) = origin { origin.publish(&status.public_url)?; }
+    if let Some(origin) = origin {
+        origin.publish(&status.public_url)?;
+    }
     Ok(Some(status.public_url))
 }
 

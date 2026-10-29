@@ -15,8 +15,8 @@ use tokio::sync::{oneshot, Mutex, RwLock};
 use tower_http::cors::CorsLayer;
 
 use crate::auth::{
-    authorization_server_metadata, authorize_get, authorize_post,
-    token_exchange, AuthorizeForm, AuthorizeParams, OAuthRuntime, PublicOrigin, TokenForm,
+    authorization_server_metadata, authorize_get, authorize_post, token_exchange, AuthorizeForm,
+    AuthorizeParams, OAuthRuntime, PublicOrigin, TokenForm,
 };
 use crate::tools::{self, is_allowed_tool, policy::PolicySettings, wrap_tool_result, ToolContext};
 use crate::tunnel::append_profile_log;
@@ -187,7 +187,10 @@ async fn serve(
             "/.well-known/oauth-authorization-server",
             get(oauth_authorization_server_metadata),
         )
-        .route("/oauth/authorize", get(oauth_authorize_get).post(oauth_authorize_post))
+        .route(
+            "/oauth/authorize",
+            get(oauth_authorize_get).post(oauth_authorize_post),
+        )
         .route("/oauth/token", post(oauth_token_post))
         .merge(protected)
         .with_state(state)
@@ -266,7 +269,9 @@ async fn privacy() -> Html<&'static str> {
 }
 
 fn resolve_oauth_base(state: &AppState, headers: &HeaderMap) -> String {
-    state.configured_public_url.resolve(headers, state.bind_port)
+    state
+        .configured_public_url
+        .resolve(headers, state.bind_port)
 }
 
 async fn oauth_authorization_server_metadata(
@@ -316,12 +321,7 @@ async fn oauth_token_post(
         )
             .into_response();
     };
-    token_exchange(
-        oauth,
-        &headers,
-        form,
-        &resolve_oauth_base(&state, &headers),
-    )
+    token_exchange(oauth, &headers, form, &resolve_oauth_base(&state, &headers))
 }
 
 fn oauth_not_configured() -> Response {

@@ -1,0 +1,153 @@
+name: Desktop sandbox integration
+on:
+  push:
+    branches: ['feat/desktop-sandbox-prerelease', 'feat/desktop-sandbox-verified']
+  pull_request:
+    branches: [main, feat/cloud-gateway-agent-runtime]
+    paths: ['src-tauri/**', 'services/local-agent/**', 'tests/cloud-gateway/**', '.github/workflows/cloud-gateway-desktop-sandbox.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-sandbox-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '1'
+    steps:
+      - name: Deterministic checkout bytes
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Linux native prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri
+            services/local-agent
+          cache-on-failure: 'true'
+      - name: Record exact source and toolchain
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/commit.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          rustc --version > evidence/rustc.txt
+      - name: All-target desktop compilation
+        id: check
+        run: |
+          set -euo pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/check.txt
+      - name: Unchanged complete desktop regression
+        id: desktop
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop.txt
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production.txt
+      - name: Original authenticated MCP containment assertions
+        id: probe
+        if: (success() || failure()) && runner.os == 'Linux' && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence "$RUNNER_TEMP/mcp-probe"
+          git diff --exit-code
+      - name: Six Git auxiliary containment regressions
+        id: git_boundary
+        if: (success() || failure()) && runner.os == 'Linux' && steps.check.outcome == 'success'
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests -- --list | tee evidence/git-list.txt
+          grep -q 'git_diff_does_not_execute_repository_external_diff' evidence/git-list.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests 2>&1 | tee evidence/git-boundary.txt
+          grep -q '6 passed; 0 failed; 0 ignored' evidence/git-boundary.txt
+      - name: Complete shared runtime, kernel and dispatcher regression
+        id: runtime
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          cargo clippy --locked --manifest-path services/local-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
+          cargo test --locked --manifest-path services/local-agent/Cargo.toml 2>&1 | tee evidence/runtime.txt
+          cargo rustc --locked --manifest-path services/local-agent/Cargo.toml --lib -- -D warnings
+      - name: Canonical new-source format
+        id: format
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          cargo fmt --check --manifest-path services/local-agent/Cargo.toml
+          rustfmt --check --edition 2021 src-tauri/src/tools/execution_sandbox.rs src-tauri/src/tools/git_runner.rs src-tauri/src/tools/git_runner_tests.rs
+          git diff --exit-code
+      - name: Preserve exact-source evidence and all failures
+        if: always()
+        env:
+          CHECK: ${{ steps.check.outcome }}
+          DESKTOP: ${{ steps.desktop.outcome }}
+          PROBE: ${{ steps.probe.outcome }}
+          GIT_BOUNDARY: ${{ steps.git_boundary.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+          FORMAT: ${{ steps.format.outcome }}
+        run: |
+          if [ -d "$RUNNER_TEMP/mcp-probe" ]; then
+            cp -R "$RUNNER_TEMP/mcp-probe" evidence/mcp-probe
+          fi
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          p=Path('evidence'); p.mkdir(exist_ok=True)
+          (p/'results.json').write_text(json.dumps({
+            'source_sha':os.environ['GITHUB_SHA'],'run_id':os.environ['GITHUB_RUN_ID'],
+            'platform':os.environ['RUNNER_OS'],
+            'outcomes':{k:os.environ[k] for k in ('CHECK','DESKTOP','PROBE','GIT_BOUNDARY','RUNTIME','FORMAT')},
+          },indent=2))
+          (p/'sha256.json').write_text(json.dumps({
+            x.relative_to(p).as_posix():hashlib.sha256(x.read_bytes()).hexdigest()
+            for x in p.rglob('*') if x.is_file() and x.name!='sha256.json'
+          },indent=2))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-native-${{ matrix.os }}-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Archive exact source without generated files
+        run: |
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/commit.txt
+          git rev-parse HEAD^{tree} > evidence/tree.txt
+          git bundle create evidence/source.bundle HEAD
+          sha256sum evidence/source.bundle > evidence/bundle.sha256
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-exact-source-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

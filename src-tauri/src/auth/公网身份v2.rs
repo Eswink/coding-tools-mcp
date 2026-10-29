@@ -20,18 +20,26 @@ impl PublicOrigin {
         } else {
             normalize_public_origin(origin).map_err(AppError::Message)?
         };
-        Ok(Self { value: Arc::new(RwLock::new(normalized)), managed: true })
+        Ok(Self {
+            value: Arc::new(RwLock::new(normalized)),
+            managed: true,
+        })
     }
 
     /// Returns an owned snapshot; no lock is held across network I/O or await.
     pub fn snapshot(&self) -> String {
-        self.value.read().map(|value| value.clone()).unwrap_or_default()
+        self.value
+            .read()
+            .map(|value| value.clone())
+            .unwrap_or_default()
     }
 
     pub fn publish(&self, origin: &str) -> AppResult<()> {
         // Validate before taking the write lock. A rejected update is non-mutating.
         let normalized = normalize_public_origin(origin).map_err(AppError::Message)?;
-        let mut value = self.value.write()
+        let mut value = self
+            .value
+            .write()
             .map_err(|_| AppError::Message("公网身份状态不可用，请重启本地服务。".into()))?;
         *value = normalized;
         Ok(())
@@ -48,7 +56,11 @@ impl PublicOrigin {
         if self.managed {
             // Before a managed tunnel is ready, do not derive issuer from an
             // untrusted Host/X-Forwarded-Host header or the previous Quick URL.
-            if value.is_empty() { format!("http://127.0.0.1:{port}") } else { value }
+            if value.is_empty() {
+                format!("http://127.0.0.1:{port}")
+            } else {
+                value
+            }
         } else {
             // Preserve the standalone listener API used by the existing harness.
             super::external_base_url(headers, port, &value)
@@ -58,7 +70,10 @@ impl PublicOrigin {
 
 impl From<String> for PublicOrigin {
     fn from(value: String) -> Self {
-        Self { value: Arc::new(RwLock::new(value.trim().trim_end_matches('/').to_string())), managed: false }
+        Self {
+            value: Arc::new(RwLock::new(value.trim().trim_end_matches('/').to_string())),
+            managed: false,
+        }
     }
 }
 
@@ -77,7 +92,12 @@ mod tests {
     #[test]
     fn rejected_update_preserves_last_good_identity() {
         let origin = PublicOrigin::managed("https://mcp.example.com").unwrap();
-        for value in ["", "http://mcp.example.com", "https://mcp.example.com/mcp", "https://user:password@mcp.example.com"] {
+        for value in [
+            "",
+            "http://mcp.example.com",
+            "https://mcp.example.com/mcp",
+            "https://user:password@mcp.example.com",
+        ] {
             assert!(origin.publish(value).is_err());
             assert_eq!(origin.snapshot(), "https://mcp.example.com");
         }
@@ -104,7 +124,10 @@ mod tests {
         let origin = PublicOrigin::managed("https://previous.trycloudflare.com").unwrap();
         origin.clear();
         assert_eq!(origin.snapshot(), "");
-        assert_eq!(origin.resolve(&HeaderMap::new(), 8787), "http://127.0.0.1:8787");
+        assert_eq!(
+            origin.resolve(&HeaderMap::new(), 8787),
+            "http://127.0.0.1:8787"
+        );
     }
 
     #[test]

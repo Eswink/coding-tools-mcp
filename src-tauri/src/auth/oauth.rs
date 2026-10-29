@@ -87,7 +87,11 @@ fn forwarded_header_param(headers: &HeaderMap, name: &str) -> String {
 
 fn safe_external_host(host: &str) -> String {
     let host = host.trim();
-    if host.is_empty() || host.chars().any(|ch| matches!(ch, '\r' | '\n' | '/' | '\\')) {
+    if host.is_empty()
+        || host
+            .chars()
+            .any(|ch| matches!(ch, '\r' | '\n' | '/' | '\\'))
+    {
         String::new()
     } else {
         host.to_string()
@@ -185,7 +189,10 @@ mod tests {
     #[test]
     fn protected_resource_metadata_lists_authorization_servers() {
         let meta = protected_resource_metadata("https://example.com/mcp", "https://example.com");
-        assert_eq!(meta["authorization_servers"], json!(["https://example.com"]));
+        assert_eq!(
+            meta["authorization_servers"],
+            json!(["https://example.com"])
+        );
         assert_eq!(meta["resource"], "https://example.com/mcp");
     }
 

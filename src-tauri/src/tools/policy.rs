@@ -17,37 +17,9 @@ const BASIC_READ_ONLY_COMMANDS: &[&str] = &[
 ];
 
 const COMMON_ALLOWED_COMMANDS: &[&str] = &[
-    "pytest",
-    "python",
-    "python3",
-    "npm",
-    "npx",
-    "node",
-    "pnpm",
-    "yarn",
-    "make",
-    "mvn",
-    "mvnw",
-    "gradle",
-    "gradlew",
-    "cargo",
-    "go",
-    "ruff",
-    "mypy",
-    "eslint",
-    "tsc",
-    "msbuild",
-    "dotnet",
-    "deno",
-    "bun",
-    "ruby",
-    "java",
-    "javac",
-    "cmake",
-    "clang",
-    "gcc",
-    "g++",
-    "git",
+    "pytest", "python", "python3", "npm", "npx", "node", "pnpm", "yarn", "make", "mvn", "mvnw",
+    "gradle", "gradlew", "cargo", "go", "ruff", "mypy", "eslint", "tsc", "msbuild", "dotnet",
+    "deno", "bun", "ruby", "java", "javac", "cmake", "clang", "gcc", "g++", "git",
 ];
 
 #[cfg(windows)]
@@ -199,7 +171,10 @@ fn default_workspace_script_extension_set() -> HashSet<String> {
     #[cfg(not(any(windows, unix)))]
     let extensions: &[&str] = &[];
 
-    extensions.iter().map(|value| (*value).to_string()).collect()
+    extensions
+        .iter()
+        .map(|value| (*value).to_string())
+        .collect()
 }
 
 pub fn validate_tool_arguments(
@@ -222,7 +197,7 @@ pub fn validate_tool_arguments_for_workspace(
             let mut task_policy = policy.clone();
             task_policy.max_exec_timeout_ms = policy.max_task_timeout_ms.min(86_400_000);
             validate_command_for_workspace(arguments, &task_policy, workspace)
-        },
+        }
         "apply_patch" | "patch_check" => validate_patch(arguments, policy),
         _ => Ok(()),
     }
@@ -351,7 +326,10 @@ pub fn validate_command_for_workspace(
 
     if let Some(timeout_ms) = arguments.get("timeout_ms").and_then(Value::as_u64) {
         if timeout_ms > policy.max_exec_timeout_ms {
-            return Err(PolicyError(format!("Command timeout exceeds execution policy ({} ms)", policy.max_exec_timeout_ms)));
+            return Err(PolicyError(format!(
+                "Command timeout exceeds execution policy ({} ms)",
+                policy.max_exec_timeout_ms
+            )));
         }
     }
 
@@ -361,7 +339,10 @@ pub fn validate_command_for_workspace(
 #[cfg(target_os = "linux")]
 fn platform_command_mismatch(executable: &str) -> Option<String> {
     let lower = executable.to_ascii_lowercase();
-    let windows_shell = matches!(lower.as_str(), "cmd" | "cmd.exe" | "powershell" | "powershell.exe");
+    let windows_shell = matches!(
+        lower.as_str(),
+        "cmd" | "cmd.exe" | "powershell" | "powershell.exe"
+    );
     let bytes = executable.as_bytes();
     let drive_path = bytes.len() >= 3
         && bytes[0].is_ascii_alphabetic()
@@ -629,7 +610,10 @@ mod tests {
         }
         assert!(policy.workspace_script_extensions.contains(".sh"));
         for extension in [".exe", ".bat", ".cmd", ".ps1"] {
-            assert!(!policy.workspace_script_extensions.contains(extension), "{extension}");
+            assert!(
+                !policy.workspace_script_extensions.contains(extension),
+                "{extension}"
+            );
         }
     }
 

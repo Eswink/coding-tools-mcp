@@ -10,6 +10,10 @@ use crate::platform::Platform;
 
 pub struct LinuxPlatform;
 
+pub(crate) fn listen_socket_present(port: u16) -> AppResult<bool> {
+    net::listen_socket_present(port)
+}
+
 impl Platform for LinuxPlatform {
     fn os_name(&self) -> &'static str {
         "linux"

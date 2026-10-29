@@ -3,20 +3,20 @@ mod client;
 mod config_check;
 pub(crate) use config_check::verify_frpc_configs;
 
+use crate::error::{AppError, AppResult};
 use crate::settings::AppSettings;
 #[allow(unused_imports)]
 use crate::settings::FrpProfile;
-use crate::workspace::WorkspaceProfile;
 use crate::workspace::endpoint::{normalize_server_host, FrpRouteOptions};
-use crate::error::{AppError, AppResult};
+use crate::workspace::WorkspaceProfile;
 use std::collections::HashSet;
 
 use super::TunnelServiceKind;
 
 pub(crate) use client::{
-    acquire_frpc_operation_lock, clear_managed_frpc_pid, frpc_log_name, frpc_reconnect_loop_detected,
-    managed_frpc_config_matches, probe_host_network_available, probe_local_actions_ok,
-    probe_local_mcp_ok, probe_public_mcp_endpoint, read_frpc_log_tail,
+    acquire_frpc_operation_lock, clear_managed_frpc_pid, frpc_log_name,
+    frpc_reconnect_loop_detected, managed_frpc_config_matches, probe_host_network_available,
+    probe_local_actions_ok, probe_local_mcp_ok, probe_public_mcp_endpoint, read_frpc_log_tail,
     stop_recorded_frpc_instance, PublicMcpProbe,
 };
 pub(crate) use client::{cached_frpc_path, download_frpc_to_cache};
@@ -111,7 +111,8 @@ pub fn frp_server_config(
     let token = token_override.or_else(|| resolve_frp_token(profile_id, profile, kind, settings));
 
     FrpServerConfig {
-        server_addr: normalize_server_host(&server_addr).unwrap_or_else(|_| server_addr.trim().to_string()),
+        server_addr: normalize_server_host(&server_addr)
+            .unwrap_or_else(|_| server_addr.trim().to_string()),
         server_port,
         token,
         proxy,
@@ -273,20 +274,40 @@ fn build_proxy_snippet(proxy: &FrpProxyConfig) -> String {
         format!("transport.useCompression = {}", options.use_compression),
     ];
     if options.domain_mode == "custom" {
-        let domain = options.custom_domain.trim().trim_end_matches('.').to_ascii_lowercase();
+        let domain = options
+            .custom_domain
+            .trim()
+            .trim_end_matches('.')
+            .to_ascii_lowercase();
         lines.push(format!("customDomains = [{}]", toml_string(&domain)));
     } else {
-        lines.push(format!("subdomain = {}", toml_string(proxy.subdomain.trim())));
+        lines.push(format!(
+            "subdomain = {}",
+            toml_string(proxy.subdomain.trim())
+        ));
     }
     if options.proxy_type == "https" && options.https_mode == "https2http" {
         lines.push("plugin.type = \"https2http\"".into());
-        lines.push(format!("plugin.localAddr = {}", toml_string(&options.target_address(proxy.local_port))));
-        lines.push(format!("plugin.crtPath = {}", toml_string(options.tls_cert_file.trim())));
-        lines.push(format!("plugin.keyPath = {}", toml_string(options.tls_key_file.trim())));
+        lines.push(format!(
+            "plugin.localAddr = {}",
+            toml_string(&options.target_address(proxy.local_port))
+        ));
+        lines.push(format!(
+            "plugin.crtPath = {}",
+            toml_string(options.tls_cert_file.trim())
+        ));
+        lines.push(format!(
+            "plugin.keyPath = {}",
+            toml_string(options.tls_key_file.trim())
+        ));
     } else {
-        let host = normalize_server_host(&options.local_ip).unwrap_or_else(|_| options.local_ip.clone());
+        let host =
+            normalize_server_host(&options.local_ip).unwrap_or_else(|_| options.local_ip.clone());
         lines.push(format!("localIP = {}", toml_string(&host)));
-        lines.push(format!("localPort = {}", options.target_port(proxy.local_port)));
+        lines.push(format!(
+            "localPort = {}",
+            options.target_port(proxy.local_port)
+        ));
     }
     lines.join("\n")
 }
@@ -310,12 +331,17 @@ fn toml_string(value: &str) -> String {
 }
 
 pub(crate) fn route_hostname(config: &FrpServerConfig) -> String {
-    config.proxy.options.hostname(&config.server_addr, &config.proxy.subdomain).unwrap_or_default()
+    config
+        .proxy
+        .options
+        .hostname(&config.server_addr, &config.proxy.subdomain)
+        .unwrap_or_default()
 }
 
 pub(crate) fn same_route(a: &FrpServerConfig, b: &FrpServerConfig) -> bool {
     let host = route_hostname(a);
-    !host.is_empty() && host == route_hostname(b)
+    !host.is_empty()
+        && host == route_hostname(b)
         && a.server_addr.eq_ignore_ascii_case(&b.server_addr)
         && a.server_port == b.server_port
         && a.proxy.options.proxy_type == b.proxy.options.proxy_type
@@ -323,29 +349,43 @@ pub(crate) fn same_route(a: &FrpServerConfig, b: &FrpServerConfig) -> bool {
 
 pub(crate) fn same_connection(a: &FrpServerConfig, b: &FrpServerConfig) -> bool {
     a.server_addr.eq_ignore_ascii_case(&b.server_addr)
-        && a.server_port == b.server_port && a.token == b.token
+        && a.server_port == b.server_port
+        && a.token == b.token
         && a.proxy.options.tcp_mux == b.proxy.options.tcp_mux
         && a.proxy.options.tls_enable == b.proxy.options.tls_enable
 }
 
-pub(crate) fn validate_frp_config(profile: &WorkspaceProfile, kind: TunnelServiceKind, settings: &AppSettings) -> AppResult<()> {
+pub(crate) fn validate_frp_config(
+    profile: &WorkspaceProfile,
+    kind: TunnelServiceKind,
+    settings: &AppSettings,
+) -> AppResult<()> {
     let profile_id = match kind {
         TunnelServiceKind::Mcp => &profile.tunnel.frp_profile_id,
         TunnelServiceKind::Actions => &profile.actions.frp_profile_id,
     };
     if !profile_id.is_empty() && settings.find_frp_profile(profile_id).is_none() {
-        return Err(AppError::Message("所选 FRP 配置不存在，请重新选择。".into()));
+        return Err(AppError::Message(
+            "所选 FRP 配置不存在，请重新选择。".into(),
+        ));
     }
     let config = frp_server_config(profile, kind, settings, Some(String::new()));
     normalize_server_host(&config.server_addr).map_err(AppError::Message)?;
     if config.server_port == 0 {
         return Err(AppError::Message("FRP 控制端口必须为 1–65535。".into()));
     }
-    config.proxy.options.public_origin(&config.server_addr, &config.proxy.subdomain).map_err(AppError::Message)?;
-    config.proxy.options.validate_target(config.proxy.local_port).map_err(AppError::Message)?;
+    config
+        .proxy
+        .options
+        .public_origin(&config.server_addr, &config.proxy.subdomain)
+        .map_err(AppError::Message)?;
+    config
+        .proxy
+        .options
+        .validate_target(config.proxy.local_port)
+        .map_err(AppError::Message)?;
     Ok(())
 }
-
 
 fn workspace_proxy_prefix(workspace_id: &str) -> String {
     let stable_id: String = workspace_id
@@ -565,12 +605,20 @@ mod tests {
         profile.tunnel.frp.custom_domain = "MCP.Example.COM.".into();
         let settings = AppSettings::default();
         assert!(validate_frp_config(&profile, TunnelServiceKind::Mcp, &settings).is_ok());
-        let config = frp_server_config(&profile, TunnelServiceKind::Mcp, &settings, Some("canary".into()));
+        let config = frp_server_config(
+            &profile,
+            TunnelServiceKind::Mcp,
+            &settings,
+            Some("canary".into()),
+        );
         let text = build_frpc_toml(&config);
         assert!(text.contains("customDomains = [\"mcp.example.com\"]"));
         assert!(!text.contains("subdomain ="));
         assert!(text.contains("serverAddr = \"203.0.113.10\""));
-        assert_eq!(frp_public_url(&profile, TunnelServiceKind::Mcp, &settings), "https://mcp.example.com");
+        assert_eq!(
+            frp_public_url(&profile, TunnelServiceKind::Mcp, &settings),
+            "https://mcp.example.com"
+        );
         assert_eq!(profile.public_endpoint(), "https://mcp.example.com/mcp");
         assert!(!frp_snippet(&profile, TunnelServiceKind::Mcp, &settings).contains("canary"));
     }
@@ -588,7 +636,12 @@ mod tests {
         profile.actions.frp.use_compression = true;
         profile.actions.local_port = 8999;
         let settings = AppSettings::default();
-        let config = frp_server_config(&profile, TunnelServiceKind::Actions, &settings, Some(String::new()));
+        let config = frp_server_config(
+            &profile,
+            TunnelServiceKind::Actions,
+            &settings,
+            Some(String::new()),
+        );
         let text = build_frpc_toml(&config);
         assert!(text.contains("plugin.type = \"https2http\""));
         assert!(text.contains("plugin.localAddr = \"[::1]:8999\""));
@@ -601,7 +654,12 @@ mod tests {
     fn shared_connection_includes_multiplexing_and_transport_tls() {
         let profile = WorkspaceProfile::new("/tmp/shared".into(), None);
         let settings = AppSettings::default();
-        let first = frp_server_config(&profile, TunnelServiceKind::Mcp, &settings, Some(String::new()));
+        let first = frp_server_config(
+            &profile,
+            TunnelServiceKind::Mcp,
+            &settings,
+            Some(String::new()),
+        );
         let mut next = first.clone();
         assert!(same_connection(&first, &next));
         next.proxy.options.tcp_mux = !first.proxy.options.tcp_mux;
@@ -613,8 +671,10 @@ mod tests {
 
     #[test]
     fn strings_cannot_inject_additional_toml_lines() {
-        assert_eq!(toml_string("x\"\nserverPort=1\u{7f}"), "\"x\\\"\\nserverPort=1\\u007F\"");
+        assert_eq!(
+            toml_string("x\"\nserverPort=1\u{7f}"),
+            "\"x\\\"\\nserverPort=1\\u007F\""
+        );
         assert_eq!(toml_string(r"C:\certs\key.pem"), r#""C:\\certs\\key.pem""#);
     }
-
 }

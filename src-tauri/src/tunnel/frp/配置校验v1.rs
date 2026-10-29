@@ -4,9 +4,9 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
+use super::{build_frpc_toml_for_routes, FrpServerConfig};
 use crate::error::{AppError, AppResult};
 use crate::platform::platform;
-use super::{build_frpc_toml_for_routes, FrpServerConfig};
 
 struct ValidationFile(PathBuf);
 impl Drop for ValidationFile {
@@ -22,7 +22,9 @@ pub(crate) async fn verify_frpc_configs(configs: &[FrpServerConfig]) -> AppResul
             for name in [&route.tls_cert_file, &route.tls_key_file] {
                 let path = std::path::Path::new(name.trim());
                 if !path.is_absolute() || !path.is_file() || std::fs::File::open(path).is_err() {
-                    return Err(AppError::Message("https2http 证书 / 私钥必须是本机可读取文件的绝对路径。".into()));
+                    return Err(AppError::Message(
+                        "https2http 证书 / 私钥必须是本机可读取文件的绝对路径。".into(),
+                    ));
                 }
             }
         }
@@ -42,22 +44,30 @@ pub(crate) async fn verify_frpc_configs(configs: &[FrpServerConfig]) -> AppResul
     let guard = ValidationFile(path);
     let mut checked = configs.to_vec();
     for config in &mut checked {
-        if config.token.is_some() { config.token = Some("validation-only-not-a-token".into()); }
+        if config.token.is_some() {
+            config.token = Some("validation-only-not-a-token".into());
+        }
     }
-    let written = file.write_all(build_frpc_toml_for_routes(&checked).as_bytes())
+    let written = file
+        .write_all(build_frpc_toml_for_routes(&checked).as_bytes())
         .and_then(|_| file.sync_all());
     drop(file);
     written?;
 
     let mut command = tokio::process::Command::new(binary);
-    command.arg("verify").arg("-c").arg(&guard.0)
-        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+    command
+        .arg("verify")
+        .arg("-c")
+        .arg(&guard.0)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .kill_on_drop(true);
     #[cfg(windows)]
     command.creation_flags(0x08000000);
-    let mut child = command.spawn().map_err(|error| {
-        AppError::Message(format!("无法启动 frpc 配置校验：{error}"))
-    })?;
+    let mut child = command
+        .spawn()
+        .map_err(|error| AppError::Message(format!("无法启动 frpc 配置校验：{error}")))?;
     let result = tokio::time::timeout(Duration::from_secs(15), child.wait()).await;
     match result {
         Ok(Ok(status)) if status.success() => Ok(()),

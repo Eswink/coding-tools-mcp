@@ -20,6 +20,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import linux_runtime_provenance as runtime
 
 VERSION = "0.2.6"
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -57,7 +58,8 @@ def port() -> int:
 
 
 class NativeSession:
-    def __init__(self, executable: Path, driver: Path, output: Path, attempt: int):
+    def __init__(self, executable: Path, driver: Path, output: Path, attempt: int, observer=None):
+        self.observer = observer
         self.session = ""
         self.process = None
         self.log = (output / f"原生驱动v1-{attempt}.log").open("wb")
@@ -75,14 +77,17 @@ class NativeSession:
             self.process = subprocess.Popen([str(driver), "--port", str(number), "--native-port", str(native),
                                              "--native-host", "127.0.0.1"], stdout=self.log, stderr=subprocess.STDOUT,
                                             start_new_session=True)
+            runtime.notify(self.observer, "attach", self.process)
             wait_for(lambda: request(self.base + "/status", timeout=3), timeout=15)
             result = request(self.base + "/session", {"capabilities": {"alwaysMatch": {
                 "browserName": "wry", "webkitgtk:browserOptions": {"binary": str(executable), "args": []}}}}, timeout=90)
             self.session = result["value"]["sessionId"]
             self.call("timeouts", {"script": 30000, "pageLoad": 60000, "implicit": 0})
             wait_for(lambda: self.execute("return !!window.__TAURI_INTERNALS__?.invoke"))
-        except BaseException:
-            self.close()
+        except BaseException as original:
+            try: self.close()
+            except BaseException as cleanup_error:
+                original.add_note("native cleanup failed: " + type(cleanup_error).__name__)
             raise
 
     def call(self, path: str, data: dict | None = None, method: str | None = None):
@@ -139,8 +144,11 @@ class NativeSession:
             return
 
     def close(self) -> None:
+        observer = getattr(self, "observer", None)
+        cleanup_completed = False
         try:
-            if self.session and self.process and self.process.poll() is None:
+            runtime.notify(observer, "checkpoint", "before-cleanup")
+            if self.session and self.process and leader_running(self.process):
                 try:
                     self.execute("setTimeout(()=>window.__TAURI_INTERNALS__.invoke('quit_app'),50);return true")
                     time.sleep(0.4)
@@ -151,16 +159,81 @@ class NativeSession:
                 except (OSError, RuntimeError):
                     pass
         finally:
-            self.session = ""
-            if self.process and self.process.poll() is None:
-                # This process group was created by this test, never a disk-restored PID.
-                os.killpg(self.process.pid, signal.SIGTERM)
+            try:
                 try:
-                    self.process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(self.process.pid, signal.SIGKILL)
-                    self.process.wait(timeout=5)
-            self.log.close()
+                    self.session = ""
+                    if self.process:
+                        # This process group was created by this test, never a disk-restored PID.
+                        stop_owned_group(self.process)
+                finally:
+                    original = sys.exc_info()[1]
+                    try: self.log.close()
+                    except BaseException as log_error:
+                        if original is None: raise
+                        original.add_note("native log cleanup failed: " + type(log_error).__name__)
+                cleanup_completed = True
+            finally:
+                runtime.notify(observer, "finish", cleanup_completed)
+
+
+def leader_running(process) -> bool:
+    """Non-reaping liveness check (WNOWAIT keeps an exited leader as a zombie)."""
+    return process.returncode is None and os.waitid(
+        os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None
+
+
+def group_members(pgid: int) -> list[int]:
+    """Live (non-zombie) processes still in the group, other than the pinned leader."""
+    members = []
+    for entry in os.scandir("/proc"):
+        if not entry.name.isdigit() or int(entry.name) == pgid:
+            continue
+        try:
+            with open(f"/proc/{entry.name}/stat", "rb") as handle:
+                fields = handle.read().rsplit(b")", 1)[1].split()
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        if int(fields[2]) == pgid and fields[0] != b"Z":
+            members.append(int(entry.name))
+    return members
+
+
+def stop_owned_group(process, term: float = 5.0, kill: float = 5.0) -> None:
+    """Signal the recorded group while the unreaped leader pins its id; reap the leader last."""
+    if process.returncode is not None:
+        # Already reaped: the group id may have been reused, so never signal it; never pass silently.
+        raise RuntimeError("native process group not cleanable: leader already reaped")
+    fd = os.pidfd_open(process.pid)
+    try:
+        def exited(budget: float) -> bool:
+            deadline = time.monotonic() + budget
+            while True:
+                try:
+                    if os.waitid(os.P_PIDFD, fd, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None:
+                        return True
+                except ChildProcessError:
+                    raise RuntimeError("native leader reaped by someone else; group not cleanable") from None
+                if time.monotonic() >= deadline:
+                    return False
+                time.sleep(0.05)
+        if os.getpgid(process.pid) != process.pid:
+            raise RuntimeError("native leader does not own its process group")
+        for number, budget in ((signal.SIGTERM, term), (signal.SIGKILL, kill)):
+            try:
+                os.killpg(process.pid, number)  # SIGKILL always follows, reaching stragglers.
+            except ProcessLookupError:
+                pass
+            exited(budget)
+        if not exited(0):
+            raise RuntimeError("native process group cleanup timed out; leader left unreaped")
+        deadline = time.monotonic() + kill
+        while group_members(process.pid):
+            if time.monotonic() >= deadline:
+                raise RuntimeError("native process group members remain; leader left unreaped")
+            time.sleep(0.05)
+        process.wait(timeout=5)
+    finally:
+        os.close(fd)
 
 
 def open_workspace(session: NativeSession, workspace_id: str) -> None:

@@ -4,20 +4,24 @@ mod actions;
 mod app_state;
 mod auth;
 mod bootstrap;
+mod cloud_application;
+mod cloud_connection;
 mod commands;
 mod data;
 mod error;
 pub mod harness;
 mod health;
 #[cfg(target_os = "linux")]
-mod linux_session_bus;
-#[cfg(target_os = "linux")]
 mod linux_secret_service;
+#[cfg(target_os = "linux")]
+mod linux_session_bus;
 mod mcp;
 mod platform;
 mod runtime;
 mod secret;
 mod settings;
+#[path = "workspace_snapshots/mod.rs"]
+mod snapshots;
 pub mod tools;
 mod tunnel;
 mod update;
@@ -25,27 +29,31 @@ mod workspace;
 
 use app_state::AppState;
 use commands::{
-    chat_authorization_control, chat_authorization_inbox, refresh_session_control, check_app_update, get_environment_diagnostics, get_startup_status, retry_startup, create_workspace, delete_frp_profile, delete_workspace,
-    get_actions_runtime_status, get_app_settings, get_download_config, get_frp_snippet,
-    get_last_workspace_id, get_proxy, get_runtime_status, get_shared_secret, get_webview_memory_sample,
-    pause_mcp_execution, resume_mcp_execution,
-    get_workspace_secret, hide_to_tray, install_software, list_frp_profiles, list_software,
-    list_workspaces, open_url, open_workspace_directory, quit_app, read_workspace_logs, control_exec_tasks,
-    recreate_ui_webview, regenerate_shared_secret, regenerate_workspace_secret,
-    restart_actions_runtime, restart_runtime, restart_tunnel, run_health_checks, save_frp_profile,
-    set_download_config, set_last_workspace, set_proxy, set_shared_secret, set_workspace_secret,
-    show_main_window, start_actions_runtime, start_runtime, start_tunnel, stop_actions_runtime,
-    stop_runtime, stop_tunnel, test_tunnel, uninstall_software, update_workspace,
+    chat_authorization_control, chat_authorization_inbox, check_app_update, control_exec_tasks,
+    create_workspace, delete_frp_profile, delete_workspace, get_actions_runtime_status,
+    get_app_settings, get_download_config, get_environment_diagnostics, get_frp_snippet,
+    get_last_workspace_id, get_proxy, get_runtime_status, get_shared_secret, get_startup_status,
+    get_webview_memory_sample, get_workspace_secret, hide_to_tray, install_software,
+    list_frp_profiles, list_software, list_workspaces, open_url, open_workspace_directory,
+    pause_mcp_execution, quit_app, read_workspace_logs, recreate_ui_webview,
+    refresh_session_control, regenerate_shared_secret, regenerate_workspace_secret,
+    restart_actions_runtime, restart_runtime, restart_tunnel, resume_mcp_execution, retry_startup,
+    run_health_checks, save_frp_profile, set_download_config, set_last_workspace, set_proxy,
+    set_shared_secret, set_workspace_secret, show_main_window, start_actions_runtime,
+    start_runtime, start_tunnel, stop_actions_runtime, stop_runtime, stop_tunnel, test_tunnel,
+    uninstall_software, update_workspace,
 };
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager, WindowEvent};
-use std::sync::atomic::{AtomicBool, Ordering};
+static CLOUD_EXIT_STARTED: AtomicBool = AtomicBool::new(false);
+static CLOUD_EXIT_DRAINED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(target_os = "windows")]
 fn signal_existing_instance() -> bool {
     use windows::core::w;
-    use windows::Win32::Foundation::{CloseHandle, HANDLE, GetLastError, ERROR_ALREADY_EXISTS};
+    use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
     use windows::Win32::System::Threading::{
         CreateEventW, CreateMutexW, OpenEventW, SetEvent, EVENT_MODIFY_STATE,
     };
@@ -199,7 +207,11 @@ pub fn run() {
             let state = AppState::new().expect("failed to create app state wrapper");
             let ready = state.is_ready();
             app.manage(state);
-            bootstrap::record(if ready { "app-state-ready" } else { "app-state-locked" });
+            bootstrap::record(if ready {
+                "app-state-ready"
+            } else {
+                "app-state-locked"
+            });
 
             if startup_mode.safe_mode {
                 bootstrap::record("tray-skipped-safe-mode");
@@ -226,6 +238,22 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::cloud_connection::import_cloud_connection,
+            commands::policy_hooks::preview_policy_hooks,
+            commands::policy_hooks::approve_policy_hooks,
+            commands::policy_hooks::get_policy_hooks,
+            commands::policy_hooks::disable_policy_hooks,
+            commands::managed_workspace::list_managed_workspaces,
+            commands::managed_workspace::register_managed_workspace,
+            commands::workspace_snapshots::snapshot_list,
+            commands::workspace_snapshots::snapshot_capture,
+            commands::workspace_snapshots::snapshot_plan_restore,
+            commands::workspace_snapshots::snapshot_restore,
+            commands::cloud_connection::get_cloud_connection_configuration,
+            commands::cloud_connection::import_cloud_connection_files,
+            commands::cloud_connection::start_cloud_connection,
+            commands::cloud_connection::stop_cloud_connection,
+            commands::cloud_connection::get_cloud_connection_status,
             list_workspaces,
             create_workspace,
             update_workspace,
@@ -291,6 +319,23 @@ pub fn run() {
                 // and take MCP/FRP down with it (0.1.30 regression).
                 if commands::ui_memory::should_prevent_exit() {
                     api.prevent_exit();
+                } else if !CLOUD_EXIT_DRAINED.load(Ordering::SeqCst) {
+                    api.prevent_exit();
+                    if !CLOUD_EXIT_STARTED.swap(true, Ordering::SeqCst) {
+                        let app = app_handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let result = app.state::<AppState>().cloud_agents.shutdown().await;
+                            if result.is_ok() {
+                                CLOUD_EXIT_DRAINED.store(true, Ordering::SeqCst);
+                                app.exit(0);
+                            } else {
+                                // A bounded wait is not a drain receipt. Keep the
+                                // app alive and the permanently closed manager owned.
+                                CLOUD_EXIT_STARTED.store(false, Ordering::SeqCst);
+                                let _ = app.emit("cloud-drain-incomplete", ());
+                            }
+                        });
+                    }
                 }
             }
             tauri::RunEvent::WindowEvent { label, event, .. } => {

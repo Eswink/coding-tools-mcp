@@ -1,0 +1,13 @@
+{
+ "schema": "rc-native-probe-assertion-changes/v1",
+ "profile": "original300",
+ "changes": [
+  {
+   "test": "rc_publication_github_cases.GitHubCases.test_mismatched_success_retains_uncertain_effect",
+   "old_assertion": "self.error(lambda: self.api.upload_asset(op, io.BytesIO(payload), before_write=lambda: None, check_active=lambda: None), 'unknown')",
+   "new_assertion": "rejected = self.error(<same upload, before_write records>, 'none'); assertEqual(rejected.code, 'invalid_request'); assertEqual(written, []); assertEqual(write requests (POST/PATCH/DELETE) at fixture, unchanged)",
+   "reason": "frozen02 owned request layer requires the stream to be the staged handle; a non-staged BytesIO upload is rejected before any write, so effect is none (reviewer decision option a, 2026-10-11)",
+   "locked_by": "rc_publication_request_cases.OwnedRequestCases.test_05_foreign_stream_offset_and_fresh_file_drift_reject_before_upload (scripts/rc_publication_request_cases.py:136)"
+  }
+ ]
+}

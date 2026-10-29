@@ -1,0 +1,28 @@
+{
+  "layout": "parent-child",
+  "subspecs": [
+    {
+      "id": "hook-registry",
+      "title": "Native approved immutable hook registry",
+      "fr": [
+        "FR-1",
+        "FR-2",
+        "FR-3"
+      ]
+    },
+    {
+      "id": "hook-execution",
+      "title": "Policy sandbox lifecycle and production dispatch",
+      "fr": [
+        "FR-4",
+        "FR-5",
+        "FR-6",
+        "FR-7",
+        "FR-8"
+      ],
+      "dependsOn": [
+        "hook-registry"
+      ]
+    }
+  ]
+}

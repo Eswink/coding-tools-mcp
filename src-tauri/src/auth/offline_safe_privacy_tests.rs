@@ -9,8 +9,12 @@ fn value_contains_secret(value: &Value, secret: &str) -> bool {
     }
     match value {
         Value::String(text) => text.contains(secret),
-        Value::Array(values) => values.iter().any(|value| value_contains_secret(value, secret)),
-        Value::Object(values) => values.values().any(|value| value_contains_secret(value, secret)),
+        Value::Array(values) => values
+            .iter()
+            .any(|value| value_contains_secret(value, secret)),
+        Value::Object(values) => values
+            .values()
+            .any(|value| value_contains_secret(value, secret)),
         _ => false,
     }
 }
@@ -44,19 +48,21 @@ async fn foreign_owner_is_non_disclosing_online_and_offline() {
     let port = reserve.local_addr().unwrap().port();
     drop(reserve);
 
-    let (stop, task, execution_gate) =
-        crate::mcp::spawn_listener_with_origin_and_execution_gate(
-            port,
-            root.path().into(),
-            profile.clone(),
-            AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
-            PublicOrigin::managed(fixture::ORIGIN).unwrap(),
-            None,
-            Some("password".into()),
-            Some(fixture::KEY.into()),
-            RuntimeConfig::default(),
-        )
-        .unwrap();
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
+        port,
+        root.path().into(),
+        profile.clone(),
+        AuthConfig {
+            oauth_client_id: "test-client".into(),
+            ..Default::default()
+        },
+        PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+        None,
+        Some("password".into()),
+        Some(fixture::KEY.into()),
+        RuntimeConfig::default(),
+    )
+    .unwrap();
     let client = fixture::client();
     let url = format!("http://127.0.0.1:{port}/mcp");
 
@@ -66,24 +72,46 @@ async fn foreign_owner_is_non_disclosing_online_and_offline() {
         root.path().display().to_string(),
         profile.clone(),
         owner["authorization"]["id"].as_str().unwrap().to_owned(),
-        owner["authorization"]["fingerprint"].as_str().unwrap().to_owned(),
+        owner["authorization"]["fingerprint"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
     ];
 
     let mut events = super::chat::service().subscribe();
-    for name in ["auth_status", "server_info", "request_chat_authorization", "list_exec_tasks"] {
+    for name in [
+        "auth_status",
+        "server_info",
+        "request_chat_authorization",
+        "list_exec_tasks",
+    ] {
         let blocked = invoke(&client, &url, name, "B").await;
-        assert_eq!(blocked["error"]["code"], "EXCLUSIVE_CHAT_LOCKED", "{name}: {blocked}");
+        assert_eq!(
+            blocked["error"]["code"], "EXCLUSIVE_CHAT_LOCKED",
+            "{name}: {blocked}"
+        );
         assert!(blocked.get("authorization").is_none(), "{name}: {blocked}");
         assert_no_workspace_secrets(&blocked, &secrets);
     }
     while let Ok(event) = events.try_recv() {
-        assert_ne!(event.profile, profile, "blocked foreign call emitted a profile event");
+        assert_ne!(
+            event.profile, profile,
+            "blocked foreign call emitted a profile event"
+        );
     }
 
     execution_gate.pause().unwrap();
-    for name in ["auth_status", "server_info", "request_chat_authorization", "list_exec_tasks"] {
+    for name in [
+        "auth_status",
+        "server_info",
+        "request_chat_authorization",
+        "list_exec_tasks",
+    ] {
         let blocked = invoke(&client, &url, name, "B").await;
-        assert_eq!(blocked["error"]["code"], "EXCLUSIVE_CHAT_LOCKED", "{name}: {blocked}");
+        assert_eq!(
+            blocked["error"]["code"], "EXCLUSIVE_CHAT_LOCKED",
+            "{name}: {blocked}"
+        );
         assert_ne!(blocked["error"]["code"], "WORKSPACE_OFFLINE");
         assert!(blocked.get("authorization").is_none(), "{name}: {blocked}");
         assert_no_workspace_secrets(&blocked, &secrets);
@@ -96,7 +124,10 @@ async fn foreign_owner_is_non_disclosing_online_and_offline() {
         assert_no_workspace_secrets(&blocked, &secrets);
     }
     while let Ok(event) = events.try_recv() {
-        assert_ne!(event.profile, profile, "blocked foreign call emitted a profile event");
+        assert_ne!(
+            event.profile, profile,
+            "blocked foreign call emitted a profile event"
+        );
     }
     assert_eq!(
         super::chat::service().snapshot(&profile)["records"]
@@ -120,19 +151,21 @@ async fn unapproved_offline_chat_and_control_plane_do_not_disclose_workspace_sta
     let port = reserve.local_addr().unwrap().port();
     drop(reserve);
 
-    let (stop, task, execution_gate) =
-        crate::mcp::spawn_listener_with_origin_and_execution_gate(
-            port,
-            root.path().into(),
-            profile.clone(),
-            AuthConfig { oauth_client_id: "test-client".into(), ..Default::default() },
-            PublicOrigin::managed(fixture::ORIGIN).unwrap(),
-            None,
-            Some("password".into()),
-            Some(fixture::KEY.into()),
-            RuntimeConfig::default(),
-        )
-        .unwrap();
+    let (stop, task, execution_gate) = crate::mcp::spawn_listener_with_origin_and_execution_gate(
+        port,
+        root.path().into(),
+        profile.clone(),
+        AuthConfig {
+            oauth_client_id: "test-client".into(),
+            ..Default::default()
+        },
+        PublicOrigin::managed(fixture::ORIGIN).unwrap(),
+        None,
+        Some("password".into()),
+        Some(fixture::KEY.into()),
+        RuntimeConfig::default(),
+    )
+    .unwrap();
     let client = fixture::client();
     let url = format!("http://127.0.0.1:{port}/mcp");
     let secrets = vec![root.path().display().to_string(), profile.clone()];
@@ -145,7 +178,10 @@ async fn unapproved_offline_chat_and_control_plane_do_not_disclose_workspace_sta
 
     for name in ["server_info", "list_exec_tasks"] {
         let blocked = invoke(&client, &url, name, "C").await;
-        assert_eq!(blocked["error"]["code"], "CHAT_AUTHORIZATION_REQUIRED", "{name}: {blocked}");
+        assert_eq!(
+            blocked["error"]["code"], "CHAT_AUTHORIZATION_REQUIRED",
+            "{name}: {blocked}"
+        );
         assert_ne!(blocked["error"]["code"], "WORKSPACE_OFFLINE");
         assert_no_workspace_secrets(&blocked, &secrets);
     }

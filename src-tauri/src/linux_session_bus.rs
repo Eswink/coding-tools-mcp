@@ -107,9 +107,9 @@ fn probe_bus(address: &str) -> BusProbe {
     } else {
         let activatable: Result<(Vec<String>,), dbus::Error> =
             proxy.method_call(DBUS_SERVICE, "ListActivatableNames", ());
-        activatable.ok().is_some_and(|(names,)| {
-            names.iter().any(|name| name == SECRET_SERVICE)
-        })
+        activatable
+            .ok()
+            .is_some_and(|(names,)| names.iter().any(|name| name == SECRET_SERVICE))
     };
     BusProbe {
         reachable: true,
@@ -179,10 +179,7 @@ pub(crate) fn prepare_secure_storage_bus() -> SessionBusState {
             .ok()
             .filter(|value| !value.is_empty());
         let runtime = runtime_user_bus_address();
-        let inherited_probe = inherited
-            .as_deref()
-            .map(probe_bus)
-            .unwrap_or_default();
+        let inherited_probe = inherited.as_deref().map(probe_bus).unwrap_or_default();
         let runtime_probe = runtime.as_deref().map(probe_bus).unwrap_or_default();
         let state = decide_route(
             original_configured,
@@ -246,12 +243,7 @@ mod tests {
 
     #[test]
     fn missing_inherited_bus_can_use_verified_runtime_user_bus() {
-        let state = decide_route(
-            false,
-            false,
-            BusProbe::default(),
-            probe(true, true, true),
-        );
+        let state = decide_route(false, false, BusProbe::default(), probe(true, true, true));
         assert_eq!(state.route, SessionBusRoute::RuntimeUserBus);
         assert!(!state.split_detected);
         assert!(state.selected_bus_reachable());
@@ -272,21 +264,11 @@ mod tests {
 
     #[test]
     fn missing_or_unreachable_bus_is_not_reported_as_reachable() {
-        let configured = decide_route(
-            true,
-            false,
-            BusProbe::default(),
-            BusProbe::default(),
-        );
+        let configured = decide_route(true, false, BusProbe::default(), BusProbe::default());
         assert_eq!(configured.route, SessionBusRoute::Inherited);
         assert!(!configured.selected_bus_reachable());
 
-        let missing = decide_route(
-            false,
-            false,
-            BusProbe::default(),
-            BusProbe::default(),
-        );
+        let missing = decide_route(false, false, BusProbe::default(), BusProbe::default());
         assert_eq!(missing.route, SessionBusRoute::Unavailable);
         assert!(!missing.selected_bus_reachable());
     }

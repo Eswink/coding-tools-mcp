@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "linux"))]
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
@@ -19,6 +20,7 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
         .unwrap_or(true);
 
     let root_check = run_git(
+        ws.root(),
         &resolved.path,
         &["rev-parse", "--show-toplevel"],
         Duration::from_secs(10),
@@ -36,7 +38,12 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
     if !include_untracked {
         status_args.push("--untracked-files=no");
     }
-    let completed = run_git(&resolved.path, &status_args, Duration::from_secs(10))?;
+    let completed = run_git(
+        ws.root(),
+        &resolved.path,
+        &status_args,
+        Duration::from_secs(10),
+    )?;
     if !completed.success && completed.exit_code != 0 {
         return Err(git_error(&completed.stderr));
     }
@@ -81,7 +88,7 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
         }
     }
 
-    let head = git_rev_parse(&resolved.path, "HEAD").unwrap_or_default();
+    let head = git_rev_parse(ws.root(), &resolved.path, "HEAD").unwrap_or_default();
     Ok(tool_ok(json!({
         "is_repo": true,
         "branch": branch,
@@ -98,7 +105,10 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
 
 pub fn git_diff(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
     let staged = args.get("staged").and_then(Value::as_bool).unwrap_or(false);
-    let unstaged = args.get("unstaged").and_then(Value::as_bool).unwrap_or(true);
+    let unstaged = args
+        .get("unstaged")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
     let context = args
         .get("context_lines")
         .and_then(Value::as_u64)
@@ -203,7 +213,7 @@ pub fn git_log(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
         cmd_args.push(path_filter.as_str());
     }
 
-    let completed = run_git(ws.root(), &cmd_args, Duration::from_secs(10))?;
+    let completed = run_git(ws.root(), ws.root(), &cmd_args, Duration::from_secs(10))?;
     if !completed.success {
         return Err(git_error(&completed.stderr));
     }
@@ -280,7 +290,13 @@ pub fn git_show(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
     }
 
     let unified = format!("--unified={context}");
-    let mut cmd_args = vec!["show", "--no-ext-diff", "--format=fuller", unified.as_str()];
+    let mut cmd_args = vec![
+        "show",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--format=fuller",
+        unified.as_str(),
+    ];
     if !include_diff {
         cmd_args.push("--no-patch");
     }
@@ -292,7 +308,7 @@ pub fn git_show(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
         }
     }
 
-    let completed = run_git(ws.root(), &cmd_args, Duration::from_secs(10))?;
+    let completed = run_git(ws.root(), ws.root(), &cmd_args, Duration::from_secs(10))?;
     if !completed.success {
         return Err(git_error(&completed.stderr));
     }
@@ -346,7 +362,10 @@ pub fn git_blame(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> 
         .and_then(Value::as_u64)
         .unwrap_or(1)
         .max(1) as usize;
-    let end_line_arg = args.get("end_line").and_then(Value::as_u64).map(|v| v as usize);
+    let end_line_arg = args
+        .get("end_line")
+        .and_then(Value::as_u64)
+        .map(|v| v as usize);
     let max_lines = args
         .get("max_lines")
         .and_then(Value::as_u64)
@@ -374,7 +393,7 @@ pub fn git_blame(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> 
     cmd_args.push("--");
     cmd_args.push(resolved.display.as_str());
 
-    let completed = run_git(ws.root(), &cmd_args, Duration::from_secs(10))?;
+    let completed = run_git(ws.root(), ws.root(), &cmd_args, Duration::from_secs(10))?;
     if !completed.success {
         return Err(git_error(&completed.stderr));
     }
@@ -418,10 +437,7 @@ fn parse_git_blame_porcelain(output: &str) -> Vec<Value> {
         let parts: Vec<&str> = raw.split_whitespace().collect();
         if parts.len() >= 3 && commit_re.is_match(parts[0]) {
             current = serde_json::Map::new();
-            current.insert(
-                "commit".into(),
-                json!(parts[0].trim_start_matches('^')),
-            );
+            current.insert("commit".into(), json!(parts[0].trim_start_matches('^')));
             if parts[1].chars().all(|c| c.is_ascii_digit()) {
                 current.insert("original_line".into(), json!(parts[1].parse::<i64>().ok()));
             }
@@ -470,20 +486,33 @@ struct GitOutput {
     stderr: String,
 }
 
-fn run_git(cwd: &std::path::Path, args: &[&str], limit: Duration) -> Result<GitOutput, WorkspaceError> {
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(cwd).args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
-    }
-    let output = cmd
-        .output()
-        .map_err(|e| git_error(&format!("git not available: {e}")))?;
-    let _ = limit;
+fn run_git(
+    root: &std::path::Path,
+    cwd: &std::path::Path,
+    args: &[&str],
+    limit: Duration,
+) -> Result<GitOutput, WorkspaceError> {
+    #[cfg(target_os = "linux")]
+    let output = super::git_runner::run(root, cwd, args, limit).map_err(git_error)?;
+    #[cfg(not(target_os = "linux"))]
+    let output = {
+        let _ = (root, limit);
+        let mut cmd = Command::new("git");
+        cmd.arg("-C")
+            .arg(cwd)
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
+        }
+        cmd.output()
+            .map_err(|e| git_error(&format!("git not available: {e}")))?
+    };
     Ok(GitOutput {
         success: output.status.success(),
         exit_code: output.status.code().unwrap_or(-1),
@@ -499,7 +528,7 @@ fn run_git_diff(
     cached: bool,
 ) -> Result<String, WorkspaceError> {
     let unified = format!("--unified={context}");
-    let mut args = vec!["diff", unified.as_str()];
+    let mut args = vec!["diff", "--no-ext-diff", "--no-textconv", unified.as_str()];
     if cached {
         args.push("--cached");
     }
@@ -509,7 +538,7 @@ fn run_git_diff(
             args.push(p.as_str());
         }
     }
-    let completed = run_git(root, &args, Duration::from_secs(10))?;
+    let completed = run_git(root, root, &args, Duration::from_secs(10))?;
     if completed.exit_code != 0 && completed.exit_code != 1 {
         return Err(git_error(&completed.stderr));
     }
@@ -517,13 +546,18 @@ fn run_git_diff(
 }
 
 fn is_git_repo(root: &std::path::Path) -> bool {
-    run_git(root, &["rev-parse", "--git-dir"], Duration::from_secs(5))
-        .map(|o| o.success)
-        .unwrap_or(false)
+    run_git(
+        root,
+        root,
+        &["rev-parse", "--git-dir"],
+        Duration::from_secs(5),
+    )
+    .map(|o| o.success)
+    .unwrap_or(false)
 }
 
-fn git_rev_parse(cwd: &std::path::Path, rev: &str) -> Option<String> {
-    run_git(cwd, &["rev-parse", rev], Duration::from_secs(5))
+fn git_rev_parse(root: &std::path::Path, cwd: &std::path::Path, rev: &str) -> Option<String> {
+    run_git(root, cwd, &["rev-parse", rev], Duration::from_secs(5))
         .ok()
         .filter(|o| o.success)
         .map(|o| o.stdout.trim().to_string())

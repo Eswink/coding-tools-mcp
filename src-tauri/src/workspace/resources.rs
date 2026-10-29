@@ -182,7 +182,8 @@ fn validate_candidate_subdomains(
     existing: &[ServiceClaim<'_>],
     candidate: &[ServiceClaim<'_>],
 ) -> AppResult<()> {
-    let mut candidate_subdomains = HashMap::<(String, u16, String, String), ServiceClaim<'_>>::new();
+    let mut candidate_subdomains =
+        HashMap::<(String, u16, String, String), ServiceClaim<'_>>::new();
     for claim in candidate.iter().copied().filter(|claim| claim.uses_frp) {
         let Some(normalized) = route_key(claim) else {
             continue;
@@ -282,25 +283,44 @@ fn same_non_empty_subdomain(left: ServiceClaim<'_>, right: ServiceClaim<'_>) -> 
 }
 
 fn route_key(claim: ServiceClaim<'_>) -> Option<(String, u16, String, String)> {
-    if !claim.uses_frp { return None; }
+    if !claim.uses_frp {
+        return None;
+    }
     let profile = claim.profile;
     let (profile_id, inline_server, inline_port, options) = match claim.service {
-        WorkspaceService::Mcp => (&profile.tunnel.frp_profile_id, &profile.tunnel.frp_server,
-            profile.tunnel.frp_server_port, &profile.tunnel.frp),
-        WorkspaceService::Actions => (&profile.actions.frp_profile_id, &profile.actions.frp_server,
-            profile.actions.frp_server_port, &profile.actions.frp),
+        WorkspaceService::Mcp => (
+            &profile.tunnel.frp_profile_id,
+            &profile.tunnel.frp_server,
+            profile.tunnel.frp_server_port,
+            &profile.tunnel.frp,
+        ),
+        WorkspaceService::Actions => (
+            &profile.actions.frp_profile_id,
+            &profile.actions.frp_server,
+            profile.actions.frp_server_port,
+            &profile.actions.frp,
+        ),
     };
     let settings = crate::settings::AppSettings::load_or_default();
-    let (server, port) = settings.find_frp_profile(profile_id)
+    let (server, port) = settings
+        .find_frp_profile(profile_id)
         .map(|value| (value.server.as_str(), value.server_port))
         .unwrap_or((inline_server.as_str(), inline_port));
     let hostname = options.hostname(server, claim.subdomain).ok().or_else(|| {
         // Preserve conflict diagnostics while an old, incomplete draft has no
         // server yet. This sentinel must never be exposed as a public URL.
-        if options.domain_mode == "subdomain" && server.trim().is_empty()
-            && options.subdomain_host.trim().is_empty() && !claim.subdomain.trim().is_empty() {
-            Some(format!("<draft>:{}", claim.subdomain.trim().to_ascii_lowercase()))
-        } else { None }
+        if options.domain_mode == "subdomain"
+            && server.trim().is_empty()
+            && options.subdomain_host.trim().is_empty()
+            && !claim.subdomain.trim().is_empty()
+        {
+            Some(format!(
+                "<draft>:{}",
+                claim.subdomain.trim().to_ascii_lowercase()
+            ))
+        } else {
+            None
+        }
     })?;
     let server = super::endpoint::normalize_server_host(server)
         .unwrap_or_else(|_| server.trim().to_ascii_lowercase());
@@ -548,5 +568,4 @@ mod tests {
         second.tunnel.frp.custom_domain = "mcp.example.com".into();
         assert!(validate_workspace_resources(&[first], &second).is_err());
     }
-
 }

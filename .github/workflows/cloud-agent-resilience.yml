@@ -1,0 +1,329 @@
+name: Cloud agent resilience (S1)
+
+# Exact-source CI evidence for the always-on cloud Agent: reconnect, error
+# classification, half-open detection and supervised start. Standalone: it does
+# not change, replace or gate any existing workflow, release or FINAL step.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feat/gateway-s1-*']
+    paths:
+      - 'services/cloud-agent/**'
+      - 'src-tauri/src/cloud_application.rs'
+      - 'src-tauri/src/cloud_application/**'
+      - 'src-tauri/src/cloud_connection/**'
+      - 'src-tauri/src/commands/cloud_connection.rs'
+      - 'src-tauri/src/commands/runtime.rs'
+      - 'services/cloud-gateway/tests/**'
+      - 'services/cloud-gateway/examples/**'
+      - 'src-tauri/src/tools/cloud_host/**'
+      - '.github/workflows/cloud-agent-resilience.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: cloud-agent-resilience-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: never
+  RUST_BACKTRACE: '1'
+
+jobs:
+  cloud-agent:
+    name: cloud-agent fault injection (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/cloud-agent
+      - name: Format, lint and test (includes real TLS/WSS fault injection)
+        id: agent
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          rustc --version > evidence/toolchain.txt
+          openssl version > evidence/openssl.txt
+          cargo fmt --check --manifest-path services/cloud-agent/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/agent-clippy.txt
+          cargo rustc --locked --manifest-path services/cloud-agent/Cargo.toml --lib -- -D warnings
+          cargo test --locked --manifest-path services/cloud-agent/Cargo.toml 2>&1 | tee evidence/agent-full.txt
+          grep -E 'test result: ok\. [0-9]+ passed; 0 failed; 0 ignored' evidence/agent-full.txt
+          # `! grep` does not fail a `set -e` step, so test the match explicitly.
+          if grep -E 'test result: FAILED|FAILED' evidence/agent-full.txt; then
+            echo 'cloud-agent test run contains a failure' >&2
+            exit 1
+          fi
+          cargo test --locked --manifest-path services/cloud-agent/Cargo.toml --lib agent::host::tests::fault -- --nocapture 2>&1 | tee evidence/agent-fault-injection.txt
+          grep -E 'test result: ok\. [0-9]+ passed; 0 failed' evidence/agent-fault-injection.txt
+          git diff --exit-code HEAD --
+      - name: Preserve status without masking failures
+        if: always()
+        env:
+          AGENT_RESULT: ${{ steps.agent.outcome }}
+        run: |
+          mkdir -p evidence
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          root=pathlib.Path('evidence')
+          (root/'result.json').write_text(json.dumps({
+            'source_sha':os.environ['GITHUB_SHA'], 'run_id':os.environ['GITHUB_RUN_ID'],
+            'runner_os':os.environ['RUNNER_OS'], 'passed':os.environ['AGENT_RESULT']=='success',
+            'scope':'cloud-agent crate: reconnect state machine and loopback TLS/WSS fault injection; no PostgreSQL, no real gateway, no physical host',
+            'sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob('*.txt')}
+          },indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cloud-agent-resilience-agent-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  native-application:
+    name: cloud_application and cloud_connection (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Native build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: cloud_application unit tests
+        id: native
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          export PATH="/usr/bin:$PATH"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- cloud_application cloud_connection --test-threads=1 2>&1 | tee evidence/native-cloud-application.txt
+          grep -E 'test result: ok\. [0-9]+ passed; 0 failed' evidence/native-cloud-application.txt
+          if grep -E 'test result: FAILED|FAILED' evidence/native-cloud-application.txt; then
+            echo 'native test run contains a failure' >&2
+            exit 1
+          fi
+          git diff --exit-code HEAD --
+      - name: Preserve status without masking failures
+        if: always()
+        env:
+          NATIVE_RESULT: ${{ steps.native.outcome }}
+        run: |
+          mkdir -p evidence
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          root=pathlib.Path('evidence')
+          (root/'result.json').write_text(json.dumps({
+            'source_sha':os.environ['GITHUB_SHA'], 'run_id':os.environ['GITHUB_RUN_ID'],
+            'runner_os':os.environ['RUNNER_OS'], 'passed':os.environ['NATIVE_RESULT']=='success',
+            'scope':'src-tauri cloud_application unit tests only; not GUI, not a real gateway, not a physical host',
+            'sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob('*.txt')}
+          },indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cloud-agent-resilience-native-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+
+  # GO-B#6: native fixture + live wss_tests (no nginx/two_hop) + fault suite x3.
+  # Paths deliberately omit cloud-gateway library sources. eng != QUALIFIED != FINAL.
+  native-gateway-e2e:
+    name: native gateway e2e (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mcp_test
+          POSTGRES_PASSWORD: disposable-ci-fixture
+          POSTGRES_DB: coding_tools_identity_test
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U mcp_test -d coding_tools_identity_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            services/cloud-gateway
+            src-tauri
+      - name: Native build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - name: Build fixture and run live wss_tests (skip fault)
+        id: e2e-live
+        env:
+          TEST_DATABASE_URL: postgresql://mcp_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/coding_tools_identity_test
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          export PATH="/usr/bin:$PATH"
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --example native_desktop_fixture
+          export CTM_NATIVE_GATEWAY_FIXTURE_BIN="$GITHUB_WORKSPACE/services/cloud-gateway/target/debug/examples/native_desktop_fixture"
+          echo "CTM_NATIVE_GATEWAY_FIXTURE_BIN=$CTM_NATIVE_GATEWAY_FIXTURE_BIN" >> "$GITHUB_ENV"
+          # Baseline live under wss_tests without fault: 6+2+3=11 (no nginx/two_hop feature).
+          cargo test --locked --manifest-path src-tauri/Cargo.toml \
+            --features cloud-agent-integration-tests --lib \
+            tools::cloud_host::live::wss_tests \
+            -- --skip fault_tests:: --nocapture --test-threads=1 2>&1 | tee evidence/native-wss-live.txt
+          grep -E 'test result: ok\. 11 passed; 0 failed' evidence/native-wss-live.txt
+          if grep -E 'test result: FAILED|FAILED' evidence/native-wss-live.txt; then
+            echo 'native-gateway-e2e live run contains a failure' >&2
+            exit 1
+          fi
+          git diff --exit-code HEAD --
+      - name: Fault suite three-peat (wss_tests::fault_tests)
+        id: e2e-fault
+        if: hashFiles('src-tauri/src/tools/cloud_host/live/wss_fault_tests.rs') != ''
+        env:
+          TEST_DATABASE_URL: postgresql://mcp_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/coding_tools_identity_test
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          export PATH="/usr/bin:$PATH"
+          test -n "${CTM_NATIVE_GATEWAY_FIXTURE_BIN:-}"
+          test -x "$CTM_NATIVE_GATEWAY_FIXTURE_BIN"
+          for i in 1 2 3; do
+            cargo test --locked --manifest-path src-tauri/Cargo.toml \
+              --features cloud-agent-integration-tests --lib \
+              tools::cloud_host::live::wss_tests::fault_tests \
+              -- --nocapture --test-threads=1 2>&1 | tee "evidence/native-wss-fault-${i}.txt"
+            grep -E 'test result: ok\. 5 passed; 0 failed' "evidence/native-wss-fault-${i}.txt"
+            if grep -E 'test result: FAILED|FAILED' "evidence/native-wss-fault-${i}.txt"; then
+              echo "native-gateway-e2e fault run ${i} contains a failure" >&2
+              exit 1
+            fi
+          done
+          git diff --exit-code HEAD --
+      - name: Preserve evidence
+        if: always()
+        env:
+          LIVE_RESULT: ${{ steps.e2e-live.outcome }}
+          FAULT_RESULT: ${{ steps.e2e-fault.outcome }}
+        run: |
+          mkdir -p evidence
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          root=pathlib.Path('evidence')
+          live=os.environ.get('LIVE_RESULT','')
+          fault=os.environ.get('FAULT_RESULT','')
+          passed = live == 'success' and fault in ('success', 'skipped')
+          (root/'result.json').write_text(json.dumps({
+            'source_sha':os.environ['GITHUB_SHA'],
+            'run_id':os.environ['GITHUB_RUN_ID'],
+            'runner_os':os.environ['RUNNER_OS'],
+            'passed':passed,
+            'live_outcome':live,
+            'fault_outcome':fault,
+            'scope':'native fixture + live wss_tests (skip fault_tests) + fault suite x3; hermetic eng evidence; not QUALIFIED; not GUI; not physical host; not issue40/nginx two-hop',
+            'sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.glob('*.txt'))}
+          },indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cloud-agent-resilience-native-gateway-e2e-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+  # Manual only (workflow_dispatch): never part of the push gate, so it cannot block or
+  # change the existing jobs. The nginx two-hop topology is NOT duplicated here: it already
+  # runs, with the real Docker/nginx harness, in issue40-current-nginx-include.yml
+  # (`runtime` job, tls_two_hop_device_revoke_survives_gateway_database_restart included).
+  native-application-windows:
+    name: cloud_application and cloud_connection (windows-2025, manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: cloud_application and cloud_connection unit tests (Windows)
+        id: native
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-commit.txt
+          rustc --version > evidence/toolchain.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- cloud_application cloud_connection --test-threads=1 2>&1 | tee evidence/native-cloud-application-windows.txt
+          grep -E 'test result: ok\. [0-9]+ passed; 0 failed' evidence/native-cloud-application-windows.txt
+          if grep -E 'test result: FAILED|FAILED' evidence/native-cloud-application-windows.txt; then
+            echo 'windows native test run contains a failure' >&2
+            exit 1
+          fi
+      - name: Preserve status without masking failures
+        if: always()
+        env:
+          NATIVE_RESULT: ${{ steps.native.outcome }}
+        run: |
+          mkdir -p evidence
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          root=pathlib.Path('evidence')
+          (root/'result.json').write_text(json.dumps({
+            'source_sha':os.environ['GITHUB_SHA'], 'run_id':os.environ['GITHUB_RUN_ID'],
+            'runner_os':os.environ['RUNNER_OS'], 'passed':os.environ['NATIVE_RESULT']=='success',
+            'scope':'src-tauri cloud_application and cloud_connection unit tests on Windows only; not GUI, not a real gateway, not a physical host',
+            'sha256':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob('*.txt')}
+          },indent=2),encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: cloud-agent-resilience-native-windows-${{ github.run_id }}
+          path: evidence/
+          retention-days: 14
+          if-no-files-found: error

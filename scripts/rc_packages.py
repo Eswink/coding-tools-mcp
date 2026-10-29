@@ -22,7 +22,7 @@ from exclusive_packages import (
     require,
     verify_record,
 )
-from rc_version_gate import verify_source
+from rc_version_gate import STABLE_VERSION, source_channel, verify_source
 
 RC_VERSION = re.compile(r"((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))-rc\.((?:0|[1-9]\d*))")
 
@@ -34,10 +34,17 @@ def debian_version(app_version: str) -> str:
     return f"{match.group(1)}~rc{match.group(2)}"
 
 
+def deb_package_version(app_version: str) -> str:
+    """Strict stable x.y.z keeps its own Debian version; RC maps through debian_version."""
+    if isinstance(app_version, str) and STABLE_VERSION.fullmatch(app_version):
+        return app_version
+    return debian_version(app_version)
+
+
 def repack_deb(source: Path, target: Path, app_version: str) -> str:
     """Rebuild only DEB metadata so future stable x.y.z sorts above x.y.z~rcN."""
     require(source.is_file() and not source.is_symlink(), "candidate DEB source must be a regular file")
-    package_version = debian_version(app_version)
+    package_version = deb_package_version(app_version)
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="coding-tools-rc-deb-") as raw:
         root = Path(raw)
@@ -60,7 +67,7 @@ def repack_deb(source: Path, target: Path, app_version: str) -> str:
 
 
 def identity(source: str, root: Path) -> dict:
-    proof = verify_source(root, expected_sha=source)
+    proof = verify_source(root, expected_sha=source, channel=source_channel(root))
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     require(bool(run_id) and run_id.isdecimal() and os.environ.get("GITHUB_SHA") == source,
             "exact CI source/run required")
@@ -72,12 +79,16 @@ def identity(source: str, root: Path) -> dict:
     }
 
 
-def prepare(root: Path, output: Path, source: str) -> dict:
+def prepare(root: Path, output: Path, source: str, bundle_directory: Path | None = None) -> dict:
     data = identity(source, root)
     output.mkdir(parents=True, exist_ok=False)
+    bundle = root / "src-tauri/target/release/bundle" if bundle_directory is None else bundle_directory
+    if bundle_directory is not None:
+        from linux_package_provenance_contract import check_bundle_directory
+        check_bundle_directory(bundle, Path(os.environ["CARGO_TARGET_DIR"]))
     packages = {}
     for kind, suffix in (("deb", ".deb"), ("appimage", ".AppImage")):
-        choices = list((root / "src-tauri/target/release/bundle" / kind).glob("*" + suffix))
+        choices = list((bundle / kind).glob("*" + suffix))
         require(len(choices) == 1, "exactly one candidate package per format required")
         target = output / f"MCP_{data['version']}_amd64{suffix}"
         if kind == "deb":
@@ -110,7 +121,7 @@ def load_manifest(directory: Path, root: Path, source: str) -> dict:
     for kind, entry in data["packages"].items():
         verify_record(directory, entry["artifact"])
         require(bool(SHA.fullmatch(entry.get("payload_sha256", ""))), "missing candidate payload digest")
-        expected_package_version = debian_version(data["version"]) if kind == "deb" else data["version"]
+        expected_package_version = deb_package_version(data["version"]) if kind == "deb" else data["version"]
         require(entry.get("package_version") == expected_package_version,
                 "candidate package-manager version mismatch")
     return data
@@ -165,10 +176,11 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source", required=True)
     parser.add_argument("--kind", choices=["deb", "appimage"])
+    parser.add_argument("--bundle-directory", type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.mode == "prepare":
-        value = prepare(args.directory.resolve(), args.output.resolve(), args.source)
+        value = prepare(args.directory.resolve(), args.output.resolve(), args.source, args.bundle_directory)
     else:
         if not args.kind:
             parser.error("installed requires --kind")

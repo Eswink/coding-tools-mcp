@@ -56,12 +56,16 @@ pub async fn set_workspace_secret(
 ) -> AppResult<()> {
     validate_key(&key)?;
     ensure_workspace_exists(&state, &id)?;
-    super::configuration::write_secret(&state, Some(&id), &key, Some(&value)).await.map(|_| ())
+    super::configuration::write_secret(&state, Some(&id), &key, Some(&value))
+        .await
+        .map(|_| ())
 }
 
 #[tauri::command]
 pub async fn regenerate_workspace_secret(
-    state: State<'_, AppState>, id: String, key: String,
+    state: State<'_, AppState>,
+    id: String,
+    key: String,
 ) -> AppResult<String> {
     validate_key(&key)?;
     super::configuration::write_secret(&state, Some(&id), &key, None).await
@@ -89,18 +93,25 @@ pub fn get_shared_secret(state: State<'_, AppState>, key: String) -> AppResult<O
 
 #[tauri::command]
 pub async fn set_shared_secret(
-    state: State<'_, AppState>, key: String, value: String,
+    state: State<'_, AppState>,
+    key: String,
+    value: String,
 ) -> AppResult<()> {
     if !SHARED_KEYS.contains(&key.as_str()) {
         return Err(AppError::Message(format!("invalid shared key: {key}")));
     }
-    if value.is_empty() { return Err(AppError::Message("密钥不能为空。".into())); }
-    super::configuration::write_secret(&state, None, &key, Some(&value)).await.map(|_| ())
+    if value.is_empty() {
+        return Err(AppError::Message("密钥不能为空。".into()));
+    }
+    super::configuration::write_secret(&state, None, &key, Some(&value))
+        .await
+        .map(|_| ())
 }
 
 #[tauri::command]
 pub async fn regenerate_shared_secret(
-    state: State<'_, AppState>, key: String,
+    state: State<'_, AppState>,
+    key: String,
 ) -> AppResult<String> {
     if !SHARED_KEYS.contains(&key.as_str()) {
         return Err(AppError::Message(format!("invalid shared key: {key}")));

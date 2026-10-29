@@ -8,7 +8,9 @@ use std::sync::OnceLock;
 fn log_path() -> Option<PathBuf> {
     let root = std::env::var_os("XDG_STATE_HOME")
         .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/state")))?;
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/state"))
+        })?;
     Some(root.join("coding-tools-mcp").join("bootstrap.log"))
 }
 
@@ -36,7 +38,10 @@ fn mode_from_args(args: impl IntoIterator<Item = OsString>) -> StartupMode {
             diagnose_startup = true;
         }
     }
-    StartupMode { safe_mode, diagnose_startup }
+    StartupMode {
+        safe_mode,
+        diagnose_startup,
+    }
 }
 
 pub fn startup_mode() -> StartupMode {
@@ -54,8 +59,12 @@ pub fn diagnose_startup() -> bool {
 /// Write only fixed phase identifiers. Never pass errors, environment values,
 /// paths selected by the user, credentials, request bodies, or command text.
 pub fn record(phase: &'static str) {
-    let Some(path) = log_path() else { return; };
-    let Some(parent) = path.parent() else { return; };
+    let Some(path) = log_path() else {
+        return;
+    };
+    let Some(parent) = path.parent() else {
+        return;
+    };
     let mut builder = fs::DirBuilder::new();
     builder.recursive(true);
     #[cfg(unix)]
@@ -63,7 +72,9 @@ pub fn record(phase: &'static str) {
         use std::os::unix::fs::DirBuilderExt;
         builder.mode(0o700);
     }
-    if builder.create(parent).is_err() { return; }
+    if builder.create(parent).is_err() {
+        return;
+    }
     let mut options = OpenOptions::new();
     options.create(true).append(true);
     #[cfg(unix)]
@@ -96,10 +107,29 @@ mod tests {
     #[test]
     fn startup_flags_are_explicit_and_diagnose_implies_safe_mode() {
         let plain = mode_from_args([OsString::from("app")]);
-        assert_eq!(plain, StartupMode { safe_mode: false, diagnose_startup: false });
+        assert_eq!(
+            plain,
+            StartupMode {
+                safe_mode: false,
+                diagnose_startup: false
+            }
+        );
         let safe = mode_from_args([OsString::from("app"), OsString::from("--safe-mode")]);
-        assert_eq!(safe, StartupMode { safe_mode: true, diagnose_startup: false });
-        let diagnose = mode_from_args([OsString::from("app"), OsString::from("--diagnose-startup")]);
-        assert_eq!(diagnose, StartupMode { safe_mode: true, diagnose_startup: true });
+        assert_eq!(
+            safe,
+            StartupMode {
+                safe_mode: true,
+                diagnose_startup: false
+            }
+        );
+        let diagnose =
+            mode_from_args([OsString::from("app"), OsString::from("--diagnose-startup")]);
+        assert_eq!(
+            diagnose,
+            StartupMode {
+                safe_mode: true,
+                diagnose_startup: true
+            }
+        );
     }
 }

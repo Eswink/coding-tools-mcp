@@ -1,0 +1,348 @@
+name: Complete RC integration candidate
+
+on:
+  push:
+    branches: ['release/dot-rc-reconciliation-20260930']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: full-rc-integration-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_BUILD_JOBS: '3'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+  CARGO_INCREMENTAL: '0'
+  RUST_BACKTRACE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+          components: rustfmt, clippy
+      - name: Native Linux development libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: native-${{ matrix.os }}-source-only-v1
+          cache-targets: false
+          workspaces: |
+            src-tauri
+            services/cloud-agent
+            services/cloud-gateway
+            services/local-agent
+      - name: Exact source and complete frontend contracts
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          npm ci
+          npm run check 2>&1 | tee evidence/frontend-check.txt
+          npm run build 2>&1 | tee evidence/frontend-build.txt
+          node scripts/前端完整回归v4.mjs 2>&1 | tee evidence/frontend-full.txt
+          node --test tests/cloud-gateway/*.test.mjs tests/delivery/*.test.mjs 2>&1 | tee evidence/gateway-delivery-js.txt
+          python scripts/release_preflight_tests.py 2>&1 | tee evidence/preflight-contracts.txt
+          python scripts/rc_version_gate_tests.py 2>&1 | tee evidence/rc-version-contracts.txt
+          python scripts/rust_tls_lock_tests.py 2>&1 | tee evidence/rust-tls-lock-contracts.txt
+          python scripts/发布版本回归v4.py 2>&1 | tee evidence/stable-version-contracts.txt
+          python scripts/connector_fault_proxy_tests.py 2>&1 | tee evidence/fault-proxy.txt
+      - name: Shared runtimes and production warning gates
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          for unit in cloud-agent local-agent; do
+            manifest="services/$unit/Cargo.toml"
+            cargo fmt --check --manifest-path "$manifest"
+            cargo clippy --locked --manifest-path "$manifest" --all-targets -- -D warnings 2>&1 | tee "evidence/$unit-clippy.txt"
+            cargo test --locked --manifest-path "$manifest" 2>&1 | tee "evidence/$unit-full.txt"
+            cargo rustc --locked --manifest-path "$manifest" --lib -- -D warnings
+          done
+          cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
+          cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/gateway-clippy.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts 2>&1 | tee evidence/gateway-portable.txt
+      - name: Native format and all-target compile gate
+        id: native_checks
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          cargo fmt --all --check --manifest-path src-tauri/Cargo.toml
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-check.txt
+      - name: Complete native application regression
+        if: always() && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              cargo test --no-fail-fast --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+            '
+          else
+            cargo test --no-fail-fast --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          fi
+      - name: Independent native credential and restart proofs
+        if: always() && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
+            '
+          else
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --features native-keyring-tests data::secure_file::native_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-keyring-restart.txt
+          fi
+          grep -F 'native_keychain_cross_process_file_roundtrip ... ok' evidence/native-keyring-restart.txt
+          grep -F 'native_task_journal_cross_process_restore_and_missing_key ... ok' evidence/native-keyring-restart.txt
+          grep -F 'native_root_cross_process_crash_fences ... ok' evidence/native-keyring-restart.txt
+      - name: Linux scan transport revocation and restart proofs
+        if: always() && runner.os == 'Linux' && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/scan-runtime" XDG_DATA_HOME="$RUNNER_TEMP/scan-data"
+          export XDG_CONFIG_HOME="$RUNNER_TEMP/scan-config" XDG_STATE_HOME="$RUNNER_TEMP/scan-state"
+          mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+          failed=0
+          dbus-run-session -- bash -euo pipefail -c '
+            printf "%s" "isolated-scan-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+            : > evidence/native-scan-keys.txt
+            failed=0
+            for test_name in \
+              data::auth_document::scan_tests::native_scan_reader_rechecks_deleted_rotated_keys_and_ciphertext \
+              data::scan_keys::tests::native_scan_keys_use_fresh_unique_lookups_and_legacy_fallback \
+              data::scan_keys::tests::native_scan_exact_match_precedes_legacy_and_fallback_stays_in_default; do
+              cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features native-keyring-tests "$test_name" -- --exact --nocapture --test-threads=1 2>&1 | tee -a evidence/native-scan-keys.txt || failed=1
+            done
+            exit "$failed"
+          ' || failed=1
+          grep -F 'native_scan_reader_rechecks_deleted_rotated_keys_and_ciphertext ... ok' evidence/native-scan-keys.txt || failed=1
+          grep -F 'native_scan_keys_use_fresh_unique_lookups_and_legacy_fallback ... ok' evidence/native-scan-keys.txt || failed=1
+          grep -F 'native_scan_exact_match_precedes_legacy_and_fallback_stays_in_default ... ok' evidence/native-scan-keys.txt || failed=1
+          python scripts/native_scan_keyring_fixture.py cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features native-keyring-tests data::scan_keys::tests::native_scan_service_lifecycle -- --exact --nocapture 2>&1 | tee evidence/native-scan-service-faults.txt || failed=1
+          grep -F 'native_scan_service_lifecycle ... ok' evidence/native-scan-service-faults.txt || failed=1
+          exit "$failed"
+      - name: Independent production warnings and source integrity
+        if: always() && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/desktop-warnings.txt
+          git diff --exit-code HEAD --
+      - name: Independent Linux GLib source and optimized regression proof
+        if: always() && runner.os == 'Linux' && steps.native_checks.outcome == 'success'
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/glib-0.18.5.crate"
+          curl --fail --location --retry 2 https://static.crates.io/crates/glib/glib-0.18.5.crate --output "$archive"
+          python scripts/verify_glib_backport_tests.py --archive "$archive" 2>&1 | tee evidence/glib-verifier-tests.txt
+          python scripts/verify_glib_backport.py --root "$GITHUB_WORKSPACE" --archive "$archive" > evidence/glib-source-proof.json
+          export CARGO_TARGET_DIR="$RUNNER_TEMP/glib-regression-target"
+          status=0
+          python scripts/glib_backport_regression.py --root "$GITHUB_WORKSPACE" --archive "$archive" \
+            --output "$RUNNER_TEMP/glib-regression-evidence" > evidence/glib-regression-summary.json 2> evidence/glib-regression-error.txt || status=$?
+          if [ -d "$RUNNER_TEMP/glib-regression-evidence" ]; then
+            cp -a "$RUNNER_TEMP/glib-regression-evidence" evidence/glib-regression
+          fi
+          test "$status" -eq 0
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-native-${{ matrix.os }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  real-transport:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gateway_test
+          POSTGRES_PASSWORD: disposable-ci-fixture
+          POSTGRES_DB: coding_tools_identity_test
+        ports: ['5432/tcp']
+        options: >-
+          --health-cmd "pg_isready -U gateway_test -d coding_tools_identity_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - name: System dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: transport-${{ matrix.os }}-source-only-v1
+          cache-targets: false
+          workspaces: |
+            src-tauri
+            services/cloud-gateway
+      - name: Real database, authenticated WSS and application-owned execution
+        env:
+          TEST_DATABASE_URL: postgresql://gateway_test:disposable-ci-fixture@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/coding_tools_identity_test
+        run: |
+          set -euo pipefail
+          export PATH="/usr/bin:$PATH"
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/gateway-full.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --example native_desktop_fixture
+          export CTM_NATIVE_GATEWAY_FIXTURE_BIN="$GITHUB_WORKSPACE/services/cloud-gateway/target/debug/examples/native_desktop_fixture"
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib tools::cloud_host::live:: -- --nocapture --test-threads=1 2>&1 | tee evidence/native-live-host.txt
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib cloud_application::wss_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/application-wss.txt
+          grep -E 'test result: ok\. [1-9][0-9]* passed; 0 failed; 0 ignored' evidence/application-wss.txt
+          python3 tests/cloud-gateway/sandbox-dispatch/run_probe.py --evidence evidence/sandbox-dispatch
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-transport-${{ matrix.os }}-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci && npm run check && npm run build
+      - run: python -m pip install playwright==1.58.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Use the runner's supported sandboxed Chrome
+        run: |
+          test -x /opt/google/chrome/chrome
+          /opt/google/chrome/chrome --version
+      - run: python tests/cloud-connection-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/cloud-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
+      - run: python tests/ui-refactor-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/existing-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
+      - run: python tests/policy-hooks-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/hooks-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
+      - run: python tests/workspace-snapshots-browser.py
+        env:
+          UI_EVIDENCE_DIR: ${{ github.workspace }}/evidence/snapshot-ui
+          CHROMIUM_PATH: /opt/google/chrome/chrome
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-synthetic-browser-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+  oauth-process-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: '1.98.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Disposable database and sandboxed browser prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16 openssl
+          python -m pip install playwright==1.58.0
+          test -x /opt/google/chrome/chrome
+      - name: Actual service lifecycle and OAuth browser acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rev-parse HEAD > evidence/source-sha.txt
+          git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
+          python -m unittest discover -s services/cloud-gateway/tests -p 'test_service_diagnostics.py' -v 2>&1 | tee evidence/diagnostics.txt
+          cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --bins
+          binary="$PWD/services/cloud-gateway/target/debug/coding-tools-gateway"
+          python services/cloud-gateway/tests/run_enrollment_process.py --pg-bin /usr/lib/postgresql/16/bin --bin-dir "$PWD/services/cloud-gateway/target/debug" | tee evidence/enrollment-process.json
+          python services/cloud-gateway/tests/run_agent_process.py --pg-bin /usr/lib/postgresql/16/bin --bin-dir "$PWD/services/cloud-gateway/target/debug" | tee evidence/agent-process-wss.json
+          python services/cloud-gateway/tests/run_service_http.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" | tee evidence/process-http.json
+          python services/cloud-gateway/tests/run_service_browser_ci.py --pg-bin /usr/lib/postgresql/16/bin --binary "$binary" --chromium /opt/google/chrome/chrome | tee evidence/browser.json
+          git diff --exit-code HEAD --
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: rc-integration-oauth-process-browser-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30

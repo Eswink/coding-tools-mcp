@@ -1,0 +1,14 @@
+-- Coding Tools gateway database roles (G1 deploy kit).
+-- Feed through psql stdin only, never argv:  kit.psql_preamble(values) + kit.sql_phase(name)
+-- Variables (set by the preamble, fixed-shape, validated): app_password, migration_password, database.
+-- Run as the postgres superuser with -v ON_ERROR_STOP=1. No values live in this file.
+-- @phase bootstrap
+-- Target database: postgres. Runtime role and migration owner are never superuser/createdb/createrole.
+CREATE ROLE ctm_app LOGIN PASSWORD :'app_password' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE ROLE ctm_migration LOGIN PASSWORD :'migration_password' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE DATABASE :"database" OWNER ctm_migration;
+-- @phase grants
+-- Target database: the application database, after `coding-tools-gateway migrate` as ctm_migration.
+-- ctm_app may read everything and write ctm_* rows only; never DDL or the _sqlx_migrations ledger.
+REVOKE CREATE ON SCHEMA public FROM PUBLIC; GRANT USAGE ON SCHEMA public TO ctm_app; GRANT SELECT ON ALL TABLES IN SCHEMA public TO ctm_app; GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO ctm_app;
+SELECT 'GRANT INSERT,UPDATE,DELETE ON public."' || tablename || '" TO ctm_app;' FROM pg_tables WHERE schemaname='public' AND tablename ~ '^ctm_[a-z0-9_]+$' ORDER BY tablename \gexec

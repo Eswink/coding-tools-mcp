@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(not(target_os = "linux"))]
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -10,9 +11,9 @@ use uuid::Uuid;
 use walkdir::WalkDir;
 
 use super::model::{
-    BaselineEntry, CapabilityStatus, FileChangeRecord, HarnessEvent, HarnessStatus, OperationRecord,
-    ProjectBaseline, ProjectFileState, ProjectState, TaskSession,
-    TaskStatus, WorkspaceHarnessState, SCHEMA_VERSION,
+    BaselineEntry, CapabilityStatus, FileChangeRecord, HarnessEvent, HarnessStatus,
+    OperationRecord, ProjectBaseline, ProjectFileState, ProjectState, TaskSession, TaskStatus,
+    WorkspaceHarnessState, SCHEMA_VERSION,
 };
 use super::store::{HarnessError, HarnessResult, HarnessStore};
 
@@ -36,6 +37,26 @@ impl Harness {
         })
     }
 
+    // Ordinary unit tests use process-local MemoryKeys. Sharing encrypted host
+    // documents across test processes would lose their keys and correctly trip
+    // production recovery fences. Keep test host storage at the same lifetime;
+    // never delete/reinitialize a production ledger to make a test pass.
+    #[cfg(all(test, not(feature = "native-keyring-tests")))]
+    pub fn default_root() -> HarnessResult<PathBuf> {
+        static ROOT: std::sync::OnceLock<Result<tempfile::TempDir, String>> =
+            std::sync::OnceLock::new();
+        let root = ROOT.get_or_init(|| {
+            tempfile::Builder::new()
+                .prefix("coding-tools-unit-host-")
+                .tempdir()
+                .map_err(|error| error.to_string())
+        });
+        root.as_ref()
+            .map(|root| root.path().join("harness"))
+            .map_err(|error| HarnessError::new("STORE_UNAVAILABLE", error.clone()))
+    }
+
+    #[cfg(any(not(test), feature = "native-keyring-tests"))]
     pub fn default_root() -> HarnessResult<PathBuf> {
         let root = dirs::data_local_dir()
             .or_else(dirs::data_dir)
@@ -242,7 +263,8 @@ impl Harness {
             affected_files: Vec::new(),
             created_at: timestamp(),
         };
-        self.store.append_operation(&self.workspace_id, &operation)?;
+        self.store
+            .append_operation(&self.workspace_id, &operation)?;
         Ok(operation)
     }
 
@@ -544,16 +566,22 @@ fn should_skip(path: &Path, root: &Path) -> bool {
 }
 
 fn git_value(root: &Path, args: &[&str]) -> Option<String> {
-    let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(root).args(args);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
-    }
-    let output = cmd.output().ok()?;
+    #[cfg(target_os = "linux")]
+    let output =
+        crate::tools::git_runner::run(root, root, args, std::time::Duration::from_secs(5)).ok()?;
+    #[cfg(not(target_os = "linux"))]
+    let output = {
+        let mut cmd = Command::new("git");
+        cmd.arg("-C").arg(root).args(args);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
+        }
+        cmd.output().ok()?
+    };
     if !output.status.success() {
         return None;
     }

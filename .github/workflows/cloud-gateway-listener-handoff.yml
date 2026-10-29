@@ -1,0 +1,114 @@
+name: Bound listener handoff regression
+
+on:
+  push:
+    branches: ['fix/issue-74-bound-listener', 'feat/cloud-gateway-agent-runtime']
+    paths:
+      - 'src-tauri/src/mcp/**'
+      - 'src-tauri/src/auth/聊天HTTP回归v1.rs'
+      - '.github/workflows/cloud-gateway-listener-handoff.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: listener-handoff-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Native listener (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+      RUST_BACKTRACE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Record exact source
+        run: |
+          mkdir -p "$RUNNER_TEMP/listener-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/listener-evidence/source.txt"
+          git ls-tree -r HEAD -- src-tauri/src/mcp src-tauri/src/auth/聊天HTTP回归v1.rs > "$RUNNER_TEMP/listener-evidence/source-objects.txt"
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: All-target type check
+        id: check
+        run: |
+          set -o pipefail
+          cargo check --locked --all-targets --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/listener-evidence/check.txt"
+      - name: Repeat the exact offline-authorization regression ten times
+        id: repeated
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          target=auth::chat_http_tests::offline_new_authorization_is_a_non_oauth_tool_error_and_resumes_cleanly
+          for iteration in {1..10}; do
+            log="$RUNNER_TEMP/listener-evidence/exact-$iteration.txt"
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib "$target" -- --exact 2>&1 | tee "$log"
+            python - "$log" <<'PY'
+          import re, sys
+          from pathlib import Path
+          log = Path(sys.argv[1]).read_text(encoding='utf-8')
+          assert re.search(r'test result: ok\. 1 passed; 0 failed;', log), 'exact selector must run one passing test'
+          PY
+          done
+      - name: Full Rust regression suite including deterministic socket ownership tests
+        id: tests
+        run: |
+          set -o pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/listener-evidence/tests.txt"
+      - name: Production library remains warning-free
+        id: warnings
+        run: |
+          set -o pipefail
+          cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee "$RUNNER_TEMP/listener-evidence/warnings.txt"
+      - name: Record results without masking failures
+        if: always()
+        env:
+          CHECK_RESULT: ${{ steps.check.outcome }}
+          REPEATED_RESULT: ${{ steps.repeated.outcome }}
+          TEST_RESULT: ${{ steps.tests.outcome }}
+          WARN_RESULT: ${{ steps.warnings.outcome }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'listener-evidence'
+          root.mkdir(parents=True, exist_ok=True)
+          results = {key: os.environ.get(value, 'not-run') for key, value in [
+              ('check', 'CHECK_RESULT'), ('repeated_exact', 'REPEATED_RESULT'),
+              ('full_tests', 'TEST_RESULT'), ('production_warnings', 'WARN_RESULT')]}
+          report = {'run_id': os.environ['GITHUB_RUN_ID'], 'attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+                    'source': (root / 'source.txt').read_text().strip() if (root / 'source.txt').exists() else None,
+                    'event_sha': os.environ['GITHUB_SHA'], 'runner_os': os.environ['RUNNER_OS'],
+                    'results': results, 'passed': all(value == 'success' for value in results.values()),
+                    'sha256': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in root.glob('*.txt')}}
+          (root / 'result.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: listener-handoff-${{ matrix.os }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/listener-evidence/
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,20 @@
+# Build context must be the verified six-member cloud release archive only.
+# CI resolves this official base to an immutable digest before docker build.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG SOURCE_SHA
+ARG PRODUCT_VERSION
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --chown=0:0 bin/coding-tools-gateway bin/coding-tools-agent bin/coding-tools-control-gateway bin/coding-tools-mcp-gateway /usr/local/bin/
+COPY --chown=0:0 manifest.json README.md /usr/share/coding-tools/
+LABEL org.opencontainers.image.source="https://github.com/Eswink/coding-tools-mcp" \
+      org.opencontainers.image.revision="${SOURCE_SHA}" \
+      org.opencontainers.image.version="${PRODUCT_VERSION}"
+USER 65532:65532
+ENV HOME=/tmp
+WORKDIR /tmp
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/local/bin/coding-tools-mcp-gateway"]
+CMD ["--help"]

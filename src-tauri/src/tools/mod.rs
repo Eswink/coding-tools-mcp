@@ -1,14 +1,24 @@
-#[path = "进程树v2.rs"]
-pub(crate) mod process_tree;
 #[path = "聊天运行域v1.rs"]
 pub(crate) mod chat_domain;
 pub mod context;
+pub mod listener_context;
+pub(crate) mod native_drain;
+pub(crate) mod policy_hooks;
+#[path = "进程树v2.rs"]
+pub(crate) mod process_tree;
+pub(crate) mod root_work;
+// Crate-private adapter: not exposed without an owned Agent supervisor.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod cloud_host;
 pub mod dispatch;
 pub mod exec;
 #[path = "异步命令v1.rs"]
 pub mod exec_tasks;
+pub(crate) mod execution_sandbox;
 pub mod file;
 pub mod git;
+#[cfg(target_os = "linux")]
+pub(crate) mod git_runner;
 pub mod history;
 mod image_tool;
 pub mod patch;
@@ -16,7 +26,11 @@ pub mod platform_dispatch;
 pub mod policy;
 pub mod registry;
 pub mod session;
+#[cfg(windows)]
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod windows_vm;
 pub mod workspace;
+pub(crate) mod worktree_tools;
 
 pub use context::{SharedToolContext, ToolContext};
 /// 唯一工具执行入口；MCP 与 Actions 必须调用此函数，不得分叉执行实现。

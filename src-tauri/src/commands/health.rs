@@ -1,31 +1,45 @@
 use tauri::State;
 
+use super::runtime::RESTART_GATE;
 use crate::app_state::AppState;
 use crate::error::{AppError, AppResult};
 use crate::health::{run_health_checks as execute_health_checks, HealthItem, HealthRuntime};
 use crate::runtime::ServiceKind;
 use crate::workspace::WorkspaceProfile;
-use super::runtime::RESTART_GATE;
 
 fn profile_by_id(state: &AppState, id: &str) -> AppResult<WorkspaceProfile> {
     state.with_workspaces(|store| {
-        store.get(id).cloned().ok_or_else(|| AppError::Message("workspace not found".into()))
+        store
+            .get(id)
+            .cloned()
+            .ok_or_else(|| AppError::Message("workspace not found".into()))
     })
 }
 
 fn snapshot(state: &AppState, id: &str) -> AppResult<(WorkspaceProfile, HealthRuntime)> {
     let profile = profile_by_id(state, id)?;
-    let runtime = state.with_runtime(|runtime| Ok(HealthRuntime {
-        mcp_running: runtime.is_running(id, ServiceKind::Mcp),
-        actions_running: runtime.is_running(id, ServiceKind::Actions),
-        mcp_origin: runtime.public_origin_handle(id, ServiceKind::Mcp).map(|h| h.snapshot()).unwrap_or_default(),
-        actions_origin: runtime.public_origin_handle(id, ServiceKind::Actions).map(|h| h.snapshot()).unwrap_or_default(),
-    }))?;
+    let runtime = state.with_runtime(|runtime| {
+        Ok(HealthRuntime {
+            mcp_running: runtime.is_running(id, ServiceKind::Mcp),
+            actions_running: runtime.is_running(id, ServiceKind::Actions),
+            mcp_origin: runtime
+                .public_origin_handle(id, ServiceKind::Mcp)
+                .map(|h| h.snapshot())
+                .unwrap_or_default(),
+            actions_origin: runtime
+                .public_origin_handle(id, ServiceKind::Actions)
+                .map(|h| h.snapshot())
+                .unwrap_or_default(),
+        })
+    })?;
     Ok((profile, runtime))
 }
 
 #[tauri::command]
-pub async fn run_health_checks(state: State<'_, AppState>, id: String) -> AppResult<Vec<HealthItem>> {
+pub async fn run_health_checks(
+    state: State<'_, AppState>,
+    id: String,
+) -> AppResult<Vec<HealthItem>> {
     let (profile, runtime) = {
         let _gate = RESTART_GATE.lock().await;
         snapshot(&state, &id)?

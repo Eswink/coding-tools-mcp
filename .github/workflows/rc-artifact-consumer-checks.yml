@@ -1,0 +1,76 @@
+name: RC artifact consumer hermetic contracts
+
+on:
+  push:
+    branches: ['release/dot-rc-reconciliation-*', 'feat/rc-final-artifact-consumer-*']
+    paths:
+      - 'scripts/rc_*'
+      - 'scripts/release_*'
+      - 'scripts/final_rc_*'
+      - 'scripts/cloud_release_bundle*'
+      - 'scripts/exact_build_audit*'
+      - 'scripts/reviewed_source_gate*'
+      - '.github/workflows/rc-artifact-consumer*.yml'
+      - 'docs/specs/issue88-additive-nonpublishing/**'
+  pull_request:
+    paths:
+      - 'scripts/rc_*'
+      - 'scripts/release_*'
+      - 'scripts/final_rc_*'
+      - 'scripts/cloud_release_bundle*'
+      - 'scripts/exact_build_audit*'
+      - 'scripts/reviewed_source_gate*'
+      - '.github/workflows/rc-artifact-consumer*.yml'
+      - 'docs/specs/issue88-additive-nonpublishing/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  fixtures:
+    name: Hermetic consumer attacks and unchanged producer regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Acquire fixed checksum-pinned official source data only
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 \
+            --connect-timeout 10 --max-time 30 --max-filesize 1048576 \
+            --output "$RC_CONSUMER_TEST_GLIB_ARCHIVE" \
+            https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RC_CONSUMER_TEST_GLIB_ARCHIVE")" -le 1048576
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' \
+            "$RC_CONSUMER_TEST_GLIB_ARCHIVE" | sha256sum --check --strict
+      - name: Synthetic fixtures only, no live token or Actions artifact download
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/rc_consumer_test_runner.py
+          for suite in release_tag_gate rc_version_gate reviewed_source_gate cloud_release_bundle \
+            final_rc_evidence release_dependency_capture release_dependency_contract exact_build_audit \
+            rc_packages rc_windows_install_contract exclusive_native_contract exclusive_release \
+            source_provenance_gate; do
+            python "scripts/${suite}_tests.py"
+          done
+          python scripts/发布版本回归v4.py
+          git diff --exit-code

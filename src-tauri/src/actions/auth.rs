@@ -8,7 +8,7 @@ use axum::{
     Extension,
 };
 
-use crate::auth::{PublicOrigin, verify_oauth_bearer_header, OAuthRuntime};
+use crate::auth::{verify_oauth_bearer_header, OAuthRuntime, PublicOrigin};
 
 use super::bearer::constant_time_eq;
 
@@ -99,7 +99,9 @@ pub async fn require_actions_auth(
         if let Some(response) = verify_oauth_bearer_header(
             request.headers(),
             oauth,
-            &auth.configured_public_url.resolve(request.headers(), auth.bind_port),
+            &auth
+                .configured_public_url
+                .resolve(request.headers(), auth.bind_port),
         ) {
             return response;
         }

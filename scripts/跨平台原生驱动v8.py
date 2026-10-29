@@ -267,6 +267,8 @@ class WindowsNativeSession(gui.NativeSession):
                         self.browser_profile = None
 
 
-def session(executable: Path, driver: Path, output: Path, attempt: int):
+def session(executable: Path, driver: Path, output: Path, attempt: int, observer=None):
     factory = WindowsNativeSession if sys.platform == "win32" else gui.NativeSession
+    if sys.platform == "linux" and observer is not None:
+        return factory(executable, driver, output, attempt, observer=observer)
     return factory(executable, driver, output, attempt)

@@ -3,11 +3,12 @@
   import "../app.css";
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { page } from "$app/stores";
+  import { page } from "$app/state";
   import { open } from "@tauri-apps/plugin-dialog";
   import AppShell from "$lib/components/AppShell.svelte";
   import StartupRecovery from "$lib/components/StartupRecovery.svelte";
   import ChatAuthorizationHost from "$lib/components/ChatAuthorizationHost.svelte";
+  import CloudDrainWarning from "$lib/components/CloudDrainWarning.svelte";
   import ToastHost from "$lib/components/ToastHost.svelte";
   import WorkspaceNavItem from "$lib/components/WorkspaceNavItem.svelte";
   import {
@@ -144,7 +145,7 @@
       }
       if (!startupStatus.ready) return;
       await refreshWorkspaces();
-      const path = $page.url.pathname;
+      const path = page.url.pathname;
       if (path === "/") {
         const lastId = await getLastWorkspaceId();
         if (lastId && $workspaces.some((item) => item.id === lastId)) {
@@ -161,36 +162,37 @@
   });
 </script>
 
+<CloudDrainWarning />
 <AppShell onAddWorkspace={addWorkspace}>
   {#snippet settingsNav()}
     <button
       type="button"
-      class="tx-settings-link {$page.url.pathname === '/settings/general' ? 'active' : ''}"
-      aria-current={$page.url.pathname === '/settings/general' ? 'page' : undefined}
+      class="tx-settings-link {page.url.pathname === '/settings/general' ? 'active' : ''}"
+      aria-current={page.url.pathname === '/settings/general' ? 'page' : undefined}
       onclick={openGeneralSettings}
     >
       <Settings size={20} aria-hidden="true" />通用
     </button>
     <button
       type="button"
-      class="tx-settings-link {$page.url.pathname === '/settings/keys' ? 'active' : ''}"
-      aria-current={$page.url.pathname === '/settings/keys' ? 'page' : undefined}
+      class="tx-settings-link {page.url.pathname === '/settings/keys' ? 'active' : ''}"
+      aria-current={page.url.pathname === '/settings/keys' ? 'page' : undefined}
       onclick={openKeysSettings}
     >
       <KeyRound size={20} aria-hidden="true" />共享密钥
     </button>
     <button
       type="button"
-      class="tx-settings-link {$page.url.pathname === '/settings/frp' ? 'active' : ''}"
-      aria-current={$page.url.pathname === '/settings/frp' ? 'page' : undefined}
+      class="tx-settings-link {page.url.pathname === '/settings/frp' ? 'active' : ''}"
+      aria-current={page.url.pathname === '/settings/frp' ? 'page' : undefined}
       onclick={openFrpSettings}
     >
       <Network size={20} aria-hidden="true" />FRP 配置
     </button>
     <button
       type="button"
-      class="tx-settings-link {$page.url.pathname === '/settings/software' ? 'active' : ''}"
-      aria-current={$page.url.pathname === '/settings/software' ? 'page' : undefined}
+      class="tx-settings-link {page.url.pathname === '/settings/software' ? 'active' : ''}"
+      aria-current={page.url.pathname === '/settings/software' ? 'page' : undefined}
       onclick={openSoftwareSettings}
     >
       <Package size={20} aria-hidden="true" />软件管理
@@ -201,7 +203,7 @@
       {#each $workspaces as workspace (workspace.id)}
         <WorkspaceNavItem
           workspace={workspace}
-          active={$page.url.pathname === `/workspace/${workspace.id}`}
+          active={page.url.pathname === `/workspace/${workspace.id}`}
           mcpState={$mcpRuntimeStates[workspace.id] ?? "stopped"}
           actionsState={$actionsRuntimeStates[workspace.id] ?? "stopped"}
           onClick={() => openWorkspace(workspace.id)}

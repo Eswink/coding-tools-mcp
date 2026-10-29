@@ -1,0 +1,94 @@
+name: Authenticated FINAL artifact consumer (nonpublishing)
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_version:
+        description: Exact owner-selected committed RC version
+        required: true
+        type: string
+      release_tag:
+        description: Existing lightweight v-prefixed RC tag
+        required: true
+        type: string
+      source_sha:
+        description: Exact reviewed source, also this workflow invocation SHA
+        required: true
+        type: string
+      final_run_id:
+        description: Newest successful exact-source FINAL push run
+        required: true
+        type: string
+      final_run_attempt:
+        description: Must be 1; FINAL reruns are unsupported
+        required: true
+        type: string
+      integration_run_id:
+        description: Newest successful exact-source integration run
+        required: true
+        type: string
+      integration_run_attempt:
+        description: Current successful integration attempt
+        required: true
+        type: string
+      artifact_id:
+        description: Exact immutable rc-structural-bundle artifact ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rc-artifact-consumer-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  consume:
+    name: Read-only authenticated FINAL bytes and sanitized plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Authenticate and consume without publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RC_VERSION: ${{ inputs.rc_version }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          FINAL_RUN_ID: ${{ inputs.final_run_id }}
+          FINAL_RUN_ATTEMPT: ${{ inputs.final_run_attempt }}
+          INTEGRATION_RUN_ID: ${{ inputs.integration_run_id }}
+          INTEGRATION_RUN_ATTEMPT: ${{ inputs.integration_run_attempt }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_SHA" = "$SOURCE_SHA"
+          test "$GITHUB_WORKFLOW_SHA" = "$SOURCE_SHA"
+          python scripts/rc_artifact_consumer.py \
+            --rc-version "$RC_VERSION" --release-tag "$RELEASE_TAG" --source-sha "$SOURCE_SHA" \
+            --final-run-id "$FINAL_RUN_ID" --final-run-attempt "$FINAL_RUN_ATTEMPT" \
+            --integration-run-id "$INTEGRATION_RUN_ID" --integration-run-attempt "$INTEGRATION_RUN_ATTEMPT" \
+            --artifact-id "$ARTIFACT_ID"
+      - name: Retain only sanitized nonpublishing receipt and plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: rc-artifact-consumer-sanitized-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/rc-consumer-receipts-*/RC_PROVENANCE.json
+            ${{ runner.temp }}/rc-consumer-receipts-*/rc-asset-plan.json
+          if-no-files-found: error
+          retention-days: 7

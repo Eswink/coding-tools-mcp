@@ -92,7 +92,9 @@ pub fn parse_latest_release(body: &str, current_version: &str) -> AppResult<Upda
     }
     let current = normalize_tag(current_version);
     let ordering = compare_versions(&latest_version, &current).ok_or_else(|| {
-        AppError::Message(format!("无法比较版本: 当前={current} 最新={latest_version}"))
+        AppError::Message(format!(
+            "无法比较版本: 当前={current} 最新={latest_version}"
+        ))
     })?;
     let release_url = release
         .html_url
@@ -184,14 +186,29 @@ mod tests {
 
     #[test]
     fn compare_versions_orders_stable_and_numbered_rc() {
-        assert_eq!(compare_versions("0.1.23", "0.1.22"), Some(Ordering::Greater));
+        assert_eq!(
+            compare_versions("0.1.23", "0.1.22"),
+            Some(Ordering::Greater)
+        );
         assert_eq!(compare_versions("v0.1.23", "0.1.23"), Some(Ordering::Equal));
         assert_eq!(compare_versions("0.1.20", "v0.1.23"), Some(Ordering::Less));
         assert_eq!(compare_versions("1.0.0", "0.9.9"), Some(Ordering::Greater));
-        assert_eq!(compare_versions("0.6.0", "0.6.0-rc.1"), Some(Ordering::Greater));
-        assert_eq!(compare_versions("0.6.0-rc.2", "0.6.0-rc.1"), Some(Ordering::Greater));
-        assert_eq!(compare_versions("0.6.0-rc.1", "0.6.0"), Some(Ordering::Less));
-        assert_eq!(compare_versions("0.6.0+build.7", "0.6.0"), Some(Ordering::Equal));
+        assert_eq!(
+            compare_versions("0.6.0", "0.6.0-rc.1"),
+            Some(Ordering::Greater)
+        );
+        assert_eq!(
+            compare_versions("0.6.0-rc.2", "0.6.0-rc.1"),
+            Some(Ordering::Greater)
+        );
+        assert_eq!(
+            compare_versions("0.6.0-rc.1", "0.6.0"),
+            Some(Ordering::Less)
+        );
+        assert_eq!(
+            compare_versions("0.6.0+build.7", "0.6.0"),
+            Some(Ordering::Equal)
+        );
         assert!(compare_versions("0.6.0-beta.1", "0.6.0").is_none());
         assert!(compare_versions("latest", "0.1.0").is_none());
     }

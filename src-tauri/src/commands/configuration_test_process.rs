@@ -21,10 +21,13 @@ pub(super) fn run_isolated(case: &str) -> bool {
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
-        .spawn().expect("isolated test child");
+        .spawn()
+        .expect("isolated test child");
     let deadline = Instant::now() + Duration::from_secs(90);
     let status = loop {
-        if let Some(status) = child.try_wait().expect("poll isolated test") { break Some(status); }
+        if let Some(status) = child.try_wait().expect("poll isolated test") {
+            break Some(status);
+        }
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
@@ -33,11 +36,19 @@ pub(super) fn run_isolated(case: &str) -> bool {
         std::thread::sleep(Duration::from_millis(20));
     };
     let mut output = String::new();
-    std::fs::File::open(path).expect("read child log")
-        .take(64 * 1024).read_to_string(&mut output).expect("bounded child output");
-    assert!(status.is_some_and(|s| s.success()), "{test}: {status:?}\n{output}");
+    std::fs::File::open(path)
+        .expect("read child log")
+        .take(64 * 1024)
+        .read_to_string(&mut output)
+        .expect("bounded child output");
+    assert!(
+        status.is_some_and(|s| s.success()),
+        "{test}: {status:?}\n{output}"
+    );
     // A misspelled --exact filter runs zero tests and exits successfully. Never accept that.
-    assert!(output.contains("running 1 test") && output.contains("1 passed; 0 failed"),
-        "isolated case did not execute exactly one passing test: {test}\n{output}");
+    assert!(
+        output.contains("running 1 test") && output.contains("1 passed; 0 failed"),
+        "isolated case did not execute exactly one passing test: {test}\n{output}"
+    );
     true
 }

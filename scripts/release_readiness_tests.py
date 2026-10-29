@@ -87,8 +87,11 @@ class ReleaseReadinessTests(unittest.TestCase):
             with self.assertRaises(ValueError): m.release_guide(self.root, version)
 
     def test_actual_candidate_guide_exists_before_build(self):
-        version = importlib.import_module("发布版本校验v4").project_versions(ROOT)[0]
-        guide = m.release_guide(ROOT, version)
+        # The existing stable validator remains strict. Candidate inputs use
+        # the separately validated RC channel and an exact-version guide.
+        inputs = importlib.import_module("release_preflight").verify_inputs(ROOT)
+        version = inputs["version"]
+        guide = ROOT / inputs["guide"]
         self.assertIn(version, guide.name)
         for name in ("oauth-native-acceptance.yml", "聊天授权发布v26.yml"):
             source = (ROOT / ".github/workflows" / name).read_text(encoding="utf-8")

@@ -8,6 +8,14 @@ use crate::tools::workspace::{relative_display, Workspace};
 use crate::workspace::AuthConfig;
 
 pub struct ToolContext {
+    pub(crate) policy_hooks: Arc<super::policy_hooks::HookRegistry>,
+    pub(crate) hook_nested: bool,
+    pub(crate) hook_deadline: Option<std::time::Instant>,
+    pub(crate) hook_cancel: Option<tokio::sync::watch::Receiver<bool>>,
+    pub(crate) root_work:
+        Result<Arc<super::root_work::RootWorkTracker>, super::root_work::RootWorkError>,
+    pub(crate) root_scope: Option<super::root_work::RootWorkScope>,
+    pub(crate) native_work: Option<coding_tools_cloud_agent::work::WorkScope>,
     pub workspace: Workspace,
     pub auth: AuthConfig,
     pub policy: PolicySettings,
@@ -19,6 +27,11 @@ pub struct ToolContext {
     pub(crate) chat_scoped: bool,
     pub(crate) chat_domains: Arc<super::chat_domain::ChatDomains>,
     pub(crate) execution_gate: Arc<crate::runtime::WorkspaceExecutionGate>,
+    // Pin the host-approved workspace once. Preserve setup failure instead of
+    // silently representing an unavailable sandbox as an optional policy.
+    #[cfg(target_os = "linux")]
+    pub(crate) linux_sandbox:
+        Arc<Result<coding_tools_local_agent::LinuxSandbox, coding_tools_local_agent::SandboxError>>,
     pub sessions: Arc<SessionStore>,
     pub(crate) managed_task: bool,
     pub(crate) local_task_control: bool,
@@ -70,16 +83,37 @@ impl ToolContext {
         harness_root: PathBuf,
     ) -> Self {
         let root = workspace.root().to_path_buf();
+        #[cfg(target_os = "linux")]
+        let linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
+        let harness = Harness::new(root.clone(), harness_root).expect("无法初始化 Harness");
+        let root_work = super::root_work::RootWorkTracker::for_workspace(&root);
+        let mut workspace = workspace;
+        // An unavailable ledger never falls back to ordinary host-reading mode;
+        // the outer dispatcher also refuses all business calls on that failure.
+        if root_work.as_ref().map_or(true, |root| root.managed_reads()) {
+            workspace.confine_reads();
+        }
         Self {
+            root_work,
+            root_scope: None,
+            policy_hooks: Arc::new(super::policy_hooks::HookRegistry::new(root.clone())),
+            hook_nested: false,
+            hook_deadline: None,
+            hook_cancel: None,
+            native_work: None,
             workspace,
             auth,
             policy,
             tool_profile: crate::tools::registry::normalize_tool_profile(&tool_profile).into(),
             permission_mode,
-            harness: Harness::new(root.clone(), harness_root).expect("无法初始化 Harness"),
+            harness,
             default_cwd: Arc::new(Mutex::new(root)),
-            remote_request: None, chat_scoped: false, chat_domains: Arc::default(),
+            remote_request: None,
+            chat_scoped: false,
+            chat_domains: Arc::default(),
             execution_gate: crate::runtime::WorkspaceExecutionGate::shared(),
+            #[cfg(target_os = "linux")]
+            linux_sandbox,
             sessions: Arc::new(SessionStore::new()),
             managed_task: false,
             local_task_control: false,
@@ -105,12 +139,28 @@ impl ToolContext {
     /// Snapshot policy/cwd at acceptance; share the existing service-owned task/session stores.
     pub(crate) fn background_snapshot(&self) -> Self {
         Self {
-            workspace: self.workspace.clone(), auth: self.auth.clone(), policy: self.policy.clone(),
-            tool_profile: self.tool_profile.clone(), permission_mode: self.permission_mode.clone(),
-            harness: self.harness.clone(), default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
-            remote_request: self.remote_request.clone(), chat_scoped: self.chat_scoped, chat_domains: self.chat_domains.clone(),
+            root_work: self.root_work.clone(),
+            root_scope: self.root_scope.clone(),
+            policy_hooks: self.policy_hooks.clone(),
+            hook_nested: self.hook_nested,
+            hook_deadline: self.hook_deadline,
+            hook_cancel: self.hook_cancel.clone(),
+            native_work: self.native_work.clone(),
+            workspace: self.workspace.clone(),
+            auth: self.auth.clone(),
+            policy: self.policy.clone(),
+            tool_profile: self.tool_profile.clone(),
+            permission_mode: self.permission_mode.clone(),
+            harness: self.harness.clone(),
+            default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
+            remote_request: self.remote_request.clone(),
+            chat_scoped: self.chat_scoped,
+            chat_domains: self.chat_domains.clone(),
             execution_gate: self.execution_gate.clone(),
-            sessions: self.sessions.clone(), exec_tasks: self.exec_tasks.clone(),
+            #[cfg(target_os = "linux")]
+            linux_sandbox: self.linux_sandbox.clone(),
+            sessions: self.sessions.clone(),
+            exec_tasks: self.exec_tasks.clone(),
             managed_task: self.managed_task,
             local_task_control: self.local_task_control,
         }
@@ -123,9 +173,14 @@ impl ToolContext {
     /// Lazy encrypted storage. Merely starting the listener never creates secrets.
     pub(crate) fn enable_durable_tasks(&mut self, profile_id: &str, channel: &str) {
         use sha2::{Digest, Sha256};
-        let identity = serde_json::to_vec(&(self.harness.workspace_id(), profile_id, channel)).expect("task namespace");
+        let identity = serde_json::to_vec(&(self.harness.workspace_id(), profile_id, channel))
+            .expect("task namespace");
         let namespace = format!("{:x}", Sha256::digest(identity));
-        let root = self.harness.store_root().join("exec-tasks-v2").join(namespace);
+        let root = self
+            .harness
+            .store_root()
+            .join("exec-tasks-v2")
+            .join(namespace);
         self.exec_tasks = crate::tools::exec_tasks::ExecTaskStore::shared(root);
         self.exec_tasks.bind_profile(profile_id);
     }

@@ -1,0 +1,142 @@
+name: Issue85 supported yoke repair (engineering only)
+on:
+  push:
+    branches: ['ci/issue40-current-nginx-include-yoke-*']
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  CARGO_TERM_COLOR: never
+  GIT_NO_REPLACE_OBJECTS: '1'
+jobs:
+  admission:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    outputs: {sha: '${{ steps.admit.outputs.sha }}', tree: '${{ steps.admit.outputs.tree }}', agent_lock: '${{ steps.admit.outputs.agent_lock }}', gateway_lock: '${{ steps.admit.outputs.gateway_lock }}', run_id: '${{ steps.admit.outputs.run_id }}', run_attempt: '${{ steps.admit.outputs.run_attempt }}'}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12'}
+      - name: Fully admit exact D and execute all ten cases once
+        id: admit
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, sys, traceback
+          evidence = pathlib.Path(os.environ['RUNNER_TEMP'], 'yoke-admission'); evidence.mkdir()
+          try:
+              sys.path.insert(0, 'scripts'); import rc_pretag_composition_tests as c
+              git = lambda *args: c._git(*args).decode().strip()
+              assert sys.version_info[:2] == (3, 12) and git('rev-parse', '--is-shallow-repository') == 'false'
+              sha, tree = git('rev-parse', 'HEAD'), git('rev-parse', 'HEAD^{tree}')
+              parents = git('show', '-s', '--format=%P', 'HEAD').split()
+              assert sha == os.environ['GITHUB_SHA'] and parents == ['b97c469b1bd7ffb9973a65e19b798d2573561d92']
+              expected = c.publication.selected_profile('HEAD', c.ROOT, c._git, c._entries, c._feature_profile, c.RELEASE, c.RELEASE_TREE, c.RELEASE_DOCS)
+              def checked():
+                  assert expected == c._entries('HEAD') == c._index_entries(c._git('ls-files', '--stage', '-z'))
+                  assert all((c.ROOT / p).is_file() and not (c.ROOT / p).is_symlink() and c._blob((c.ROOT / p).read_bytes()) == entry[2] for p, entry in expected.items())
+                  return {p: hashlib.sha256((c.ROOT / p).read_bytes()).hexdigest() for p in expected}
+              before = checked(); command = [sys.executable, 'scripts/rc_pretag_yoke_repair_cases.py']
+              (evidence / 'observed-source.json').write_text(json.dumps({'sha': sha, 'tree': tree, 'parents': parents, 'source_sha256': before}), encoding='utf-8')
+              (evidence / 'command.json').write_text(json.dumps({'command': command, 'state': 'started'}), encoding='utf-8')
+              with (evidence / 'ten-cases.log').open('wb') as output: result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT)
+              (evidence / 'command.json').write_text(json.dumps({'command': command, 'exit': result.returncode}), encoding='utf-8'); result.check_returncode()
+              assert checked() == before and git('rev-parse', 'HEAD') == sha
+              assert not subprocess.check_output(['git', 'status', '--porcelain', '--untracked-files=all'])
+              admitted = {'sha': sha, 'tree': tree, 'agent_lock': before['services/cloud-agent/Cargo.lock'], 'gateway_lock': before['services/cloud-gateway/Cargo.lock'], 'run_id': os.environ['GITHUB_RUN_ID'], 'run_attempt': os.environ['GITHUB_RUN_ATTEMPT']}
+              receipt = {'admitted': admitted, 'parents': parents, 'source_sha256': before, 'ci': {k: os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_WORKFLOW_REF', 'GITHUB_JOB', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}, 'source_unchanged': True, 'production_ready': False}
+              (evidence / 'source-binding.json').write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+              with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output: output.write(''.join(k + '=' + v + '\n' for k, v in admitted.items()))
+          except BaseException:
+              (evidence / 'failure.txt').write_text(traceback.format_exc(), encoding='utf-8'); raise
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: 'issue85-yoke-admission-${{ github.sha }}', path: '${{ runner.temp }}/yoke-admission/', if-no-files-found: error, retention-days: 30}
+  native:
+    needs: admission
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {row: agent-ubuntu, os: ubuntu-22.04, unit: cloud-agent}
+          - {row: agent-windows, os: windows-2025, unit: cloud-agent}
+          - {row: gateway-windows, os: windows-2025, unit: cloud-gateway}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Preserve exact checkout bytes on the disposable runner
+        shell: bash
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {ref: '${{ github.sha }}', fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12'}
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with: {toolchain: '1.98.1'}
+      - name: Join admitted D with exact portable source and fresh native proof
+        shell: python
+        env:
+          ROW: ${{ matrix.row }}
+          UNIT: ${{ matrix.unit }}
+          ADMISSION: ${{ toJSON(needs.admission.outputs) }}
+          ADMISSION_RESULT: ${{ needs.admission.result }}
+          CARGO_TARGET_DIR: ${{ runner.temp }}/yoke-target-${{ matrix.row }}
+        run: |
+          import hashlib, json, os, pathlib, re, subprocess, sys, traceback
+          evidence = pathlib.Path(os.environ['RUNNER_TEMP'], 'yoke-evidence-' + os.environ['ROW']); evidence.mkdir()
+          def run(name, *args):
+              with (evidence / 'commands.jsonl').open('a', encoding='utf-8') as record:
+                  record.write(json.dumps({'name': name, 'command': args, 'state': 'started'}) + '\n')
+              with (evidence / (name + '.log')).open('wb') as output:
+                  result = subprocess.run(args, stdout=output, stderr=subprocess.STDOUT)
+              with (evidence / 'commands.jsonl').open('a', encoding='utf-8') as record:
+                  record.write(json.dumps({'name': name, 'command': args, 'exit': result.returncode}) + '\n')
+              print(name, 'exit', result.returncode, flush=True); result.check_returncode()
+              return (evidence / (name + '.log')).read_text(encoding='utf-8').strip()
+          def snapshot():
+              return {p: hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest() for p in paths}
+          try:
+              assert sys.version_info[:2] == (3, 12)
+              assert not pathlib.Path(os.environ['CARGO_TARGET_DIR']).exists()
+              received = os.environ.get('ADMISSION', ''); (evidence / 'received-admission.json').write_text(received, encoding='utf-8'); admitted = json.loads(received)
+              assert os.environ['ADMISSION_RESULT'] == 'success' and set(admitted) == {'sha', 'tree', 'agent_lock', 'gateway_lock', 'run_id', 'run_attempt'}
+              assert all(isinstance(admitted[k], str) and re.fullmatch('[0-9a-f]{' + str(n) + '}', admitted[k]) for k, n in [('sha', 40), ('tree', 40), ('agent_lock', 64), ('gateway_lock', 64)])
+              assert all(isinstance(admitted[k], str) and re.fullmatch('[1-9][0-9]*', admitted[k]) and admitted[k] == os.environ['GITHUB_' + k.upper()] for k in ('run_id', 'run_attempt'))
+              assert run('history', 'git', 'rev-parse', '--is-shallow-repository') == 'false'
+              sha = run('source-sha', 'git', 'rev-parse', 'HEAD'); assert sha == os.environ['GITHUB_SHA']
+              tree = run('source-tree', 'git', 'rev-parse', 'HEAD^{tree}')
+              parents = run('source-parents', 'git', 'show', '-s', '--format=%P', 'HEAD').split()
+              assert parents == ['b97c469b1bd7ffb9973a65e19b798d2573561d92']
+              assert not run('source-status-before', 'git', 'status', '--porcelain', '--untracked-files=all')
+              assert (sha, tree) == (admitted['sha'], admitted['tree'])
+              entries = {p: h.split() for h, p in (r.split('\t', 1) for r in run('tree-entries', 'git', 'ls-tree', '-rz', 'HEAD').split('\0') if r)}
+              index = {p: h.split() for h, p in (r.split('\t', 1) for r in run('index-entries', 'git', 'ls-files', '--stage', '-z').split('\0') if r)}
+              assert set(index) == set(entries) and all(kind == 'blob' and mode in ('100644', '100755') and index[p] == [mode, blob, '0'] for p, (mode, kind, blob) in entries.items())
+              for p, (_, _, blob) in entries.items():
+                  path = pathlib.Path(p); assert path.is_file() and not path.is_symlink(); data = path.read_bytes()
+                  assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == blob
+              paths = list(entries)
+              before = snapshot(); locks = {p: before[p] for p in ('services/cloud-agent/Cargo.lock', 'services/cloud-gateway/Cargo.lock')}
+              binding = {'sha': sha, 'tree': tree, 'parents': parents, 'received_admission': admitted, 'row': os.environ['ROW'], 'unit': os.environ['UNIT'], 'locks': locks, 'source_sha256': before, 'ci': {k: os.environ[k] for k in ('GITHUB_REPOSITORY', 'GITHUB_WORKFLOW_REF', 'GITHUB_JOB', 'GITHUB_RUN_ID', 'GITHUB_RUN_ATTEMPT')}, 'production_ready': False}
+              (evidence / 'source-binding.json').write_text(json.dumps(binding, indent=2) + '\n', encoding='utf-8')
+              assert list(locks.values()) == [admitted['agent_lock'], admitted['gateway_lock']]
+              run('python', sys.executable, '--version')
+              assert run('rustc', 'rustc', '-Vv').split()[1] == '1.98.1'
+              assert run('cargo', 'cargo', '-Vv').split()[1] == '1.98.1'
+              manifest = 'services/' + os.environ['UNIT'] + '/Cargo.toml'
+              run('metadata', 'cargo', 'metadata', '--locked', '--manifest-path', manifest, '--format-version', '1')
+              run('inverse-yoke-tree', 'cargo', 'tree', '--locked', '--manifest-path', manifest, '--invert', 'yoke-derive@0.8.4')
+              extra = ['--lib', '--test', 'service_contracts', '--test', 'enrollment_contracts'] if os.environ['UNIT'] == 'cloud-gateway' else []
+              native = run('native-tests', 'cargo', 'test', '--locked', '--manifest-path', manifest, *extra)
+              summaries = re.findall(r'(?m)^test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; \d+ measured; (\d+) filtered out;', native)
+              assert summaries and sum(int(row[0]) for row in summaries) > 0 and all(tuple(map(int, row[1:])) == (0, 0, 0) for row in summaries)
+              assert snapshot() == before
+              assert run('source-sha-after', 'git', 'rev-parse', 'HEAD') == sha
+              assert not run('source-status-after', 'git', 'status', '--porcelain', '--untracked-files=all')
+              (evidence / 'unchanged.json').write_text(json.dumps({'sha': sha, 'locks': locks, 'source_unchanged': True}) + '\n', encoding='utf-8')
+          except BaseException:
+              (evidence / 'failure.txt').write_text(traceback.format_exc(), encoding='utf-8'); raise
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: {name: 'issue85-yoke-${{ matrix.row }}-${{ github.sha }}', path: '${{ runner.temp }}/yoke-evidence-${{ matrix.row }}/', if-no-files-found: error, retention-days: 30}

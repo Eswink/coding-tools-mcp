@@ -1,0 +1,177 @@
+name: RC native recovery probe (layer commit, no release)
+on:
+  push:
+    branches: ['ci/native-qualified-on-packages-20261016']
+permissions:
+  contents: read
+concurrency:
+  group: rc070-native-recovery-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  publisher-native:
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/native-qualified-on-packages-20261016'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check original native Git flags before source restoration
+        timeout-minutes: 1
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/git --no-pager --no-replace-objects --no-optional-locks --no-lazy-fetch -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.untrackedCache=false -c credential.helper= -c protocol.allow=never --version
+      - name: Layer commit guard, manifest set check and official test data
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(/usr/bin/git rev-parse HEAD)" = "$GITHUB_SHA"
+          # HIGH (D1 redesign, pending second GO): resolve BASE from scripts/rc_native_probe_layer_base.pin
+          # PENDING_FIRST_QUALIFIED -> BASE:=HEAD for bootstrap; else BASE:=pinned SHA. Never drop is-ancestor.
+          LAYER_BASE="$(cd "$GITHUB_WORKSPACE" && PYTHONPATH=scripts PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -c 'from rc_native_probe_restore import resolve_layer_base; from pathlib import Path; print(resolve_layer_base(Path(".")))')"
+          /usr/bin/git merge-base --is-ancestor "$LAYER_BASE" "$GITHUB_SHA"
+          PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 scripts/rc_native_probe_manifest.py --root "$GITHUB_WORKSPACE" check
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 --connect-timeout 10 --max-time 30 --max-filesize 267679 \
+            --output "$RUNNER_TEMP/glib-0.18.5.crate" https://static.crates.io/crates/glib/glib-0.18.5.crate
+          test "$(stat -c %s "$RUNNER_TEMP/glib-0.18.5.crate")" -eq 267679
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' "$RUNNER_TEMP/glib-0.18.5.crate" | sha256sum --check --strict
+      - name: Run exact native publisher85 then admitted publisher300 once
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(/usr/bin/python3 -c 'import sys;print(".".join(map(str,sys.version_info[:2])))')" = 3.12
+          PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 scripts/rc_native_probe.py --management "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/rc-native-publisher" --fixture "$RUNNER_TEMP/glib-0.18.5.crate"
+      - name: Upload only scanned original evidence whitelist
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: rc-native-publisher-${{ github.sha }}
+          path: ${{ runner.temp }}/rc-native-publisher/safe-artifacts/
+          if-no-files-found: error
+          retention-days: 7
+  hermetic-probe-sets:
+    # Hermetic necessary85 then original300. Parallel with publisher-native and the other hermetic job (no needs).
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/native-qualified-on-packages-20261016'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Official glib fixture only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 --connect-timeout 10 --max-time 30 --max-filesize 267679 \
+            --output "$RUNNER_TEMP/glib-0.18.5.crate" https://static.crates.io/crates/glib/glib-0.18.5.crate
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' "$RUNNER_TEMP/glib-0.18.5.crate" | sha256sum --check --strict
+      - name: necessary85 then original300
+        shell: bash
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hermetic"
+          cd scripts
+          python -B - "$RUNNER_TEMP/hermetic" <<'PY'
+          import importlib, json, sys, unittest
+          out = sys.argv[1]; ok = True
+          inv = json.load(open('rc_native_probe_inventory.json'))
+          groups = [(k, inv[k]) for k in ('necessary85', 'original300')]
+          summary = {}
+          for name, names in groups:
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              with open(f'{out}/{name}.log', 'w') as stream:
+                  r = unittest.TextTestRunner(stream=stream, verbosity=2).run(suite)
+              summary[name] = dict(run=r.testsRun, failures=len(r.failures), errors=len(r.errors), skipped=len(r.skipped))
+              ok = ok and r.wasSuccessful() and not r.skipped
+              print(name, summary[name], flush=True)
+          json.dump(summary, open(f'{out}/SUMMARY.json', 'w'), indent=2)
+          raise SystemExit(0 if ok else 1)
+          PY
+      - name: Upload hermetic logs
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: rc-native-hermetic-probe-sets-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/hermetic/
+          if-no-files-found: error
+          retention-days: 7
+  hermetic-executor:
+    # Hermetic executor/github/unowned/xfail cases and the 14 executor groups. Parallel with publisher-native and the other hermetic job (no needs).
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.event_name == 'push' && github.ref == 'refs/heads/ci/native-qualified-on-packages-20261016'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Official glib fixture only
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --proto '=https' --max-redirs 0 --connect-timeout 10 --max-time 30 --max-filesize 267679 \
+            --output "$RUNNER_TEMP/glib-0.18.5.crate" https://static.crates.io/crates/glib/glib-0.18.5.crate
+          printf '233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5  %s\n' "$RUNNER_TEMP/glib-0.18.5.crate" | sha256sum --check --strict
+      - name: executor/github/unowned/authenticate-before-connect cases and 14 executor groups
+        shell: bash
+        env:
+          RC_CONSUMER_TEST_GLIB_ARCHIVE: ${{ runner.temp }}/glib-0.18.5.crate
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hermetic"
+          cd scripts
+          python -B - "$RUNNER_TEMP/hermetic" <<'PY'
+          import importlib, json, sys, unittest
+          out = sys.argv[1]; ok = True
+          inv = json.load(open('rc_native_probe_inventory.json'))
+          groups = []
+          groups.append(('owned-cases', [n for m in ('rc_publication_executor_cases', 'rc_publication_github_cases', 'rc_publication_unowned_mutation_cases', 'rc_publication_authenticate_before_connect_cases') for n in [m]]))
+          for name, mod in (('windows_launch','rc_pretag_windows_launch_cases'),('source_observation','rc_pretag_source_observation_cases'),('git_budget','rc_pretag_git_budget_cases'),('staging_budget','rc_pretag_staging_budget_cases'),('forty_eight','rc_pretag_publisher_executor_cases'),('admission','rc_pretag_integration_admission_cases'),('final_admission','rc_pretag_final_admission_cases'),('download_budget','rc_pretag_download_budget_cases'),('checksum_budget','rc_pretag_checksum_budget_cases'),('archive_budget','rc_pretag_archive_budget_cases'),('staged_bytes','rc_pretag_staged_bytes_cases'),('supervisor_readiness','rc_pretag_supervisor_readiness_cases'),('stage_retirement','rc_pretag_stage_retirement_cases'),('windows_vm','rc_pretag_windows_vm_cases')):
+              groups.append((name, importlib.import_module(mod).inventory()))
+          summary = {}
+          for name, names in groups:
+              suite = unittest.defaultTestLoader.loadTestsFromNames(names)
+              with open(f'{out}/{name}.log', 'w') as stream:
+                  r = unittest.TextTestRunner(stream=stream, verbosity=2).run(suite)
+              summary[name] = dict(run=r.testsRun, failures=len(r.failures), errors=len(r.errors), skipped=len(r.skipped))
+              ok = ok and r.wasSuccessful() and not r.skipped
+              print(name, summary[name], flush=True)
+          json.dump(summary, open(f'{out}/SUMMARY.json', 'w'), indent=2)
+          raise SystemExit(0 if ok else 1)
+          PY
+      - name: Upload hermetic logs
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: rc-native-hermetic-executor-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/hermetic/
+          if-no-files-found: error
+          retention-days: 7

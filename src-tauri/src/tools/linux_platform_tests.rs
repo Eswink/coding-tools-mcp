@@ -11,11 +11,8 @@ use crate::tools::{call_tool, ToolContext};
 fn context() -> (tempfile::TempDir, tempfile::TempDir, ToolContext) {
     let workspace = tempdir().expect("workspace");
     let harness = tempdir().expect("harness");
-    let ctx = ToolContext::for_test(
-        workspace.path().to_path_buf(),
-        harness.path().to_path_buf(),
-    )
-    .expect("context");
+    let ctx = ToolContext::for_test(workspace.path().to_path_buf(), harness.path().to_path_buf())
+        .expect("context");
     (workspace, harness, ctx)
 }
 
@@ -78,7 +75,10 @@ fn linux_exec_runs_explicit_shell_and_workspace_script() {
         assert_eq!(output["command_ok"], true, "{cmd}: {output}");
         assert_eq!(output["exit_code"], 0, "{cmd}: {output}");
         assert!(
-            output["stdout"].as_str().unwrap_or_default().contains(expected),
+            output["stdout"]
+                .as_str()
+                .unwrap_or_default()
+                .contains(expected),
             "{cmd}: {output}"
         );
     }
@@ -87,14 +87,16 @@ fn linux_exec_runs_explicit_shell_and_workspace_script() {
 #[test]
 fn linux_rejects_windows_shell_semantics_before_spawn() {
     let (_workspace, _harness, ctx) = context();
-    for cmd in ["cmd /c echo nope", "powershell -NoProfile -Command echo-nope"] {
+    for cmd in [
+        "cmd /c echo nope",
+        "powershell -NoProfile -Command echo-nope",
+    ] {
         let output = call_tool(&ctx, "exec_command", &json!({"cmd": cmd}));
         assert_eq!(output["ok"], false, "{cmd}: {output}");
         let code = output["error"]["code"].as_str().unwrap_or_default();
         let message = output["error"]["message"].as_str().unwrap_or_default();
         assert!(
-            code == "PLATFORM_COMMAND_MISMATCH"
-                || message.contains("PLATFORM_COMMAND_MISMATCH"),
+            code == "PLATFORM_COMMAND_MISMATCH" || message.contains("PLATFORM_COMMAND_MISMATCH"),
             "{cmd}: {output}"
         );
     }
@@ -122,8 +124,14 @@ fn linux_background_task_cancel_confirms_process_group_drain() {
         if matches!(state["status"].as_str(), Some("running" | "cancelling")) {
             break;
         }
-        assert!(!state["terminal"].as_bool().unwrap_or(false), "task exited too early: {state}");
-        assert!(Instant::now() < running_deadline, "task never started: {state}");
+        assert!(
+            !state["terminal"].as_bool().unwrap_or(false),
+            "task exited too early: {state}"
+        );
+        assert!(
+            Instant::now() < running_deadline,
+            "task never started: {state}"
+        );
         std::thread::sleep(Duration::from_millis(25));
     }
 
@@ -140,7 +148,10 @@ fn linux_background_task_cancel_confirms_process_group_drain() {
             assert_eq!(state["result"]["output_complete"], true, "{state}");
             break;
         }
-        assert!(Instant::now() < terminal_deadline, "task did not drain: {state}");
+        assert!(
+            Instant::now() < terminal_deadline,
+            "task did not drain: {state}"
+        );
         std::thread::sleep(Duration::from_millis(25));
     }
 }
