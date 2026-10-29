@@ -128,6 +128,7 @@ jobs:
           python scripts/rc_version_gate_tests.py
           python scripts/rc_packages_tests.py
           python scripts/rc_windows_install_contract_tests.py
+          python scripts/windows_standard_v23/Windows标准用户验收v23_tests.py
           python scripts/final_rc_evidence_tests.py
           python scripts/release_dependency_capture_tests.py
           node --test tests/cloud-gateway/*.test.mjs

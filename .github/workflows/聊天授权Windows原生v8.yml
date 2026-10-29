@@ -61,7 +61,7 @@ jobs:
           Copy-Item -LiteralPath "$env:RUNNER_TEMP/Windows授权驱动v8/驱动来源v8.json" -Destination 'evidence/'
           & python scripts/Windows启动对照v17.py --output evidence/Windows同场景启动v17.json 2>&1 | Tee-Object -FilePath evidence/Windows同场景启动v17.log
           if ($LASTEXITCODE -ne 0) { throw '实际PowerShell场景降权窗口冒烟失败；不进入业务验收' }
-          & python scripts/Windows标准用户验收v22.py --executable src-tauri/target/debug/coding-tools-mcp-desktop.exe --driver "$env:RUNNER_TEMP/Windows授权驱动v8/msedgedriver.exe" --kind native --source $env:GITHUB_SHA --output evidence --fixture-root $fixture 2>&1 | Tee-Object -FilePath evidence/Windows原生会话v8.log
+          & python scripts/windows_standard_v23/Windows标准用户验收v23.py --executable src-tauri/target/debug/coding-tools-mcp-desktop.exe --driver "$env:RUNNER_TEMP/Windows授权驱动v8/msedgedriver.exe" --kind native --source $env:GITHUB_SHA --output evidence --fixture-root $fixture 2>&1 | Tee-Object -FilePath evidence/Windows原生会话v8.log
           if ($LASTEXITCODE -ne 0) { throw 'Windows原生授权验收未通过' }
           $version = (Get-Content -LiteralPath 'package.json' -Raw -Encoding utf8 | ConvertFrom-Json).version
           & python scripts/聊天授权证据门禁v18.py --input evidence/聊天授权原生结果v6.json --binary src-tauri/target/debug/coding-tools-mcp-desktop.exe --source $env:GITHUB_SHA --run-id $env:GITHUB_RUN_ID --version $version --kind native

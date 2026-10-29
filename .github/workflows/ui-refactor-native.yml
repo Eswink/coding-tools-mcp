@@ -15,6 +15,7 @@ on:
       - 'scripts/exclusive_windows_install.ps1'
       - 'scripts/native_scenario.py'
       - 'scripts/Windows标准用户验收v22.py'
+      - 'scripts/windows_standard_v23/**'
       - 'package.json'
       - 'package-lock.json'
       - 'tests/ui*'
