@@ -40,6 +40,23 @@ fn remote_exec_gate_for(linux: bool, windows: bool, ctx: &ToolContext) -> Result
     }
 }
 
+/// Search path for resolving a bare program name. A Linux remote child gets
+/// `PATH=/usr/bin:/bin` and Landlock read/execute access only to the system
+/// runtime directories, so resolving against the desktop PATH can select an
+/// interpreter (e.g. a setup-python/pyenv `python3`) that starts but cannot
+/// read its own stdlib/libpython and dies before doing any work.
+/// `coding-tools-local-agent` is a Linux-only dependency; elsewhere `required`
+/// is always false and the host search path stays in effect.
+#[cfg(target_os = "linux")]
+pub(crate) fn program_search_path(ctx: &ToolContext) -> Option<&'static str> {
+    required(ctx).then_some(coding_tools_local_agent::SANDBOX_CHILD_PATH)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn program_search_path(_ctx: &ToolContext) -> Option<&'static str> {
+    None
+}
+
 /// An operation result only reports enforcement after a successful child start.
 pub(crate) fn annotate(ctx: &ToolContext, result: &mut Value, child_started: bool) {
     let required = required(ctx);
@@ -223,6 +240,22 @@ mod tests {
         ctx.policy.permission_mode = mode.into();
         ctx.remote_request = Some(crate::auth::chat::RemoteRequest::unresolved("q3b"));
         (root, harness, ctx)
+    }
+
+    #[test]
+    fn sandboxed_children_resolve_programs_on_their_own_search_path() {
+        let root = tempfile::tempdir().unwrap();
+        let harness = tempfile::tempdir().unwrap();
+        let local = ToolContext::for_test(root.path().into(), harness.path().into()).unwrap();
+        assert_eq!(program_search_path(&local), None);
+        for mode in ["trusted", "dangerous", "safe"] {
+            let (_r, _h, remote) = remote_ctx(mode);
+            assert_eq!(
+                program_search_path(&remote),
+                cfg!(target_os = "linux").then_some("/usr/bin:/bin"),
+                "{mode}"
+            );
+        }
     }
 
     // Q3 = B (2026-10-29): platform matrix of the remote exec.run gate.

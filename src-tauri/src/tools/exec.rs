@@ -241,7 +241,13 @@ async fn run_command(
     tty: bool,
     stdin_text: &str,
 ) -> Result<Value, WorkspaceError> {
-    let (program, args) = parse_and_resolve(cmd, cwd, ctx.workspace.root(), &ctx.policy)?;
+    let (program, args) = parse_and_resolve(
+        cmd,
+        cwd,
+        ctx.workspace.root(),
+        &ctx.policy,
+        super::execution_sandbox::program_search_path(ctx),
+    )?;
     let start = Instant::now();
 
     let mut command = command_for_program(&program, &args);
@@ -575,6 +581,7 @@ fn parse_and_resolve(
     cwd: &Path,
     workspace_root: &Path,
     policy: &crate::tools::policy::PolicySettings,
+    search_path: Option<&str>,
 ) -> Result<(String, Vec<String>), WorkspaceError> {
     let parts = shell_words::split(cmd)
         .map_err(|_| WorkspaceError::invalid_argument("Invalid command syntax"))?;
@@ -582,15 +589,27 @@ fn parse_and_resolve(
         return Err(WorkspaceError::invalid_argument("Empty command"));
     }
 
-    let program = resolve_program(&parts[0], cwd, workspace_root, policy)?;
+    let program = resolve_program_in(&parts[0], cwd, workspace_root, policy, search_path)?;
     Ok((program, parts[1..].to_vec()))
 }
 
+#[cfg(test)]
 fn resolve_program(
     raw: &str,
     cwd: &Path,
     workspace_root: &Path,
     policy: &crate::tools::policy::PolicySettings,
+) -> Result<String, WorkspaceError> {
+    resolve_program_in(raw, cwd, workspace_root, policy, None)
+}
+
+/// `search_path` replaces the host PATH for bare names (sandboxed children).
+fn resolve_program_in(
+    raw: &str,
+    cwd: &Path,
+    workspace_root: &Path,
+    policy: &crate::tools::policy::PolicySettings,
+    search_path: Option<&str>,
 ) -> Result<String, WorkspaceError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
@@ -654,14 +673,17 @@ fn resolve_program(
         });
     }
 
-    which::which(trimmed)
-        .map(|p| p.to_string_lossy().into_owned())
-        .map_err(|_| WorkspaceError::Tool {
-            code: "COMMAND_REJECTED",
-            message: format!("Program not found on PATH: {trimmed}"),
-            category: "runtime",
-            retryable: false,
-        })
+    match search_path {
+        Some(path) => which::which_in(trimmed, Some(path), cwd),
+        None => which::which(trimmed),
+    }
+    .map(|p| p.to_string_lossy().into_owned())
+    .map_err(|_| WorkspaceError::Tool {
+        code: "COMMAND_REJECTED",
+        message: format!("Program not found on PATH: {trimmed}"),
+        category: "runtime",
+        retryable: false,
+    })
 }
 
 #[cfg(test)]
@@ -707,6 +729,41 @@ mod tests {
             },
             "COMMAND_SPAWN_FAILED",
         );
+    }
+
+    /// ui-refactor :301: a sandboxed child must never be resolved through the
+    /// desktop PATH (CI put setup-python's /opt/hostedtoolcache python3 first;
+    /// Landlock let it start but not read its stdlib, so `started` never
+    /// appeared). Only the explicit search path is consulted.
+    #[cfg(unix)]
+    #[test]
+    fn sandbox_search_path_replaces_host_path_for_bare_names() {
+        use std::os::unix::fs::PermissionsExt;
+        let workspace = tempdir().expect("workspace");
+        let runtime = tempdir().expect("runtime");
+        let empty = tempdir().expect("empty");
+        let probe = runtime.path().join("ctm-issue301-probe");
+        std::fs::write(&probe, "#!/bin/sh\n").expect("probe");
+        let mut permissions = std::fs::metadata(&probe).expect("metadata").permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&probe, permissions).expect("permissions");
+        let policy = crate::tools::policy::PolicySettings::default();
+        let ws = workspace.path();
+        let runtime_path = runtime.path().to_str().expect("utf-8");
+        let resolved =
+            resolve_program_in("ctm-issue301-probe", ws, ws, &policy, Some(runtime_path))
+                .expect("resolves on the sandbox search path");
+        assert_eq!(std::path::Path::new(&resolved), probe);
+        // `sh` is on every host PATH; with a sandbox search path it is not used.
+        let empty_path = empty.path().to_str().expect("utf-8");
+        assert!(resolve_program_in("sh", ws, ws, &policy, None).is_ok());
+        assert!(matches!(
+            resolve_program_in("sh", ws, ws, &policy, Some(empty_path)),
+            Err(WorkspaceError::Tool {
+                code: "COMMAND_REJECTED",
+                ..
+            })
+        ));
     }
 
     #[test]
