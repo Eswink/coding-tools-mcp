@@ -22,7 +22,7 @@ class RcWindowsInstallContract(unittest.TestCase):
 
     def test_application_runs_only_through_owned_standard_user_fixture(self) -> None:
         smoke = self.text.index("Windows启动对照v17.py")
-        native = self.text.index("Windows标准用户验收v22.py --scenario exclusive")
+        native = self.text.index("windows_standard_v23/Windows标准用户验收v23.py --scenario exclusive")
         gate = self.text.index("scripts/rc_native_gate.py")
         self.assertLess(smoke, native)
         self.assertLess(native, gate)

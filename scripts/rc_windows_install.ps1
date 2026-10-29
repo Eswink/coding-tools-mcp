@@ -17,7 +17,7 @@ if ($setups.Count -ne 1 -or !$setups[0].Name.Contains("_$version`_")) { throw 'E
 # The hosted build account is not the application-acceptance identity. Earlier build or
 # probe steps may legitimately create state under runneradmin. Do not inspect, delete,
 # migrate, or overwrite that profile here. The application itself is executed only by
-# Windows标准用户验收v22.py, which creates a fresh owned standard account/profile.
+# windows_standard_v23/Windows标准用户验收v23.py, which creates a fresh owned standard account/profile.
 New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
 $installRoot = Join-Path $env:RUNNER_TEMP ('rc-install-' + [Guid]::NewGuid().ToString('N'))
 $setup = Start-Process -FilePath $setups[0].FullName -ArgumentList @('/S', "/D=$installRoot") -PassThru
@@ -37,7 +37,7 @@ if ($info.FileMajorPart -ne $coreParts[0] -or $info.FileMinorPart -ne $coreParts
 # application. The following acceptance is the only application launch in this script.
 & python scripts/Windows启动对照v17.py --output (Join-Path $OutputDirectory 'Windows同场景启动v17.json') 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows同场景启动v17.log')
 if ($LASTEXITCODE -ne 0) { throw 'Installed standard-user window smoke failed; business acceptance was not started' }
-& python scripts/Windows标准用户验收v22.py --scenario exclusive --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生RC.log')
+& python scripts/windows_standard_v23/Windows标准用户验收v23.py --scenario exclusive --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生RC.log')
 if ($LASTEXITCODE -ne 0) { throw 'NSIS installed RC native acceptance failed' }
 $proof = Get-Content -LiteralPath (Join-Path $OutputDirectory 'exclusive-native.json') -Raw -Encoding utf8 | ConvertFrom-Json
 $binaryHash = (Get-FileHash -LiteralPath $installed.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
