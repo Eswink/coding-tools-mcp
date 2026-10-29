@@ -592,17 +592,56 @@ async fn cut_connection_reconnects_automatically() {
 #[tokio::test]
 async fn network_flaps_back_off_then_recover_without_giving_up() {
     let rig = Rig::start(vec![Plan::CutAfterOnline; 4]).await;
+    // Current-thread test runtime: the Agent task cannot run before this
+    // collector is spawned, so no Reconnecting{attempt} publication is missed.
+    // Each publication is followed by the (>=50ms real) backoff sleep.
+    let mut link = rig.state.clone();
+    let attempts = tokio::spawn(async move {
+        let mut seen = Vec::new();
+        while seen.len() < 4 && link.changed().await.is_ok() {
+            if let LinkState::Reconnecting { attempt } = *link.borrow_and_update() {
+                seen.push(attempt);
+            }
+        }
+        seen
+    });
     rig.online(5).await;
     let starts: Vec<Instant> = (1..=5)
         .map(|c| rig.gate.first(c, &Ev::Accepted).unwrap())
         .collect();
     let gaps: Vec<Duration> = starts.windows(2).map(|w| gap(w[0], w[1])).collect();
+    // Backoff window: gate sent projection_ack (and cut) on conn c -> conn c+1
+    // reached the gate. Excludes the TLS/WSS handshake, whose loaded-runner
+    // variance (>50ms real) made accept-to-accept gaps non-monotonic.
+    let windows: Vec<Duration> = (1..=4)
+        .map(|c| {
+            gap(
+                rig.gate.first(c, &Ev::Online).unwrap(),
+                rig.gate.first(c + 1, &Ev::Accepted).unwrap(),
+            )
+        })
+        .collect();
     eprintln!(
-        "MEASURED flap gaps (virtual s): {:?}",
-        gaps.iter().map(|g| virt(*g).round()).collect::<Vec<_>>()
+        "MEASURED flap gaps (virtual s): {:?} backoff windows: {:?}",
+        gaps.iter().map(|g| virt(*g).round()).collect::<Vec<_>>(),
+        windows.iter().map(|g| virt(*g)).collect::<Vec<_>>()
     );
-    // Unstable (<30s) links keep growing the backoff (1,2,4,8s virtual): no tight loop.
-    assert!(gaps.windows(2).all(|w| w[1] > w[0]), "{gaps:?}");
+    // Unstable (<30s) links keep growing the backoff (1,2,4,8s virtual): no tight
+    // loop, no reset. Deterministic: the Agent's own published attempt numbers.
+    let attempts = tokio::time::timeout(Duration::from_secs(5), attempts)
+        .await
+        .expect("Reconnecting attempts observed")
+        .unwrap();
+    assert_eq!(attempts, [1, 2, 3, 4], "{gaps:?} {windows:?}");
+    // ...and every one of those growing delays is actually waited out
+    // (NoJitter: sleeps never end early, so this lower bound is exact-safe).
+    for (i, window) in windows.iter().enumerate() {
+        let floor = backoff_base(i as u32 + 1) / DIV;
+        assert!(
+            *window >= floor,
+            "window {i}: {window:?} < {floor:?}; {windows:?}"
+        );
+    }
     assert!(
         gaps[3] >= Duration::from_millis(7_000 / u64::from(DIV)),
         "{gaps:?}"
