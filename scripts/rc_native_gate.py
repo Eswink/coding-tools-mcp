@@ -13,13 +13,15 @@ import re
 import exclusive_native_gate as stable
 
 RC_VERSION = re.compile(r'(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-rc\.(?:0|[1-9]\d*)')
+STABLE_VERSION = re.compile(r'(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)')
 
 
 def verify(value, *, source, run_id, version, kind, binary_sha256):
     require = stable.require
     require(re.fullmatch(r'[0-9a-f]{40}', source) is not None, 'invalid source')
     require(re.fullmatch(r'[1-9][0-9]*', run_id) is not None, 'invalid run')
-    require(RC_VERSION.fullmatch(version) is not None, 'invalid release-candidate version')
+    require(RC_VERSION.fullmatch(version) is not None or STABLE_VERSION.fullmatch(version) is not None,
+            'invalid release-candidate version')
     require(re.fullmatch(r'[0-9a-f]{64}', binary_sha256) is not None, 'invalid digest')
     require(kind in ('deb', 'appimage', 'nsis'), 'must test the installed package')
     expected = {

@@ -11,6 +11,8 @@ import tomllib
 
 PACKAGE = "coding-tools-mcp-desktop"
 RC_VERSION = re.compile(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)-rc\.(?:0|[1-9]\d*)")
+STABLE_VERSION = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)")
+CHANNELS = {"rc": RC_VERSION, "stable": STABLE_VERSION}
 SHA = re.compile(r"[0-9a-f]{40}")
 MAX_CONFIG_BYTES = 10 * 1024 * 1024
 
@@ -28,7 +30,17 @@ def load(root: Path, name: str) -> dict:
     return tomllib.loads(raw) if name.endswith((".toml", ".lock")) else json.loads(raw)
 
 
-def project_versions(root: Path) -> tuple[str, dict[str, str]]:
+def version_channel(value) -> str:
+    """Strict stable x.y.z selects the stable channel; everything else stays on the rc channel."""
+    return "stable" if isinstance(value, str) and STABLE_VERSION.fullmatch(value) else "rc"
+
+
+def source_channel(root: Path) -> str:
+    return version_channel(load(root, "package.json").get("version"))
+
+
+def project_versions(root: Path, channel: str = "rc") -> tuple[str, dict[str, str]]:
+    require(channel in CHANNELS, "unknown version channel")
     package = load(root, "package.json")
     package_lock = load(root, "package-lock.json")
     cargo = load(root, "src-tauri/Cargo.toml")
@@ -53,8 +65,12 @@ def project_versions(root: Path) -> tuple[str, dict[str, str]]:
         "Cargo.lock:project": packages[0].get("version"),
         "tauri.conf.json": tauri.get("version"),
     }
-    require(all(isinstance(value, str) and RC_VERSION.fullmatch(value) for value in versions.values()),
-            "candidate versions must all use major.minor.patch-rc.N")
+    if channel == "stable":
+        require(all(isinstance(value, str) and STABLE_VERSION.fullmatch(value) for value in versions.values()),
+                "stable versions must all use strict major.minor.patch")
+    else:
+        require(all(isinstance(value, str) and RC_VERSION.fullmatch(value) for value in versions.values()),
+                "candidate versions must all use major.minor.patch-rc.N")
     require(len(set(versions.values())) == 1, "candidate version fields differ")
     version = next(iter(versions.values()))
     return version, versions
@@ -69,10 +85,16 @@ def git_commit(root: Path) -> str:
 
 
 def verify_source(root: Path, expected_sha: str | None = None,
-                  expected_version: str | None = None, *, deadline=None, check_active=None) -> dict:
-    version, versions = project_versions(root)
+                  expected_version: str | None = None, *, deadline=None, check_active=None,
+                  channel: str | None = None) -> dict:
+    if channel is None:
+        channel = "rc" if expected_version is None else version_channel(expected_version)
+    version, versions = project_versions(root, channel)
     if expected_version is not None:
-        require(bool(RC_VERSION.fullmatch(expected_version)), "expected version is not an rc version")
+        if channel == "stable":
+            require(bool(STABLE_VERSION.fullmatch(expected_version)), "expected version is not a stable version")
+        else:
+            require(bool(RC_VERSION.fullmatch(expected_version)), "expected version is not an rc version")
         require(version == expected_version, "candidate version does not match expected version")
     if deadline is None and check_active is None:
         head = git_commit(root)

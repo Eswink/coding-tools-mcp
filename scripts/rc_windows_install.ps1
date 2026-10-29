@@ -4,7 +4,8 @@ $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:GITHUB_REPOSITORY -ne 'Eswink/coding-tools-mcp') { throw 'Only this repository disposable Windows runner is supported' }
 $version = (Get-Content -LiteralPath 'package.json' -Raw -Encoding utf8 | ConvertFrom-Json).version
 $match = [regex]::Match($version, '^(?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?<patch>0|[1-9][0-9]*)-rc\.(?<rc>0|[1-9][0-9]*)$')
-if (!$match.Success) { throw 'Windows RC acceptance requires major.minor.patch-rc.N' }
+if (!$match.Success) { $match = [regex]::Match($version, '^(?<major>0|[1-9][0-9]*)\.(?<minor>0|[1-9][0-9]*)\.(?<patch>0|[1-9][0-9]*)\z') }
+if (!$match.Success) { throw 'Windows RC acceptance requires major.minor.patch-rc.N or strict stable major.minor.patch' }
 $coreParts = @([int]$match.Groups['major'].Value, [int]$match.Groups['minor'].Value, [int]$match.Groups['patch'].Value)
 $source = (& git rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0 -or $source -ne $env:GITHUB_SHA) { throw 'Source identity mismatch' }
