@@ -90,7 +90,7 @@ impl PolicySettings {
     }
 
     /// The exact outcome of the exec network-command rule in
-    /// `validate_exec_command`: a network-looking command is rejected only when
+    /// `validate_command_for_workspace`: a network-looking command is rejected only when
     /// permission gates are not skipped and network is not allowed.
     pub fn network_commands_allowed(&self) -> bool {
         self.skip_permission_gates() || self.network_allowed()
@@ -276,6 +276,8 @@ pub fn validate_command_for_workspace(
                 .into(),
         ));
     }
+    // `confirm` is a caller-supplied argument (the primary agent or the gateway
+    // request), not a local user confirmation: no prompt is shown here.
     if dangerous_command_pattern().is_match(command)
         && !arguments
             .get("confirm")
