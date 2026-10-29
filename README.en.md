@@ -3,11 +3,11 @@
 <p align="center">Local workspaces, exclusive conversation approval, long-running tasks and recoverable development records for ChatGPT.</p>
 <p align="center">
   <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest"><img src="https://img.shields.io/github/v/release/Eswink/coding-tools-mcp?label=Release" alt="This repository's full release"></a>
-  <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0-rc.2"><img src="https://img.shields.io/badge/Pre--release-v0.7.0--rc.2-orange" alt="Pre-release v0.7.0-rc.2"></a>
+  <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0"><img src="https://img.shields.io/badge/Stable-v0.7.0-2ea44f" alt="Stable v0.7.0"></a>
   <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64">
   <img src="https://img.shields.io/badge/Ubuntu-22.04%20%7C%2024.04-E95420" alt="Ubuntu amd64">
 </p>
-<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0-rc.2">v0.7.0-rc.2 pre-release</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/latest">Stable (Latest)</a></p>
+<p align="center"><a href="README.md">中文</a> · <a href="README.en.md">English</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0">v0.7.0 stable (Latest)</a> · <a href="https://github.com/Eswink/coding-tools-mcp/releases">All releases</a></p>
 
 This is the **Eswink/coding-tools-mcp** desktop distribution, built with Rust, Tauri 2 and Svelte 5 / SvelteKit. It exposes selected local projects through MCP so an approved AI conversation can read files, apply patches, run commands, inspect tasks/logs and save development checkpoints.
 
@@ -15,54 +15,65 @@ This fork focuses on **personal, sustained development through ChatGPT**. OAuth 
 
 ## Download and install
 
-> **Current pre-release: v0.7.0-rc.2 (PRE-RELEASE — NOT FINAL)**, for manual testing only; it is not a stable release. The stable (Latest) release is still **[v0.6.0](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0)**. The live [Releases page](https://github.com/Eswink/coding-tools-mcp/releases) is authoritative for release status.
+> **Current stable release: v0.7.0 (Latest)**, superseding v0.6.0 and the 0.7.0 release candidates (rc.1 / rc.2 / rc.3). Download from the [v0.7.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0) (or [releases/latest](https://github.com/Eswink/coding-tools-mcp/releases/latest)). The release notes on that page are authoritative for upgrade steps, rollback behaviour and the full list of known issues.
 
-### Desktop: v0.7.0-rc.2 (pre-release)
+### Desktop: v0.7.0
 
 | Platform | Package | SHA256 | Notes |
 | --- | --- | --- | --- |
-| Windows x64 | [MCP_0.7.0-rc.2_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_x64-setup.exe) | `0933837e6011adb1839ec0f128ed5dd2b699f432f263f1d909b62040f7d0cb90` | NSIS installer; **unsigned**, shows an unknown publisher |
-| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0-rc.2_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_amd64.deb) | `1a65a6a515a8dc47319e4c7cb6e5522cdc842b3a095fda118cb082098bab5273` | Preferred; for a logged-in, non-root desktop user |
-| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0-rc.2_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/MCP_0.7.0-rc.2_amd64.AppImage) | `6e1e652ccdde15d34f2802b28440b3ad887e71af8851b79678a5a86685bb3f40` | Not verified on every FUSE/Wayland environment |
+| Windows x64 | [MCP_0.7.0_x64-setup.exe](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/MCP_0.7.0_x64-setup.exe) | `8fa1bc2fcd2fd3a2f81ea7e2de606d4b083e8acc412e5964af38e9f4bdf148e6` | Per-user NSIS installer; **unsigned**, shows an unknown publisher |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0_amd64.deb](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/MCP_0.7.0_amd64.deb) | `64341529d69d89204757eea34ea0c6d6ab2097807acad64eebecd26756ed2197` | Preferred; for a logged-in, non-root desktop user |
+| Ubuntu 22.04 / 24.04 amd64 | [MCP_0.7.0_amd64.AppImage](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/MCP_0.7.0_amd64.AppImage) | `34793babb5eb485d74676ff697263fa31dae0d714f7dfbeb12e2885fb970e7db` | Not verified on every FUSE/Wayland environment |
 
-Checksums: [SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/SHA256SUMS.txt). Built from tag `v0.7.0-rc.2` (`bdc4aeb5`), packaging run [40428267551](https://github.com/Eswink/coding-tools-mcp/actions/runs/40428267551). No macOS, ARM or headless Linux Server packages are provided.
+Checksums: [SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS.txt) (also covers `cloud-linux-amd64.tar.gz`). Built from tag `v0.7.0` (source `36e0c265`); every binary comes from packaging run [40814802175](https://github.com/Eswink/coding-tools-mcp/actions/runs/40814802175) and nothing was built locally. The Linux packages were built on Ubuntu 22.04 and install-accepted on Ubuntu 22.04 and 24.04; the Windows NSIS installer passed standard-user installed acceptance. No macOS, ARM or headless Linux Server packages are provided.
 
-### Cloud components: shipped with v0.7.0-rc.2 (pre-release)
+**Known issues (summary):** the Windows installer is unsigned; there are no macOS packages; the CI baseline failures shared with rc.2 / rc.3, the dev-only deepmerge advisory exemption (expires 2026-11-30 UTC) and other items are listed in the [v0.7.0 release notes](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0).
+
+### Cloud components: v0.7.0
 
 | File | SHA256 | Notes |
 | --- | --- | --- |
-| [cloud-image.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/cloud-image.tar) | `82c485832dc1f2b145b45a7b0480229f3b4cc213f07d2cdb732cea052f7ed0bb` | Cloud gateway Docker image (import with `docker load`; the image has no tag) |
-| [cloud-linux-amd64.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/cloud-linux-amd64.tar.gz) | `c7c37a3c7549589d46aafa392ded1ce9a5c5077c284502abac9618b2ad830418` | The same Linux amd64 binaries (including `coding-tools-gateway` and `coding-tools-agent`) |
+| [cloud-linux-amd64.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/cloud-linux-amd64.tar.gz) | `137cfa80b5d601b5ff18341d49a59c5968e8459d126dfa2aefb0c9adcc445f7b` | Linux amd64 cloud binary bundle (gateway / control-gateway / mcp-gateway / agent), with [archive-receipt.json](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/archive-receipt.json) and [versions.json](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/versions.json) |
+| [coding-tools-gateway-image-0.7.0.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/coding-tools-gateway-image-0.7.0.tar) | `04d4c59ab88a33aeb2dcafe6162debe18c9f344a4a0d789e91602fafc8847fee` | CI-built gateway runtime image (OCI archive, untagged); checksum file [coding-tools-gateway-image-0.7.0.tar.sha256](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/coding-tools-gateway-image-0.7.0.tar.sha256) |
 
-Checksums: [SHA256SUMS-cloud.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0-rc.2/SHA256SUMS-cloud.txt) (also covers `archive-receipt.json`, `image-archive.sha256` and `versions.json`). After import, **reference the image by its ID**, not by a tag:
+Verify the cloud binary bundle with [SHA256SUMS-cloud.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS-cloud.txt). Image labels: `org.opencontainers.image.version=0.7.0`, `org.opencontainers.image.revision=36e0c265a2bb5f93fe61a504468bf584706519e2`.
 
-```bash
-sha256sum -c SHA256SUMS-cloud.txt
-docker load -i cloud-image.tar
-docker image inspect --format '{{.Id}}' sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a
-```
-
-### Cloud gateway deploy kit: gateway-v0.1.0-rc.1 (pre-release)
-
-[gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1) contains only the VPS deploy kit (`kit.py`, RUNBOOK, templates, render scripts and the connection guide). It **does not contain gateway binaries or an image**; use the rc.2 `cloud-image.tar` above. Source commit `e43728285af66beac7807376ff7764c708c2b631`.
+### Cloud gateway Docker deployment: v0.7.0
 
 | File | SHA256 |
 | --- | --- |
-| [coding-tools-gateway-deploy-kit-e4372828.tar](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/coding-tools-gateway-deploy-kit-e4372828.tar) | `260bdbedd5c7ff1c402c5ef1028f92cb183f7caadc09f1f736104536430ab3d2` (canonical hash; the `.tar` is authoritative) |
-| [coding-tools-gateway-deploy-kit-e4372828.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/coding-tools-gateway-deploy-kit-e4372828.tar.gz) | `7d001ea55deea715f2ecf1eaf9ec1039bae5a11c331b271431c107fffd6b7e97` (depends on the gzip implementation; informational) |
+| [coding-tools-gateway-docker-kit-36e0c265.tar.gz](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/coding-tools-gateway-docker-kit-36e0c265.tar.gz) | `4cb586324fa27db03ec2f3c869f991555b38a7d24a9bfb89d313b8329bba4867` |
 
-Checksums: [SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/gateway-v0.1.0-rc.1/SHA256SUMS.txt); the reproduction command is in the release notes. Documentation pinned to the source commit: [Deploy RUNBOOK](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/kit/RUNBOOK.md) · [ChatGPT and desktop connection guide](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md).
+Checksums: [SHA256SUMS-docker-kit.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS-docker-kit.txt). The kit is a deterministic `git archive` of [deploy/cloud-gateway/docker](deploy/cloud-gateway/docker/README.md) at the tagged commit; the reproduction command is in the release notes. After import, **reference the image by its ID**, not by a tag:
 
-### Version combinations
+```bash
+sha256sum -c coding-tools-gateway-image-0.7.0.tar.sha256
+sha256sum -c SHA256SUMS-docker-kit.txt
+docker load -i coding-tools-gateway-image-0.7.0.tar
+docker image inspect --format '{{.Id}}' sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b
+# in .env: CTM_GATEWAY_IMAGE=sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b
+```
 
-| Purpose | Desktop | Cloud gateway image | Deploy kit | Status |
-| --- | --- | --- | --- | --- |
-| Manual cloud gateway testing | v0.7.0-rc.2 | rc.2 `cloud-image.tar`, referenced by ID `sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a` | gateway-v0.1.0-rc.1 | Pre-release; **this combination has not been tested end to end (not on a real VPS or with real ChatGPT)** |
-| Everyday use | v0.6.0 (Latest) | Not used | Not used | Stable; used on its own, without the cloud gateway |
+- The image ID **must be** `sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b`. Pin `CTM_POSTGRES_IMAGE` / `CTM_INGRESS_IMAGE` by `@sha256:` digest; **never use `latest` or any mutable tag**.
+- **Deployment order is mandatory: init → desktop device registration → `up -d`.**
+  1. `ctm_docker.py setup`
+  2. `invite-device` → desktop `prove-enrollment` → `redeem-device` → `select-device` (at least once; without a registered and selected device the gateway refuses to start with `provisioning_not_ready`)
+  3. `docker compose up -d` + `ctm_docker.py check`
+- See the kit's [README](deploy/cloud-gateway/docker/README.md) for details.
 
-### Stable: v0.6.0 (Latest)
+### Upgrading from v0.6.0
 
-For a stable version, use the [v0.6.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0) (its assets are the `MCP_0.6.0-rc.4_*` packages plus `SHA256SUMS_v0.6.0.txt` and `Verification_v0.6.0.md`).
+- **Windows**: run `MCP_0.7.0_x64-setup.exe` (per-user, unsigned, SmartScreen may warn; check the SHA256 first). It installs over v0.6.0 or any 0.7.0 RC.
+- **Linux**: `sudo apt install ./MCP_0.7.0_amd64.deb` upgrades in place; or replace the AppImage and `chmod +x` it.
+- **Cloud gateway**: load the new image, set `CTM_GATEWAY_IMAGE` in `.env` to the image ID above, then `docker compose up -d` and `ctm_docker.py check`. Upgrade the desktop app and the gateway together.
+- In the desktop app, Settings → General → "Check for updates" now reports v0.7.0.
+- **Rollback behaviour**: the desktop app has **no auto-updater**. "Check for updates" is a manual button that reads `releases/latest` from the GitHub API and only shows a dialog / opens the release page; nothing is downloaded or installed automatically. If Latest is ever switched back to v0.6.0, users already on 0.7.0 are told they are up to date and stay on 0.7.0 (no downgrade prompt, no automatic downgrade); any fix ships as 0.7.1 or later.
+
+### Earlier releases
+
+- **v0.6.0** (previous stable): [v0.6.0 Release](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.6.0) (its assets are the `MCP_0.6.0-rc.4_*` packages plus `SHA256SUMS_v0.6.0.txt` and `Verification_v0.6.0.md`).
+- **v0.7.0-rc.1 / rc.2 / rc.3** (historical pre-releases): superseded by v0.7.0, kept for the record only and no longer recommended; see the [Releases page](https://github.com/Eswink/coding-tools-mcp/releases).
+- **gateway-v0.1.0-rc.1** (historical pre-release): contains only the VPS deploy kit (`kit.py`, RUNBOOK, templates, render scripts and the connection guide), no gateway binaries or image; see [gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1).
 
 ### Verify SHA256
 
@@ -75,25 +86,25 @@ sha256sum -c SHA256SUMS.txt --ignore-missing
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\MCP_0.7.0-rc.2_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\MCP_0.7.0_x64-setup.exe -Algorithm SHA256
 ```
 
 The output must match the table / `SHA256SUMS.txt` exactly. Do not install on a mismatch.
 
 ### Install
 
-- **Windows**: run `MCP_0.7.0-rc.2_x64-setup.exe`. The installer is unsigned, so SmartScreen may report an "unknown publisher"; verify the SHA256 before choosing to continue.
+- **Windows**: run `MCP_0.7.0_x64-setup.exe`. The installer is unsigned, so SmartScreen may report an "unknown publisher"; verify the SHA256 before choosing to continue.
 - **Ubuntu DEB**: in the directory containing the file, run
 
   ```bash
-  sudo apt install ./MCP_0.7.0-rc.2_amd64.deb
+  sudo apt install ./MCP_0.7.0_amd64.deb
   ```
 
-- **Ubuntu AppImage**: `chmod +x MCP_0.7.0-rc.2_amd64.AppImage`, then run it; use `--appimage-extract-and-run` where FUSE is unavailable.
+- **Ubuntu AppImage**: `chmod +x MCP_0.7.0_amd64.AppImage`, then run it; use `--appimage-extract-and-run` where FUSE is unavailable.
 
 Installing a system package needs elevated privileges; **running the desktop application does not**. Do not launch the GUI with sudo. Linux secret recovery needs the user's D-Bus session and an available, unlocked Secret Service. Do not disable the sandbox to work around startup failures.
 
-**Update source:** from v0.6.0 on, "Check for updates" points to this repository's `releases/latest`, so it **only sees stable releases and never offers pre-releases**; download rc builds manually from the tables above. Binaries from v0.5.0 and earlier still point to upstream; do not treat an upstream-suggested version as an update for this fork. [Source](src-tauri/src/update/mod.rs)
+**Update source:** from v0.6.0 on, "Check for updates" points to this repository's `releases/latest`, so it **only sees stable releases and never offers pre-releases**. Binaries from v0.5.0 and earlier still point to upstream; do not treat an upstream-suggested version as an update for this fork. [Source](src-tauri/src/update/mod.rs)
 
 ## Interface and pages
 
@@ -163,14 +174,14 @@ Only after approval should the chat call business tools such as `server_info`, `
 OAuth connection → Conversation request → Local fingerprint approval → Tool access → Checkpoint
 ```
 
-## Option 2: connect ChatGPT through the cloud gateway (pre-release, untested)
+## Option 2: connect ChatGPT through the cloud gateway (not tested end to end in a real environment)
 
-The v0.7.0-rc.2 desktop app adds a "Cloud connection" panel to the workspace: import a cloud connection configuration JSON and a local signing private key JSON from local files, and the desktop app connects **outbound** to the cloud gateway. ChatGPT connects to the gateway's MCP endpoint instead of reaching your computer directly.
+The v0.7.0 desktop app provides a "Cloud connection" panel in the workspace: import a cloud connection configuration JSON and a local signing private key JSON from local files, and the desktop app connects **outbound** to the cloud gateway. ChatGPT connects to the gateway's MCP endpoint instead of reaching your computer directly.
 
-- **Deploy the gateway**: download the [gateway-v0.1.0-rc.1](https://github.com/Eswink/coding-tools-mcp/releases/tag/gateway-v0.1.0-rc.1) deploy kit and follow the [RUNBOOK](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/kit/RUNBOOK.md) manually. Prerequisites: a dedicated subdomain with TLS, Docker Engine ≥ 28, Compose 2.27.0, python3 ≥ 3.11, and the imported rc.2 gateway image (`--gateway-image sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a`). You must supply your own `--domain` (shown as the `<GATEWAY_DOMAIN>` placeholder in the docs). `kit.py` only performs local file operations; it never calls docker or ssh or reloads Nginx.
+- **Deploy the gateway**: use the v0.7.0 gateway image and Docker kit, following "Cloud gateway Docker deployment: v0.7.0" above and the [kit README](deploy/cloud-gateway/docker/README.md); prerequisites are Docker Engine ≥ 28 and Compose v2. The manual VPS `kit.py` and [RUNBOOK](deploy/cloud-gateway/kit/RUNBOOK.md) are also in the repository. You must supply your own `--domain` (domains in the docs are placeholders).
 - **Authorization boundary unchanged**: neither the cloud, the model nor OAuth can approve local permissions; after connecting you still verify the chat fingerprint and approve on this computer. Pause and revoke are decided locally.
-- **Connect ChatGPT and the desktop app**: the connector URL, OAuth endpoints, `register-client` pre-registration and desktop import steps are in the [connection guide](https://github.com/Eswink/coding-tools-mcp/blob/e43728285af66beac7807376ff7764c708c2b631/deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md).
-- **Status**: pre-release, **not tested end to end (not on a real VPS or with real ChatGPT)**; see "Known limitations" below. The deploy kit source lives on the development branch `feat/gateway-s1-agent-resilience` and is not merged into main.
+- **Connect ChatGPT and the desktop app**: the connector URL, OAuth endpoints, `register-client` pre-registration and desktop import steps are in the [connection guide](deploy/cloud-gateway/CONNECT-CHATGPT-AND-DESKTOP.md) (written for rc.2 manual testing; use the v0.7.0 image and versions from this page).
+- **Status**: **not tested end to end on a real VPS or with real ChatGPT**; see "Known limitations" below.
 
 ## Exclusive ownership and long sessions
 
@@ -213,10 +224,9 @@ Exit the old app and back up configuration plus the corresponding system account
 
 Known limitations:
 
-- **A pre-release is not a stable release**: v0.7.0-rc.2 is marked PRE-RELEASE — NOT FINAL; Latest is still v0.6.0.
+- **Full known issues are in the release notes**: the CI baseline failures shared with rc.2 / rc.3, the dev-only deepmerge advisory exemption (expires 2026-11-30 UTC) and more; see the [v0.7.0 release notes](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0).
 - **Windows installers are unsigned**.
-- **The cloud gateway combination is not tested end to end**: v0.7.0-rc.2 + the rc.2 gateway image + gateway-v0.1.0-rc.1 have not been tested on a real VPS or with real ChatGPT; only the in-CI container topology test passed.
-- **rc.2 binaries do not include S1** (the agent reconnection/resilience changes): S1 exists only on the development branch of the deploy kit; the rc.2 desktop app, `cloud-image.tar` and `cloud-linux-amd64.tar.gz` do not contain it.
+- **The cloud gateway combination is not tested end to end**: the v0.7.0 desktop app + the v0.7.0 gateway image have not been tested on a real VPS or with real ChatGPT; only in-CI tests passed.
 - **The gateway has no dynamic client registration (DCR)**: an operator must pre-register the client with `coding-tools-gateway register-client`; whether ChatGPT accepts this is **not verified**.
 - **There is no Windows build of `coding-tools-agent`**: only Linux amd64 is available.
 - **You must supply `--domain` yourself**: domains in the docs and examples are placeholders and cannot be used as-is.
