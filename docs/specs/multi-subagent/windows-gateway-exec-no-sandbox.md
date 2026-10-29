@@ -15,15 +15,19 @@ sandbox, default permissions; restricted mode still rejected.
 
 Unchanged on every platform:
 
-- chat session authorization and local approval (`CHAT_NOT_APPROVED`,
-  `INSUFFICIENT_CHAT_SCOPE`, admission ticket, nonce/expiry);
+- chat session authorization (`CHAT_NOT_APPROVED`, `INSUFFICIENT_CHAT_SCOPE`,
+  admission ticket, nonce/expiry). The session grant with the `exec.run`
+  scope is approved locally once; individual gateway commands are **not**
+  separately approved in `trusted` or `dangerous` mode and are subject only to
+  the command policy of the selected permission mode (allowlist, `confirm=true`
+  for dangerous-looking commands, network rule);
 - audit logging;
 - every non-exec tool, and the local (non-gateway) execution path.
 
 `exec_environment` on a Windows gateway in default mode reports
 `workspace_exec_boundary = "unsandboxed_user_default_permissions"`,
-`workspace_exec_sandbox_enforced = false`, and a warning with the sentence
-above, so the primary agent can see that no sandbox is present.
+`workspace_exec_sandbox_enforced = false`, and warnings with the sentence
+above and the session-authorization sentence, so the primary agent can see that no sandbox is present.
 
 Code: `src-tauri/src/tools/execution_sandbox.rs` (`remote_exec_gate`,
 `environment`), `src-tauri/src/tools/cloud_host.rs` (`NativeToolHost::prepare`).

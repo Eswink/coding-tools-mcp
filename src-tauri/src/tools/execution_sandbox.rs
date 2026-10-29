@@ -8,6 +8,10 @@ pub(crate) fn required(ctx: &ToolContext) -> bool {
 
 /// Permission modes that already grant the user's default developer
 /// permissions. `safe` (安全受限) and any unknown mode stay fail-closed.
+/// Accurate per the approval path: the chat session grant (exec.run scope) is
+/// approved locally once; individual gateway commands are not prompted again.
+pub(crate) const WINDOWS_GATEWAY_EXEC_APPROVAL_WARNING: &str =
+    "Session authorization (exec.run scope) is still required; individual commands are not separately approved and are subject only to the command policy of the selected permission mode.";
 const WINDOWS_UNSANDBOXED_MODES: &[&str] = &["trusted", "dangerous"];
 
 /// Windows gateway exec has no sandbox and runs with user default permissions.
@@ -63,7 +67,7 @@ fn environment_for(linux: bool, windows: bool, ctx: &ToolContext, mut result: Va
         });
         result["warnings"] = json!([
             "Windows gateway exec has no sandbox and runs with user default permissions.",
-            "Session authorization and local approval are still required for every command."
+            WINDOWS_GATEWAY_EXEC_APPROVAL_WARNING
         ]);
         return result;
     }
@@ -269,6 +273,22 @@ mod tests {
             .as_str()
             .unwrap()
             .contains("no sandbox"));
+    }
+
+    #[test]
+    fn windows_default_mode_environment_warnings_are_exact() {
+        for mode in ["trusted", "dangerous"] {
+            let (_r, _h, ctx) = remote_ctx(mode);
+            let value = environment_for(false, true, &ctx, json!({}));
+            assert_eq!(
+                value["warnings"],
+                json!([
+                    "Windows gateway exec has no sandbox and runs with user default permissions.",
+                    "Session authorization (exec.run scope) is still required; individual commands are not separately approved and are subject only to the command policy of the selected permission mode."
+                ]),
+                "{mode}"
+            );
+        }
     }
 
     #[test]
