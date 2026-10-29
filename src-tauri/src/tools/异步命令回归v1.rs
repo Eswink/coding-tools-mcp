@@ -46,19 +46,31 @@ fn await_terminal(ctx: &ToolContext, id: &str) -> Value {
 
 #[test]
 fn submit_returns_before_long_command_and_keeps_result_after_context_clone() {
-    let (_root, _harness, ctx) = fixture();
-    let start = Instant::now();
+    let (root, _harness, ctx) = fixture();
+    // The command cannot finish until the test creates release.flag, so a
+    // submit that waited for it would only return after the bounded gate
+    // expiry, terminal and without "completed". This proves non-blocking
+    // submission by state, not by a wall-clock bound that loaded Windows
+    // runners exceeded while merely starting the child process.
     let accepted = submit(
         &ctx,
         "nonblocking",
-        "import time; time.sleep(2); print('completed')",
+        "import time,pathlib; f=pathlib.Path('release.flag'); d=time.time()+20; [time.sleep(0.02) for _ in iter(lambda: f.exists() or time.time()>d, True)]; print('completed' if f.exists() else 'gate-expired')",
         FUNCTIONAL_BUDGET_MS,
     );
     assert_eq!(accepted["ok"], true, "{accepted}");
-    assert!(start.elapsed() < Duration::from_millis(1500));
+    assert_ne!(accepted["terminal"], true, "{accepted}");
     assert_ne!(accepted["command_ok"], true);
     let background = ctx.background_snapshot();
     drop(ctx);
+    let running = crate::tools::call_tool(
+        &background,
+        "get_exec_task",
+        &json!({"job_id": accepted["job_id"], "limit": 16384}),
+    );
+    assert_eq!(running["ok"], true, "{running}");
+    assert_ne!(running["terminal"], true, "{running}");
+    std::fs::write(root.path().join("release.flag"), b"go").unwrap();
     let result = await_terminal(&background, accepted["job_id"].as_str().unwrap());
     assert_eq!(result["status"], "succeeded", "{result}");
     assert_eq!(result["command_ok"], true);
