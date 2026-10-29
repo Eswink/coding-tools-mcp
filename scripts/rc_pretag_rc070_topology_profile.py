@@ -1,12 +1,12 @@
-"""Finite #150 topology admission for RC070 packaging tip f4b39135db72c4c8f9fad77f0bf99cb0a09788a0; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip 3ea09a6fbc0cf637dc9a7d6e8f58b8a39f06d274; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = 'f4b39135db72c4c8f9fad77f0bf99cb0a09788a0'
-M_TREE = 'c80d1bd8d31a941a268bbc11d727eebe713831a6'
-M_PARENTS = ('d42233ee17614958ccaad566bbd4cf9a800cc346',)
-M_RAW = (445, 'b692ec5c705504fc10a4597ab9e2639ecd83f418f2ec0a3314c1d0154565fd47')
+M = '3ea09a6fbc0cf637dc9a7d6e8f58b8a39f06d274'
+M_TREE = 'd522885e9eb9096cbe456c3e76c9234423d1a396'
+M_PARENTS = ('f8743e78d711a901d1b063322c809538cade7bba',)
+M_RAW = (533, '9adabad20a42500a47aab16e4a26a4fba645746777b0f815c0a958d49a46bf26')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
@@ -14,15 +14,10 @@ REVIEWED = 'docs/releases/reviewed-source-manifest.json'
 NEW = ()
 CAPS = {
     PROFILE: (180, 250),
-    'scripts/rc_pretag_integration_admission_profile.py': (412, 20),
 }
 DELTA_LIMIT = 120
-BASE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '3433a4ca77a1c9e7899e5814754936abd34afb28', '3947c25eaf54519f0828a33553836af5ebb4fe8b467e3931e1d9cecdb6418871', 231694, 400),
-}
-SOURCE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', 'a5aae80d17f56cb5c414a3536364749ae83dba49', '5981c38e0d46d039dedca9e83b3dddcc9cf31d717f22f72a0149ded93386f172', 264606, 412),
-}
+BASE_PINS = {}
+SOURCE_PINS = {}
 
 def _reviewed_only(parent, child, root, git, entries):
     """True iff child tree is parent tree plus sole 100644 REVIEWED path."""

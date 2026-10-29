@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "ENGINEERING CANDIDATE ONLY - NOT QUALIFIED, NOT FINAL, NOT APPROVED. Generated 2026-10-29 Asia/Shanghai by 专业打工人 for 0.7.0 candidate = v0.7.0-rc.3 15820f17 + bump 0.7.0 + stable-channel gate + re-pin cascade (inverse/admission/rc070/native_probe/reviewed); digests rc_bundle/final-0.7.0/STABLEGATE-DIGESTS.md; owner review and CI rebuild required before any tag",
+  "review_reference": "LOCAL PROTOTYPE ONLY - develop/0.8.0-a0 (A0-2 v23 exact-manifest standard-user acceptance + workflow switch) on main 4e7e6bc0 (v0.7.0 36e0c265 + README #171). NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 Asia/Shanghai by 专业打工人; digests rc_bundle/multiagent/s0/A0-REBASE-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -199,6 +199,20 @@
       }
     },
     {
+      "path": ".github/workflows/exclusive-packages.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "a513fb7fb54c4a446467a47eb6934b14c01ee18f",
+        "sha256": "cc06c75a2f20c6bbfb485827dd73d01f2bf556baa57e8a563706f6372c1f826a"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c2674527dd792862f148926f209ccfbc63a8f967",
+        "sha256": "a3ee202b9ab8cdbb381fb1e1b00155fdfad553941ebdba3da645fbb68e6e3630"
+      }
+    },
+    {
       "path": ".github/workflows/exec-input-diagnostics.yml",
       "status": "A",
       "before": null,
@@ -214,8 +228,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9c77b1dcd2794fd8727dc5448701339037461031",
-        "sha256": "cfd7cc70ba5496d0b65776400834ab5b453f4895c8ea7b174dfc1db2136e22c8"
+        "blob_sha": "98199301631a231af48f9f7c73d6efceb7dc84a8",
+        "sha256": "88ae9f919ba7422ecc2352b7e84c48605f93ee5dbfb051513ba32b8464562d73"
       }
     },
     {
@@ -417,6 +431,20 @@
       }
     },
     {
+      "path": ".github/workflows/ui-refactor-native.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "5e4bdc04baf92378896d06f986a6bbeb5e789bab",
+        "sha256": "4c7fcd22dfdb24fac0dfcccadc8c216301c116aaa50974eedec163730872d6a7"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "6421b7c412c88bfb201878fb3449e7b215a95613",
+        "sha256": "a7b56f1247e9a1425b60d4f7ae4cee944d59b00a244697520b728c6ac1860eaa"
+      }
+    },
+    {
       "path": ".github/workflows/windows-rc-packages.yml",
       "status": "M",
       "before": {
@@ -462,6 +490,34 @@
         "mode": "100644",
         "blob_sha": "2092b9aada641b7059d5f8b6e3bb156f6cfb1c15",
         "sha256": "8de0451b877c6cfdf01dd72b072d3dfb43623003a7c9d04687dff82ee026de2a"
+      }
+    },
+    {
+      "path": ".github/workflows/聊天授权Windows原生v8.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "2921836242fd98b91f7b2927aa4194800a1f96c2",
+        "sha256": "cb83090b768c6839e98e406d9a12415ceae8baf3cc1b334ca220ed52f909efbc"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "e08754f1b5c1f33c08c4db015fc66bcd73f1fa8a",
+        "sha256": "9658bec5c0e8dcd6b63097445673d22c054922bed855cb17f24494bcf0d354d2"
+      }
+    },
+    {
+      "path": ".github/workflows/聊天授权安装包v10.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "01ef6a4f273ea3cbecc40d4eee39e6f6f74b102d",
+        "sha256": "5494b637e985f46573fbe15bf693a074469a0b860be1c501b57eae9b4ce97fda"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "29638819976e63fc8e7bf764f65c54a8141b20ba",
+        "sha256": "c76f358f3c2653ff238322bbcdba61a49a38b61a0980b3725b9a517087d9d97d"
       }
     },
     {
@@ -3671,6 +3727,20 @@
       }
     },
     {
+      "path": "scripts/exclusive_windows_install.ps1",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "cdeb9c4b9a3e8093a4e21b5576638fa7c8ca352e",
+        "sha256": "1a06ca215b5f3bfba8aed1af37fc3fadd633577bb1d911def912269789528cfe"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "61a14353e2fe24daa764e9a19c2c1e3024806320",
+        "sha256": "f560a4ddc64080bb20fce7b02594dd2ed667c237e845ffbbbf4fbac9738d2d9f"
+      }
+    },
+    {
       "path": "scripts/final_rc_evidence.py",
       "status": "A",
       "before": null,
@@ -4354,8 +4424,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "58dfc807414ccd170dbcad292ac20eed721f9690",
-        "sha256": "780ac7f40096fb2d171a57e8e66463dde4ea1e8f1b1958e21375dd78b9fd4d6e"
+        "blob_sha": "565b489b3fc2721f9d0fa80193c06cbc7e9139c1",
+        "sha256": "04bae37295c066a6214b058d06fd4dcf9cea91100a366f9debd46ab923a40bf6"
       }
     },
     {
@@ -4898,8 +4968,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8d9767fdeb53286a2d26b7ff7e53a422a311b50e",
-        "sha256": "53f49607b8071e4ef88ae9ead265e6bc04dd4300cbff5460f06c4ef8878bfd67"
+        "blob_sha": "0a025bbc27d8537e7ce7cf0a64eab81a10e8d624",
+        "sha256": "5ac1234911f00eb70c37d0914ba4f342cbc1217add035cf8588394f340b2c92f"
       }
     },
     {
@@ -4908,8 +4978,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5e8b66895b4246314feaab8ea5954ed0b5d40e85",
-        "sha256": "dd220b43fa1ee81db321d911593baac3f3770316b757a0d3c9f6f00229585774"
+        "blob_sha": "50b6b211fac0aa81812898217d8c19eebcbb1ec5",
+        "sha256": "4f64ef76a7330494bc5f65eef8aa1dbdcfc881fc21ced226f9bdcae5e9df9f16"
       }
     },
     {
@@ -5486,8 +5556,22 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "8b4d3cfe351fddc18844d6432de09a04da1a742a",
-        "sha256": "32d9850aba861d9339ed74e3df9bf126b9fac36277b3fcf19174a0b773918dbf"
+        "blob_sha": "f53675017c23a07e8b6f2b037e4c446cf07dd794",
+        "sha256": "70597313f57c0c6da209cfd9601df337ddb0bb18d70d62d0f35a515b7a2dd09f"
+      }
+    },
+    {
+      "path": "scripts/rc_windows_install_contract_tests.py",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "80213ec067ed9e0d335d73fa1e3597153163b427",
+        "sha256": "8038e5a7a95dc1e5f2aff6152eb2440ec5678effe1875b9d10deb6852972529c"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "1b2cac6a6bcadc1b4f138fa1fa2aa139c3988a25",
+        "sha256": "983a3503a2628ea711923450a07e3d604a516825ed7235abf1f47dac5beac050"
       }
     },
     {
@@ -5659,6 +5743,56 @@
       }
     },
     {
+      "path": "scripts/windows_standard_v23/Windows标准用户验收v23.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "0fcf86a58fc85ba31bb82fdabd29f71ebb35241a",
+        "sha256": "da27777c7d8f278529ec5133c89e77569863643f87dc1dd2431683e66da1a591"
+      }
+    },
+    {
+      "path": "scripts/windows_standard_v23/Windows标准用户验收v23_tests.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "f7b9691a667753b6aa7e544d044c5278091ba3d1",
+        "sha256": "c73c4c2d95afd364231edc53a8d8cbceed161c08234ad55145f257f884e8a75e"
+      }
+    },
+    {
+      "path": "scripts/windows_standard_v23/source_manifest_v23.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c9f99213f7478300ece0868b110be46260ad48b2",
+        "sha256": "fa8cf4aee65eef0d02a5378b0b029b70fd1c7ed4a2bad7925bce4585255404ed"
+      }
+    },
+    {
+      "path": "scripts/windows_standard_v23/标准宿主引导v28.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "8f65c61a7bcbd246aaeb4f15a99404e02d9c7d84",
+        "sha256": "331d9c8623586895d35e0de532ddfad209a58cb19d2fe9bbb30d02aeddf72749"
+      }
+    },
+    {
+      "path": "scripts/windows_standard_v23/标准用户源清单v23.json",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "77583add1639f1e00797630532cabf0939b61f8b",
+        "sha256": "f519c4a2c35b84b17e33c2612b464788887edfed103ff6b5d62912dd3f5cc2f9"
+      }
+    },
+    {
       "path": "scripts/前端完整回归v4.mjs",
       "status": "M",
       "before": {
@@ -5670,6 +5804,20 @@
         "mode": "100644",
         "blob_sha": "d02cf414e79eb34b4979c2af7c6da82b6500e519",
         "sha256": "b1778e4bd7d857befcb3564f8f52fe965193266732986ca7b97bca346e4df502"
+      }
+    },
+    {
+      "path": "scripts/聊天授权Windows安装v10.ps1",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "bd96d53fc4d428caf1bbf3a0ca293b3c59298605",
+        "sha256": "de6d431b984cec2f98cac92c2a3f9766d323fbdec42d4d2b4ab4fff66eee0ce6"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "f203edaab28359870f1338817d4e59409c5b1064",
+        "sha256": "7f7debb71035105a353ad47acf1f05ee7076629eb21168af7fab9a4500ce0794"
       }
     },
     {

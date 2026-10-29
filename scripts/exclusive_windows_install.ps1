@@ -32,7 +32,7 @@ New-Item -ItemType Directory -Path $fixture | Out-Null
 New-Item -ItemType File -Path (Join-Path $fixture '.chat-native-fixture-v8') | Out-Null
 & python scripts/Windows启动对照v17.py --output (Join-Path $OutputDirectory 'Windows同场景启动v17.json') 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows同场景启动v17.log')
 if ($LASTEXITCODE -ne 0) { throw '已安装流程的PowerShell降权窗口冒烟失败；不进入业务验收' }
-& python scripts/Windows标准用户验收v22.py --scenario $Scenario --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory --fixture-root $fixture 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生v10.log')
+& python scripts/windows_standard_v23/Windows标准用户验收v23.py --scenario $Scenario --executable $installed.FullName --driver $Driver --kind nsis --source $source --output $OutputDirectory --fixture-root $fixture 2>&1 | Tee-Object -FilePath (Join-Path $OutputDirectory 'Windows已安装原生v10.log')
 if ($LASTEXITCODE -ne 0) { throw 'NSIS安装后完整授权验收失败' }
 $proof = Get-Content -LiteralPath (Join-Path $OutputDirectory 'exclusive-native.json') -Raw -Encoding utf8 | ConvertFrom-Json
 $binaryHash = (Get-FileHash -LiteralPath $installed.FullName -Algorithm SHA256).Hash.ToLowerInvariant()

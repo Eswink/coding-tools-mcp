@@ -46,6 +46,7 @@ jobs:
           set -euo pipefail
           mkdir -p evidence
           python scripts/聊天授权安装回归v10.py
+          python scripts/windows_standard_v23/Windows标准用户验收v23_tests.py
           python scripts/发布版本校验v4.py --expect-sha "$GITHUB_SHA"
           npm ci
           npm run check
