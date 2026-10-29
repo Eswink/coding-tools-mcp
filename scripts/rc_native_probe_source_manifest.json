@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "a488787a085b429d4acd9100d3ba10b77af29ff3",
-   "bytes": 412216,
+   "blob": "9e0ecc232a78904c1b4e4047a83842ab0a6e55dd",
+   "bytes": 413459,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "1a524d04511803eb1fd36d89629eb5005b4b8e07769b58559edef48ff138b054"
+   "sha256": "7c947bf118017ff4dc8afe1eaa23e87c19b941387fc38a6419704cdcdeee6cbc"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -7150,18 +7150,18 @@
    "sha256": "81aa8bbe75aa4de50b339286b82d21315aa033d45a8663b6c5144250aa3536be"
   },
   {
-   "blob": "ed4f93127a684edb5ef5007f83a41f1079139849",
-   "bytes": 6314,
+   "blob": "2d1833a35637f2f8dbec68ef17c6663d76c80b35",
+   "bytes": 6459,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile.py",
-   "sha256": "278fd5f9c6694d50a94531c5e6ef5c8eeaf3a1d55c0a59f9f12475457dc1ec29"
+   "sha256": "4a9f5d0595e1b5d3a57c14b0919f94458d71097b9d41d7cc733dd472cc85065d"
   },
   {
-   "blob": "5747c834e56480a1912bfb127a675dd2c03db74a",
-   "bytes": 4143,
+   "blob": "52617830c8d5973a533d6aa3b698a614a1738ffd",
+   "bytes": 4804,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile_tests.py",
-   "sha256": "47bc98eac4e4c5fcf4f6aa7c7da2973cfca723bf74ad009b9ebfe228685d53b1"
+   "sha256": "a29bebca5aa6d19a85b9ba9559f325efaa31306863afac28677ed82d27e3e157"
   },
   {
    "blob": "50b6b211fac0aa81812898217d8c19eebcbb1ec5",
