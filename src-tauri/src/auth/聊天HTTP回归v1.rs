@@ -1,6 +1,7 @@
 use super::{chat_fixture as fixture, PublicOrigin};
 use crate::workspace::{AuthConfig, RuntimeConfig};
 use serde_json::{json, Value};
+const FUNCTIONAL_BUDGET: std::time::Duration = std::time::Duration::from_secs(60);
 #[tokio::test]
 async fn http_conversations_require_separate_grants_and_cannot_observe_each_others_jobs() {
     let root = tempfile::tempdir().unwrap();
@@ -35,8 +36,12 @@ async fn http_conversations_require_separate_grants_and_cannot_observe_each_othe
         args: Value,
         session: &str,
     ) -> Value {
+        // Functional budget, not a latency assertion: the shared fixture's 10s
+        // client timeout was exceeded on loaded Windows CI (reqwest TimedOut).
+        // Still bounded, so a hung listener fails instead of blocking the suite.
         let value: Value = client
             .post(url)
+            .timeout(FUNCTIONAL_BUDGET)
             .json(&fixture::request(name, args, session))
             .send()
             .await
@@ -95,7 +100,7 @@ async fn http_conversations_require_separate_grants_and_cannot_observe_each_othe
     let foreign_cancel = invoke(&client, &url, "cancel_exec_task", json!({"job_id":id}), "B").await;
     assert_eq!(foreign_cancel["ok"], false);
     assert!(!foreign_cancel.to_string().contains(id.as_str().unwrap()));
-    let until = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let until = std::time::Instant::now() + FUNCTIONAL_BUDGET;
     loop {
         let v = invoke(&client, &url, "get_exec_task", json!({"job_id":id}), "A").await;
         if v["terminal"] == true {
