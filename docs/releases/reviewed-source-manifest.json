@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - develop/0.8.0-a1 (A1 batch 1: rc080 topology profile + Windows gateway exec Q3=B) on main 9531007c (PR #172). NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH1-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch2 (A1 batch 2: 0.7.x cargo test floors/service_contracts/workflow_test_targets/bridge port + policy doc + rc080 merge admission) on main dffc3c6b. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH2-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -44,8 +44,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fa66f6f54fae28c7b831f3df639c6cd14875b7aa",
-        "sha256": "45ec02a6b2085536dd63005c05038be18b20e3ddf5687619531fa841d3524b7c"
+        "blob_sha": "c7b62fad5ad109d2becbcf8c7d3f54202f632c94",
+        "sha256": "5db4c4174c9160b1577804416028ef42d9f7ae3ca68e9161201b2c6acc500289"
       }
     },
     {
@@ -2814,8 +2814,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "74c5827d6cbebb15416ef923176bb4bab03a1dbc",
-        "sha256": "45915eab40bda340d7cb91de03e1e0ffcd02a51368f1698b8c005cf47622b11b"
+        "blob_sha": "fce1498e20eba8fd3d6f70b7dcef78ef82ed2dfc",
+        "sha256": "0c5bb0bb457283f5f2909d8e9201aa53657b9ee9305cf655e4e275ca1db1a111"
       }
     },
     {
@@ -4434,8 +4434,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d26f809b0664df24ac4f4525eaff3ed77915c8c3",
-        "sha256": "8ec814fbe27bb78c88bbf863b57cbda27e8647aab1e50d12a922b91e62cf035b"
+        "blob_sha": "bc4b2f054aa0634cebe9bfb348e2e1be0d7a4592",
+        "sha256": "35e389b808c707f04711e4cd655ab751c1e4a77e3dd887492c5eb3898a1bbc23"
       }
     },
     {
@@ -4998,8 +4998,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2d1833a35637f2f8dbec68ef17c6663d76c80b35",
-        "sha256": "4a9f5d0595e1b5d3a57c14b0919f94458d71097b9d41d7cc733dd472cc85065d"
+        "blob_sha": "1ba9a391e68751813b5d24e6ed6a70ec5c1767b0",
+        "sha256": "19fc97176b56f9a860298df1b35323dbe526caff2af2a92fce44748fad3c8543"
       }
     },
     {
@@ -5008,8 +5008,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "52617830c8d5973a533d6aa3b698a614a1738ffd",
-        "sha256": "a29bebca5aa6d19a85b9ba9559f325efaa31306863afac28677ed82d27e3e157"
+        "blob_sha": "7d3729f62d07485be9e41c3bc2c39edee019c34b",
+        "sha256": "18c0c811c6bd9b5bdaae96f0f0a11f46e7f7c690787df0a4a2159d08332c204b"
       }
     },
     {
@@ -10076,8 +10076,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "a3121e3b235365dda3cd399954e3da18f4ef2cfc",
-        "sha256": "836b8d559f77cc8ed2dd1ccf5bf206266b34e656b0951ae5bfecfa3b1d59ec55"
+        "blob_sha": "903b12e25c558820764d1fd3bb7ef1a2ff9120dc",
+        "sha256": "6b20d45eff908a64a9460435dafef27d91f507f25d520e032a922d794dac947d"
       }
     },
     {
@@ -11301,13 +11301,33 @@
       }
     },
     {
+      "path": "tests/delivery/test_cargo_test_floor.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "2e70fff2f857fea4b1ee1d9cfde221deb0f334fd",
+        "sha256": "0000ccf4a1072644e45adf1738c3a8990a1a45e7c928370b71797d7017153516"
+      }
+    },
+    {
       "path": "tests/delivery/test_dispatch.py",
       "status": "A",
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "189301d0882db7f07d7f6ee08c74544cc952615c",
-        "sha256": "fd442d78efa619bb41db41878254e230bf20aa45d671fd49fc5e7141173529d4"
+        "blob_sha": "bb58ac7a0c30e0a42a5a0e2f39026dc148353f68",
+        "sha256": "d6bc76747e0daae28d84f0049f2fda878419ef793ac9fb334b4e3a7575c55f53"
+      }
+    },
+    {
+      "path": "tests/delivery/test_workflow_test_targets.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d1e5524471ce50b25dc09d168ef3df3c0a61c2df",
+        "sha256": "8b65661918fa6bf64e1598205a2a8d793a80f0d3d0f8bd14b7d66501a6f7a5a5"
       }
     },
     {
@@ -11477,13 +11497,23 @@
       }
     },
     {
+      "path": "tools/delivery/cargo_test_floor.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "00f32298f68571febf095385eef9dda4cfca7644",
+        "sha256": "693d48afbfc9d39ce964f10e73f86752fcc770a2e47559319644bfcbcce1b54e"
+      }
+    },
+    {
       "path": "tools/delivery/dispatch.py",
       "status": "A",
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5c368eab5e30b8e0c8c190f7fdf1f9a0f572f921",
-        "sha256": "ee56ad164f79349d61579fe83fe3af966b22110dc2ab7b06ba20ff28504fe966"
+        "blob_sha": "59313f013820fd8dd14ac87713354f4d3dd91f4b",
+        "sha256": "442cc524f14cdf1637e115d5b1288f49505f05917741b7298262010bb968d55a"
       }
     },
     {
@@ -11494,6 +11524,16 @@
         "mode": "100644",
         "blob_sha": "8507cec1782a1f24551336e5a752cfb7fd19ed04",
         "sha256": "e770c39ab8f1634f9db6df0e08d990b7695b28fb527774e3ebcc1df610d897d2"
+      }
+    },
+    {
+      "path": "tools/delivery/workflow_test_targets.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "bb114f093eaec5b355247eb852283ba717b46c49",
+        "sha256": "cc863de736cf5d88636faff731c78c9d29e89ad4909a61e1407a8b2d9249f5da"
       }
     },
     {
