@@ -1,40 +1,42 @@
-# ChatGPT 连接器与桌面端“云连接”接入说明（rc.2 手动测试用）
+# ChatGPT 连接器与桌面端“云连接”接入说明（v0.7.0）
 
 状态：**操作员手动执行，未经端到端验证**。本文只记录能在代码里核对到的端点和行为（核对基线：
-`96234102`，以及 rc.2 源码 `bdc4aeb5`），不描述 ChatGPT 的具体界面。部署步骤本身见
-[`kit/RUNBOOK.md`](kit/RUNBOOK.md)；设备登记的权威说明见
+稳定版 `v0.7.0` 源码 `36e0c265`），不描述 ChatGPT 的具体界面。部署步骤本身见
+[`docker/README.md`](docker/README.md)（Docker 套件）或 [`kit/RUNBOOK.md`](kit/RUNBOOK.md)；设备登记的权威说明见
 [`services/cloud-gateway/ENROLLMENT.md`](../../services/cloud-gateway/ENROLLMENT.md)。
 本机回环运维控制台（≠ 公网 admin）见下文 §5 与 [`ops-console/README.md`](ops-console/README.md)。
 本文所有 `<...>` 都是占位符，不要把真实密钥、口令、令牌写进仓库、工单或聊天记录。
 
-## 1. 镜像来源：rc.2 云端镜像（按镜像 ID 引用）
+## 1. 镜像来源：v0.7.0 网关镜像（按镜像 ID 引用）
 
-使用预发布 `v0.7.0-rc.2` 的附件（打包运行 40428267551，源码 `bdc4aeb5`，产品版本 `0.7.0-rc.2`）：
-`cloud-image.tar`、`cloud-linux-amd64.tar.gz`、`SHA256SUMS-cloud.txt` 等。
+使用稳定版 `v0.7.0` 的附件（打包运行 40814802175，源码 `36e0c265`，产品版本 `0.7.0`）：
+`coding-tools-gateway-image-0.7.0.tar` 及其 `.sha256`、`cloud-linux-amd64.tar.gz`、`SHA256SUMS-cloud.txt` 等。
 
 ```bash
-sha256sum -c SHA256SUMS-cloud.txt          # 先校验，全部 OK 再继续
-docker load -i cloud-image.tar             # 镜像没有 tag，输出 "Loaded image ID: sha256:..."
-docker image inspect --format '{{.Id}}' sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a
+sha256sum -c coding-tools-gateway-image-0.7.0.tar.sha256   # 先校验，OK 再继续
+sha256sum -c SHA256SUMS-cloud.txt                          # 校验 cloud-linux-amd64.tar.gz
+docker load -i coding-tools-gateway-image-0.7.0.tar        # 镜像没有 tag，输出 "Loaded image ID: sha256:..."
+docker image inspect --format '{{.Id}}' sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b
 ```
 
-渲染时把镜像 ID 原样传给 `--gateway-image`（`runtime_topology.image_refs` 只接受
-`sha256:<64 位十六进制>` 形式的本地不可变镜像 ID）：
+镜像 ID **必须**是 `sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b`
+（标签 `org.opencontainers.image.version=0.7.0`、`org.opencontainers.image.revision=36e0c265a2bb5f93fe61a504468bf584706519e2`）。
+Docker 套件把它写进 `.env` 的 `CTM_GATEWAY_IMAGE`；用 kit 渲染时把镜像 ID 原样传给 `--gateway-image`
+（`runtime_topology.image_refs` 只接受 `sha256:<64 位十六进制>` 形式的本地不可变镜像 ID）：
 
 ```bash
 python3 deploy/cloud-gateway/kit/kit.py render ... \
-  --gateway-image sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a ...
+  --gateway-image sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b ...
 ```
 
 镜像内含 `/usr/local/bin/` 下的 `coding-tools-gateway`、`coding-tools-agent`、
 `coding-tools-control-gateway`、`coding-tools-mcp-gateway`，ENTRYPOINT 是 `coding-tools-mcp-gateway`
 （见 `Dockerfile.runtime`）。`cloud-linux-amd64.tar.gz` 里是同一批四个 Linux amd64 二进制。
 
-**源码一致性（已核对）**：`git diff bdc4aeb5 96234102 -- services/cloud-gateway/src services/cloud-gateway/migrations deploy/cloud-gateway/Dockerfile.runtime`
-输出为空，即网关服务端源码、迁移和运行时 Dockerfile 在 rc.2 与 `96234102` 之间**零差异**。
-`services/cloud-gateway` 下的差异只在 `Cargo.lock`、`Cargo.toml`、`examples/`、`tests/`。
-另外，网关链接的 `services/cloud-agent` 库在两者之间有改动（S1：`agent/host/*` 的重连逻辑，加上
-`agent/config.rs`、`lib.rs`）。因此 rc.2 镜像里的二进制**不含 S1**，`96234102` 的锁文件依赖版本也和 rc.2 不同。
+**源码一致性（已核对）**：`git diff bdc4aeb5 36e0c265 -- services/cloud-gateway/src services/cloud-gateway/migrations deploy/cloud-gateway/Dockerfile.runtime`
+输出为空，即网关服务端源码、迁移和运行时 Dockerfile 与 rc.2 **零差异**。与 rc.2 不同的是：v0.7.0 链接的
+`services/cloud-agent` 库**包含 S1**（`agent/host/*` 断线重连韧性；`96234102` 是 `36e0c265` 的祖先）。
+旧的 rc.2 镜像 ID `sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a` 已被取代，不要再用。
 
 ## 2. 在 ChatGPT 中添加 MCP 连接器
 
@@ -87,7 +89,7 @@ OAuth 授权**不等于**执行授权：桌面端还要导入连接、选中设�
 
 ## 3. 桌面端“云连接”的两个 JSON 从哪里来
 
-桌面端 rc.2 的 CloudConnectionPanel 依次让你选择两个本地文件：“云连接配置 JSON”和“本机签名私钥 JSON”。
+桌面端 v0.7.0 的 CloudConnectionPanel 依次让你选择两个本地文件：“云连接配置 JSON”和“本机签名私钥 JSON”。
 Tauri 命令 `import_cloud_connection_files` 要求两个都是绝对路径的普通文件（不接受符号链接），配置不超过 16 KiB，
 私钥不超过 4096 B。导入只保存连接身份，不会自动连接，也不会授权聊天。桌面端**自己不生成密钥**。
 
@@ -142,25 +144,23 @@ Tauri 命令 `import_cloud_connection_files` 要求两个都是绝对路径的�
   用 `--output-stdout` 时 stdout 就是凭据通道，不要 tee 进日志。这种容器内调用方式本文**未实际执行验证**。
 - `<SERVICE_SECRETS_JSON>` 的字段是 `database_url`、`identity_key`，`provision-owner`/`rotate-owner` 时还要加
   `password`，confidential 模式的 `register-client` 还要加 `client_secret`。只经 stdin 或 0600 私有文件传入。
-- rc.2 **只提供 Linux amd64 的 `coding-tools-agent`**。在 Windows 上，按 ENROLLMENT.md 的说法，凭据文件读写会被拒绝，
-  只能走 `--output-stdout` / `--bundle-stdin` 管道模式，而 rc.2 没有 Windows 版 agent 二进制。
+- v0.7.0 **只提供 Linux amd64 的 `coding-tools-agent`**（在 `cloud-linux-amd64.tar.gz` 和镜像里）。在 Windows 上，按 ENROLLMENT.md 的说法，
+  凭据文件读写会被拒绝，只能走 `--output-stdout` / `--bundle-stdin` 管道模式，而 v0.7.0 没有 Windows 版 agent 二进制。
   本文**不提供** Windows 桌面生成密钥的已验证路径。
 
 ## 4. 版本组合（全部未经端到端测试）
 
 | 组件 | 版本 / 来源 |
 |---|---|
-| 桌面端 | `v0.7.0-rc.2`（DEB / AppImage / NSIS；**Windows 安装包未签名**），源码 `bdc4aeb5` |
-| 网关镜像 | `v0.7.0-rc.2` 的 `cloud-image.tar`，镜像 ID `sha256:7e69b9ade56ce598264f23f3504e465670a6f2c0119293f04937645963b2ee3a`，源码 `bdc4aeb5` |
-| 设备端 CLI | `v0.7.0-rc.2` 的 `cloud-linux-amd64.tar.gz` 里的 `coding-tools-agent`，源码 `bdc4aeb5` |
-| 部署套件（kit.py / RUNBOOK / 本文） | 分支 `feat/gateway-s1-agent-resilience`，基线 `96234102`（S1 之后）；预发布 `gateway-v0.1.0-rc.1` 发出后以它为准 |
+| 桌面端 | `v0.7.0`（`MCP_0.7.0_amd64.deb` / `.AppImage` / `MCP_0.7.0_x64-setup.exe`；**Windows 安装包未签名**），源码 `36e0c265` |
+| 网关镜像 | `v0.7.0` 的 `coding-tools-gateway-image-0.7.0.tar`，镜像 ID `sha256:9246a4faed40a41cbd5dce52d4e9f7a2c743e97501543c1f83b2edcae653db7b`，源码 `36e0c265` |
+| 设备端 CLI | `v0.7.0` 的 `cloud-linux-amd64.tar.gz` 里的 `coding-tools-agent`，源码 `36e0c265` |
+| 部署套件（Docker 套件 / kit.py / RUNBOOK / 本文） | `v0.7.0` 附件 `coding-tools-gateway-docker-kit-36e0c265.tar.gz`（`deploy/cloud-gateway/docker` 的 `git archive`），或同一源码 `36e0c265` 下的 `deploy/cloud-gateway/` |
 
-- 桌面端 rc.2 配 rc.2 网关镜像：同一份源码（`bdc4aeb5`），是推荐的配对。但这个组合**没有**在真实 VPS +
-  真实 ChatGPT 上测试过（ENROLLMENT.md 也把真实 ChatGPT、VPS 列为待观察）。
-- 套件 `96234102` 渲染加 rc.2 镜像：网关服务端源码零差异（见 §1），套件的 129 个单元测试只覆盖本地渲染和检查逻辑，
-  **没有**用这个镜像跑过。所以这个组合也是**未测试**的。
-- S1（cloud-agent 断线重连韧性）**不在** rc.2 桌面端里，也不在 rc.2 的 `coding-tools-agent` 里。
-- 不要混用 `v0.7.0-rc.1`。没有按 rc.1 与 rc.2 交叉组合做过任何验证。
+- 桌面端、网关镜像、设备端 CLI 和套件都出自同一份源码（`36e0c265`），是推荐且唯一的配对；桌面端和网关应一起升级。
+  但这个组合**没有**在真实 VPS + 真实 ChatGPT 上测试过（ENROLLMENT.md 也把真实 ChatGPT、VPS 列为待观察）。
+- S1（cloud-agent 断线重连韧性）**包含在** v0.7.0 的桌面端和 `coding-tools-agent` 里。
+- 不要与任何 `v0.7.0-rc.*` 预发布（rc.1 / rc.2 / rc.3）混用。没有做过 RC 与稳定版的交叉组合验证。
 
 ## 5. 本机打开运维控制台（loopback ops console）
 
