@@ -93,17 +93,59 @@ pub struct ReconnectEvent {
     pub counter_reset: bool,
     /// The wait actually taken before the next dial (0 when the loop stopped).
     pub backoff_ms: u64,
+    /// Wall time since the previous decision (its backoff plus this session); 0 for the first.
+    pub since_last_ms: u64,
 }
 /// Bounded in-memory reconnect log (newest `CAPACITY` events). Lets a caller or a
 /// failing test show how the Agent paced its reconnects without a logging stack.
+/// With `CTM_RECONNECT_LOG=stderr` (or `1`) every decision is also written to stderr
+/// as it happens, so a CI run that times out shows the reconnect history.
 #[derive(Clone, Default)]
-pub struct ReconnectLog(
-    std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<ReconnectEvent>>>,
-);
+pub struct ReconnectLog(std::sync::Arc<LogInner>);
+#[derive(Default)]
+struct LogInner {
+    events: std::sync::Mutex<std::collections::VecDeque<ReconnectEvent>>,
+    total: std::sync::atomic::AtomicU64,
+}
+/// Env switch for the stderr echo of `ReconnectLog` (read once per process).
+pub const RECONNECT_LOG_ENV: &str = "CTM_RECONNECT_LOG";
+fn stderr_echo() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| {
+        std::env::var(RECONNECT_LOG_ENV)
+            .map(|v| matches!(v.trim(), "1" | "stderr"))
+            .unwrap_or(false)
+    })
+}
+impl ReconnectEvent {
+    /// One stderr line: reconnect number, backoff step, wait and measured times.
+    pub fn line(&self, number: u64) -> String {
+        format!(
+            "[ctm-reconnect] reconnect #{number} attempt={} backoff={:.3}s session={:.3}s since_last={:.3}s error={:?} established={} connect_timeout={} soft_rejection={} counter_reset={}",
+            self.attempt,
+            self.backoff_ms as f64 / 1000.0,
+            self.session_ms as f64 / 1000.0,
+            self.since_last_ms as f64 / 1000.0,
+            self.error,
+            self.established,
+            self.connect_timed_out,
+            self.soft_rejection,
+            self.counter_reset,
+        )
+    }
+}
 impl ReconnectLog {
     pub const CAPACITY: usize = 64;
     fn push(&self, event: ReconnectEvent) {
-        let mut events = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let number = self
+            .0
+            .total
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+            + 1;
+        if stderr_echo() {
+            eprintln!("{}", event.line(number));
+        }
+        let mut events = self.0.events.lock().unwrap_or_else(|e| e.into_inner());
         if events.len() == Self::CAPACITY {
             events.pop_front();
         }
@@ -111,8 +153,12 @@ impl ReconnectLog {
     }
     /// Oldest first.
     pub fn snapshot(&self) -> Vec<ReconnectEvent> {
-        let events = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let events = self.0.events.lock().unwrap_or_else(|e| e.into_inner());
         events.iter().copied().collect()
+    }
+    /// Decisions recorded since creation (not bounded by `CAPACITY`).
+    pub fn total(&self) -> u64 {
+        self.0.total.load(std::sync::atomic::Ordering::SeqCst)
     }
 }
 
@@ -234,6 +280,7 @@ where
     // True from the first escalation until a session is established: the visible state
     // stays NeedsOperator (no Connecting/Reconnecting blinking) while we keep retrying.
     let mut slow = false;
+    let mut last_decision: Option<tokio::time::Instant> = None;
     loop {
         if *stop.borrow() {
             state.send_replace(LinkState::Stopped);
@@ -263,6 +310,8 @@ where
             && probe.was_soft_rejection()
             && !probe.was_established();
         let now = tokio::time::Instant::now();
+        let since_last = last_decision.map_or(Duration::ZERO, |last| now - last);
+        last_decision = Some(now);
         let record = |attempt: u32, counter_reset: bool, backoff: Duration| {
             log.push(ReconnectEvent {
                 attempt,
@@ -273,6 +322,7 @@ where
                 session_ms: u64::try_from((now - started).as_millis()).unwrap_or(u64::MAX),
                 counter_reset,
                 backoff_ms: u64::try_from(backoff.as_millis()).unwrap_or(u64::MAX),
+                since_last_ms: u64::try_from(since_last.as_millis()).unwrap_or(u64::MAX),
             })
         };
         if soft {
@@ -664,6 +714,13 @@ mod tests {
             ]
         );
         assert_eq!(h.gaps_ms(), vec![11_250, 2500, 32_250, 7500]);
+        let since: Vec<_> = h.log.snapshot().iter().map(|e| e.since_last_ms).collect();
+        assert_eq!(since, vec![0, 1250, 2500 + 31_000, 1250 + 5_000]);
+        assert_eq!(h.log.total(), 4);
+        assert_eq!(
+            h.log.snapshot()[0].line(1),
+            "[ctm-reconnect] reconnect #1 attempt=1 backoff=1.250s session=10.000s since_last=0.000s error=Transport established=false connect_timeout=true soft_rejection=false counter_reset=false"
+        );
         h.stop.send(true).unwrap();
         (&mut h.task).await.unwrap().unwrap();
     }
