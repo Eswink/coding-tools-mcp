@@ -115,11 +115,11 @@
    "sha256": "1c22d1a0b64c7278271e5a289a5f838be51842b3a2aeb56c29b45e7006f20467"
   },
   {
-   "blob": "31ea48b87e5a764390d8c029880fe4a532661ee5",
-   "bytes": 11929,
+   "blob": "7ced5d99397b5895e35ff89940813acb57080d11",
+   "bytes": 11931,
    "mode": "100644",
    "path": ".github/workflows/cloud-execution-bridge.yml",
-   "sha256": "b6fe0c5aa570460faf5d75bad7e457fb8dd28b5f281b26f2fda53c6ef119f170"
+   "sha256": "64b6790e10c0a936f66e4decb95bcc9c85f23163c2b5ea0f5ae188bd39c1e274"
   },
   {
    "blob": "154148eade05785eadd054356bff1a27b2b52489",
@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "55d118fe89ff664cd52607a48f56c036fdd5d116",
-   "bytes": 407095,
+   "blob": "708d6c67caba50283feac2fb7ae9476c6c8128ae",
+   "bytes": 407689,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "632f8a3d88077bd871bf7029b4a9821b0d390c204916079947b2c6ae61a1e41c"
+   "sha256": "b0fd4b4cea8ea3543ca2ebce6bfce568cd5ae734d4c99ab86c58ad5f5cc63a40"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -12316,11 +12316,11 @@
    "sha256": "343028a6d8dc71af253961e3e0421c2b903b717b42f5f6579a362e2c079bec3d"
   },
   {
-   "blob": "6d70d5f87a47ea92192809f68d3ecb83b982268f",
-   "bytes": 2560,
+   "blob": "f897231f6f1af8efb5591fc648267623a506a725",
+   "bytes": 2726,
    "mode": "100644",
    "path": "tests/delivery/test_cargo_test_floor.py",
-   "sha256": "026bc10a7d546299d38d6231dacd1e65f70ddeb3af1370d9a3bcf6d4b1df8b80"
+   "sha256": "9d190b628929f8033ad3c24cf4fa74c5b3503ca664ed844810deec1a027c3f76"
   },
   {
    "blob": "189301d0882db7f07d7f6ee08c74544cc952615c",
