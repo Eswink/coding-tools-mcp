@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "e5d27cb7bb05fd7d531be8940d7a6c17b2931550",
-   "bytes": 413459,
+   "blob": "46610a95aea5b18b03488477241e5a872872bae4",
+   "bytes": 414756,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "0e08d972417d01fb0cb717dfb84275e5461c8d96848eec7e02eb8a7aab2ea230"
+   "sha256": "e5215416e732bd476920ee5b764d7bb82aaa809a669949a555031d15e367d410"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -9600,11 +9600,11 @@
    "sha256": "3b838470e7b5b5895e09f2fa2a20b44a230838a6bafbfdf61c6f4c74ccdb0c34"
   },
   {
-   "blob": "5e63360721813c954e139deab1ddfe8dafcd7afb",
+   "blob": "c1baa57a698f2f7fe104814901c881c9015dc95f",
    "bytes": 157975,
    "mode": "100644",
    "path": "src-tauri/Cargo.lock",
-   "sha256": "769d9369c27b0297cba4259866f7f3144ccb05217e7f53f85c32cf9d7f19995e"
+   "sha256": "04fb430ac9b489ee2140331e50d9f346a41726565a1585ed5e221db5e538d89c"
   },
   {
    "blob": "e93770d3f426c271b29661de1cb9a0dbe7644864",
