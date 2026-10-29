@@ -83,7 +83,8 @@ jobs:
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
           python tools/delivery/cargo_test_floor.py evidence/execution-unit.txt --min 13
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/portable.txt
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts 2>&1 | tee evidence/portable.txt
+          python tools/delivery/cargo_test_floor.py evidence/portable.txt --min 77
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings
           python -m unittest discover -s tests/delivery 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt

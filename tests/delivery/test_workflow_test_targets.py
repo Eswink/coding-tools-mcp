@@ -74,7 +74,7 @@ class WorkflowTestTargetTests(unittest.TestCase):
         source = (ROOT / '.github/workflows/cloud-execution-bridge.yml').read_text(encoding='utf-8')
         self.assertIn('python tools/delivery/workflow_test_targets.py\n', source)
         self.assertNotIn('--test service_cli', source)
-        self.assertIn('--manifest-path services/cloud-gateway/Cargo.toml --lib 2>&1 | tee evidence/portable.txt', source)
+        self.assertIn('--manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts 2>&1 | tee evidence/portable.txt', source)
 
 
 if __name__ == '__main__':

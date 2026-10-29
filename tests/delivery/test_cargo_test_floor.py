@@ -50,6 +50,7 @@ class CargoTestFloorTests(unittest.TestCase):
         self.assertNotRegex(source, r"grep -F '\d+ passed")
         # portable has setup-python (`python`); postgres uses the system python3.
         for py, log, minimum in [('python', 'agent-full', 127), ('python', 'execution-unit', 13),
+                                 ('python', 'portable', 77),
                                  ('python3', 'linearization', 3), ('python3', 'execution-postgres', 13),
                                  ('python3', 'managed-agent-wss', 5), ('python3', 'native-wss', 16)]:
             self.assertIn(f'{py} tools/delivery/cargo_test_floor.py evidence/{log}.txt --min {minimum}', source)
