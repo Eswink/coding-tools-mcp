@@ -414,9 +414,10 @@ async fn primary_scope_does_not_replace_all_native_required_scopes() {
         json!({"session_id":"missing"}),
     );
     // Admission checks authority; nonexistent session still cannot cause effects.
-    #[cfg(target_os = "linux")]
+    // Windows default mode (Q3 = B) admits without a sandbox like Linux admits into one.
+    #[cfg(any(target_os = "linux", windows))]
     assert!(f.live.admit(view, request).await.is_ok());
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", windows)))]
     assert!(f.live.admit(view, request).await.is_err());
 }
 

@@ -117,6 +117,10 @@ def select(ref, root, git, entries, historical, release, release_tree, documents
     selected = rc070.select(ref, root, git, entries, historical, release, release_tree, documents)
     if selected is not None:
         return selected
+    import rc_pretag_rc080.topology_profile as rc080
+    selected = rc080.select(ref, root, git, entries, historical, release, release_tree, documents)
+    if selected is not None:
+        return selected
     try:
         kind, tip, source = topology(ref, root, git, release)
     except o.TopologyError:

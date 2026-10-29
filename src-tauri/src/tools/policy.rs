@@ -88,6 +88,13 @@ impl PolicySettings {
     pub fn skip_permission_gates(&self) -> bool {
         self.permission_mode == "dangerous"
     }
+
+    /// The exact outcome of the exec network-command rule in
+    /// `validate_exec_command`: a network-looking command is rejected only when
+    /// permission gates are not skipped and network is not allowed.
+    pub fn network_commands_allowed(&self) -> bool {
+        self.skip_permission_gates() || self.network_allowed()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -280,10 +287,7 @@ pub fn validate_command_for_workspace(
                 .into(),
         ));
     }
-    if !policy.skip_permission_gates()
-        && network_command_pattern().is_match(command)
-        && !policy.network_allowed()
-    {
+    if network_command_pattern().is_match(command) && !policy.network_commands_allowed() {
         return Err(PolicyError(
             "Network-looking commands are blocked in safe permission mode".into(),
         ));
