@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch2 (A1 batch 2: 0.7.x cargo test floors/service_contracts/workflow_test_targets/bridge port + policy doc + rc080 merge admission) on main dffc3c6b. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH2-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-b2-dep (A1 batch 2 dependency fix: libz-sys 1.1.31 for RUSTSEC-2026-0418, lock only) on develop/0.8.0 7d17032b. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-B2-DEP-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4434,8 +4434,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bc4b2f054aa0634cebe9bfb348e2e1be0d7a4592",
-        "sha256": "35e389b808c707f04711e4cd655ab751c1e4a77e3dd887492c5eb3898a1bbc23"
+        "blob_sha": "f9c8eb311f37131479ee6522d017bf99f8f5bf83",
+        "sha256": "dfdef48bfb48bd372535ab00dc5ad2cfac989fd5df2be799f90457d2d68c731c"
       }
     },
     {
@@ -8048,8 +8048,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "5e63360721813c954e139deab1ddfe8dafcd7afb",
-        "sha256": "769d9369c27b0297cba4259866f7f3144ccb05217e7f53f85c32cf9d7f19995e"
+        "blob_sha": "c1baa57a698f2f7fe104814901c881c9015dc95f",
+        "sha256": "04fb430ac9b489ee2140331e50d9f346a41726565a1585ed5e221db5e538d89c"
       }
     },
     {
