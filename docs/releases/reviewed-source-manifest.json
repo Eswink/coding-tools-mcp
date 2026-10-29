@@ -44,8 +44,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7ced5d99397b5895e35ff89940813acb57080d11",
-        "sha256": "64b6790e10c0a936f66e4decb95bcc9c85f23163c2b5ea0f5ae188bd39c1e274"
+        "blob_sha": "3263d073faf43c6d18db2b6763140b49520dc504",
+        "sha256": "48e22778b8aba72045679bd7b633a6a3084d3c131d6a3881f3eca37ee2ffe7a7"
       }
     },
     {
@@ -4354,8 +4354,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "348f3b3e8b1db6a98b84c62ec1272ab431414441",
-        "sha256": "e8f2b65cd2898677aec14d2271720e9776ba51c614e172c2b93269f232158f75"
+        "blob_sha": "ab33acbe65d15a2260ac9b44ccee1b9a562bc2e4",
+        "sha256": "f738b57909cde7bfcb5610f4f5513cfb76aabe42d42fea2577dcaeffc3beccb3"
       }
     },
     {
@@ -11133,6 +11133,16 @@
       }
     },
     {
+      "path": "tests/delivery/test_workflow_test_targets.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c8cba318232e786959e501709f3a5bb1c77d40ec",
+        "sha256": "62d0ed44a51f6e561e8f056f2dbad3db222998cded24aedd3767017d46d300ab"
+      }
+    },
+    {
       "path": "tests/devalue-security.test.mjs",
       "status": "A",
       "before": null,
@@ -11326,6 +11336,16 @@
         "mode": "100644",
         "blob_sha": "8507cec1782a1f24551336e5a752cfb7fd19ed04",
         "sha256": "e770c39ab8f1634f9db6df0e08d990b7695b28fb527774e3ebcc1df610d897d2"
+      }
+    },
+    {
+      "path": "tools/delivery/workflow_test_targets.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "bb114f093eaec5b355247eb852283ba717b46c49",
+        "sha256": "cc863de736cf5d88636faff731c78c9d29e89ad4909a61e1407a8b2d9249f5da"
       }
     },
     {

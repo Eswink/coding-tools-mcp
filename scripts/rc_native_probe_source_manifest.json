@@ -1,5 +1,5 @@
 {
- "entries": 1923,
+ "entries": 1925,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -115,11 +115,11 @@
    "sha256": "1c22d1a0b64c7278271e5a289a5f838be51842b3a2aeb56c29b45e7006f20467"
   },
   {
-   "blob": "7ced5d99397b5895e35ff89940813acb57080d11",
-   "bytes": 11931,
+   "blob": "3263d073faf43c6d18db2b6763140b49520dc504",
+   "bytes": 11969,
    "mode": "100644",
    "path": ".github/workflows/cloud-execution-bridge.yml",
-   "sha256": "64b6790e10c0a936f66e4decb95bcc9c85f23163c2b5ea0f5ae188bd39c1e274"
+   "sha256": "48e22778b8aba72045679bd7b633a6a3084d3c131d6a3881f3eca37ee2ffe7a7"
   },
   {
    "blob": "154148eade05785eadd054356bff1a27b2b52489",
@@ -1452,11 +1452,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "708d6c67caba50283feac2fb7ae9476c6c8128ae",
+   "blob": "2cf27bc7271e26f6698c055787780a223792825c",
    "bytes": 407689,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "b0fd4b4cea8ea3543ca2ebce6bfce568cd5ae734d4c99ab86c58ad5f5cc63a40"
+   "sha256": "18cfef4ac520741764165cae6ed6e74b84fe45961d2434047198342b52295aab"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -12330,6 +12330,13 @@
    "sha256": "fd442d78efa619bb41db41878254e230bf20aa45d671fd49fc5e7141173529d4"
   },
   {
+   "blob": "c8cba318232e786959e501709f3a5bb1c77d40ec",
+   "bytes": 4211,
+   "mode": "100644",
+   "path": "tests/delivery/test_workflow_test_targets.py",
+   "sha256": "62d0ed44a51f6e561e8f056f2dbad3db222998cded24aedd3767017d46d300ab"
+  },
+  {
    "blob": "6297c22bca094a9e551b81eb2294a478a616f6bc",
    "bytes": 1433,
    "mode": "100644",
@@ -12601,6 +12608,13 @@
    "mode": "100644",
    "path": "tools/delivery/manifest.json",
    "sha256": "e770c39ab8f1634f9db6df0e08d990b7695b28fb527774e3ebcc1df610d897d2"
+  },
+  {
+   "blob": "bb114f093eaec5b355247eb852283ba717b46c49",
+   "bytes": 5399,
+   "mode": "100644",
+   "path": "tools/delivery/workflow_test_targets.py",
+   "sha256": "cc863de736cf5d88636faff731c78c9d29e89ad4909a61e1407a8b2d9249f5da"
   },
   {
    "blob": "4b4c48491ff7da58c30dfa28371087999faf634b",
