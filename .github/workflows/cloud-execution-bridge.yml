@@ -77,7 +77,7 @@ jobs:
           cargo fmt --check --manifest-path services/cloud-agent/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/agent-clippy.txt
           cargo test --locked --manifest-path services/cloud-agent/Cargo.toml 2>&1 | tee evidence/agent-full.txt
-          python tools/delivery/cargo_test_floor.py evidence/agent-full.txt --min 88
+          python tools/delivery/cargo_test_floor.py evidence/agent-full.txt --min 127
           cargo rustc --locked --manifest-path services/cloud-agent/Cargo.toml --lib -- -D warnings
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
@@ -163,7 +163,7 @@ jobs:
           cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --example native_desktop_fixture
           export CTM_NATIVE_GATEWAY_FIXTURE_BIN="$GITHUB_WORKSPACE/services/cloud-gateway/target/debug/examples/native_desktop_fixture"
           cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib tools::cloud_host::live::wss_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-wss.txt
-          python3 tools/delivery/cargo_test_floor.py evidence/native-wss.txt --min 9
+          python3 tools/delivery/cargo_test_floor.py evidence/native-wss.txt --min 16
           git diff --exit-code HEAD --
       - name: Preserve real database evidence
         if: always()
