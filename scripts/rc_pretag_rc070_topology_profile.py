@@ -1,12 +1,12 @@
-"""Finite #150 topology admission for RC070 packaging tip cbd5902bb3a4dcfcd0ff7cae077fce3ce53041a4; independent review binds self-bytes."""
+"""Finite #150 topology admission for RC070 packaging tip f4b39135db72c4c8f9fad77f0bf99cb0a09788a0; independent review binds self-bytes."""
 import hashlib
 import rc_pretag_ownership_profile as o
 import rc_pretag_publication_profile as p
 
-M = 'cbd5902bb3a4dcfcd0ff7cae077fce3ce53041a4'
-M_TREE = 'a8087bbcef6bc617511fa1e971f1baa16f1de381'
-M_PARENTS = ('d0a2fd459d366805efa341f84867fc706b502a02',)
-M_RAW = (865, '5c92783a2591a33a25a967acd862136a88065aaf04f1fa5eb3fe4155d83fccaa')
+M = 'f4b39135db72c4c8f9fad77f0bf99cb0a09788a0'
+M_TREE = 'c80d1bd8d31a941a268bbc11d727eebe713831a6'
+M_PARENTS = ('d42233ee17614958ccaad566bbd4cf9a800cc346',)
+M_RAW = (445, 'b692ec5c705504fc10a4597ab9e2639ecd83f418f2ec0a3314c1d0154565fd47')
 BASE = '41984b1de0ca13efab3646aae5041845bc78cfee'
 PROFILE = 'scripts/rc_pretag_rc070_topology_profile.py'
 MANIFEST = 'scripts/rc_native_probe_source_manifest.json'
@@ -14,14 +14,14 @@ REVIEWED = 'docs/releases/reviewed-source-manifest.json'
 NEW = ()
 CAPS = {
     PROFILE: (180, 250),
-    'scripts/rc_pretag_integration_admission_profile.py': (400, 33),
+    'scripts/rc_pretag_integration_admission_profile.py': (412, 20),
 }
 DELTA_LIMIT = 120
 BASE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', 'a9b60253e463917b3b81f693261a818bc92d71bf', 'a8f71f27cb5932d10e3407f0e6d836a7ea6751cfe33a047c91badae1504070b0', 191807, 381),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '3433a4ca77a1c9e7899e5814754936abd34afb28', '3947c25eaf54519f0828a33553836af5ebb4fe8b467e3931e1d9cecdb6418871', 231694, 400),
 }
 SOURCE_PINS = {
-    'scripts/rc_pretag_integration_admission_profile.py': ('100644', '3433a4ca77a1c9e7899e5814754936abd34afb28', '3947c25eaf54519f0828a33553836af5ebb4fe8b467e3931e1d9cecdb6418871', 231694, 400),
+    'scripts/rc_pretag_integration_admission_profile.py': ('100644', 'a5aae80d17f56cb5c414a3536364749ae83dba49', '5981c38e0d46d039dedca9e83b3dddcc9cf31d717f22f72a0149ded93386f172', 264606, 412),
 }
 
 def _reviewed_only(parent, child, root, git, entries):
