@@ -219,3 +219,47 @@ fn forged_worktree_links_never_widen_the_git_sandbox() {
     fs::write(private.join("commondir"), "../../..\n").unwrap();
     assert_eq!(linked_worktree_gitdirs(&linked), None);
 }
+
+/// A1 C2-ad (NB5, SPEC-A1 v5 §1.4.2): a main root that is itself a linked
+/// worktree nested inside its own common gitdir cannot get the gitdir-pinned
+/// sandbox (`for_worktree` rejects the containment); the root falls back to
+/// the plain root sandbox instead of "Git workspace isolation unavailable".
+#[test]
+fn a_linked_main_root_contained_in_its_gitdir_falls_back_to_the_plain_sandbox() {
+    let fixture = tempfile::tempdir().unwrap();
+    let main = fixture.path().join("main");
+    repository(&main);
+    let nested = main.join(".git").join("nested-root");
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "--detach",
+            nested.to_str().unwrap(),
+        ],
+    );
+    let gitdirs = linked_worktree_gitdirs(&nested);
+    assert!(
+        gitdirs.is_some(),
+        "fixture must be a validated linked worktree"
+    );
+    let (private, common) = gitdirs.unwrap();
+    assert!(
+        LinuxSandbox::for_worktree(&nested, private, common).is_err(),
+        "fixture must hit the containment rejection"
+    );
+    let sandbox = sandbox_for_root(&nested);
+    assert!(sandbox.is_ok(), "no fallback: {:?}", sandbox.err());
+    let out = run(
+        &nested,
+        &nested,
+        &["rev-parse", "HEAD"],
+        Duration::from_secs(5),
+    );
+    assert_ne!(
+        out.as_ref().err().copied(),
+        Some("Git workspace isolation unavailable")
+    );
+}

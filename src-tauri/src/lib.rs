@@ -245,6 +245,8 @@ pub fn run() {
             commands::policy_hooks::disable_policy_hooks,
             commands::managed_workspace::list_managed_workspaces,
             commands::managed_workspace::register_managed_workspace,
+            commands::legacy_cleanup::preview_legacy_cleanup,
+            commands::legacy_cleanup::apply_legacy_cleanup,
             commands::workspace_snapshots::snapshot_list,
             commands::workspace_snapshots::snapshot_capture,
             commands::workspace_snapshots::snapshot_plan_restore,

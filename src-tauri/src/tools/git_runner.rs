@@ -55,9 +55,17 @@ pub(crate) fn linked_worktree_gitdirs(root: &Path) -> Option<(PathBuf, PathBuf)>
 
 /// The Linux sandbox for a host-owned root: `for_worktree` (gitdirs read-only)
 /// for a validated linked worktree, otherwise exactly `LinuxSandbox::new`.
+///
+/// A1 C2-ad (NB5, SPEC-A1 v5 §1.4.2): when `for_worktree` refuses the root (a
+/// main root that is itself a linked worktree and contains, or is contained
+/// in, its own gitdirs), the root falls back to `LinuxSandbox::new` (the
+/// pre-C4 root-only sandbox) instead of failing every exec and Git call with
+/// "isolation unavailable". A failure of `new` itself still propagates.
 pub(crate) fn sandbox_for_root(root: &Path) -> Result<LinuxSandbox, SandboxError> {
     match linked_worktree_gitdirs(root) {
-        Some((private, common)) => LinuxSandbox::for_worktree(root, private, common),
+        Some((private, common)) => {
+            LinuxSandbox::for_worktree(root, private, common).or_else(|_| LinuxSandbox::new(root))
+        }
         None => LinuxSandbox::new(root),
     }
 }

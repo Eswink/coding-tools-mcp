@@ -59,16 +59,21 @@ fn registration(source: &Source, managed: &Path, id: &str) -> WorktreeResult<(Pa
     Ok((target, metadata))
 }
 fn registered(source: &Source, managed: &Path) -> WorktreeResult<Vec<(String, PathBuf, PathBuf)>> {
-    Ok(registered_in(source, &[managed])?
+    Ok(registered_in(source, &[managed], None)?
         .into_iter()
         .map(|(_, id, target, metadata)| (id, target, metadata))
         .collect())
 }
 /// One pass over `.git/worktrees`, keeping entries whose back-pointer names a
 /// tree directly under one of `roots` (A1 C4 N1: one listing, filtered by parent).
+///
+/// A1 C2-ad (NB3): with `skipped` set (the legacy scan only), an entry whose own
+/// registration cannot be read or verified is skipped and counted instead of
+/// failing the whole pass. The managed path (`None`) stays strict.
 fn registered_in(
     source: &Source,
     roots: &[&Path],
+    mut skipped: Option<&mut usize>,
 ) -> WorktreeResult<Vec<(usize, String, PathBuf, PathBuf)>> {
     let parent = source.git.join("worktrees");
     if fs::symlink_metadata(&parent).is_err() {
@@ -94,27 +99,46 @@ fn registered_in(
         {
             continue;
         }
-        objects::checked_path(&source.git, &entry.path())?;
-        let pointer = read_file(&entry.path().join("gitdir"), 8192)?;
-        let pointer = std::str::from_utf8(&pointer)
-            .map_err(|_| failure("PARSE_FAILED"))?
-            .trim_end_matches(['\r', '\n']);
-        let Some(index) = roots.iter().position(|root| {
-            Path::new(pointer) == Path::new(&git_path_arg(&root.join(&id).join(".git")))
-        }) else {
-            continue;
+        let one = || -> WorktreeResult<Option<(usize, PathBuf, PathBuf)>> {
+            objects::checked_path(&source.git, &entry.path())?;
+            let pointer = read_file(&entry.path().join("gitdir"), 8192)?;
+            let pointer = std::str::from_utf8(&pointer)
+                .map_err(|_| failure("PARSE_FAILED"))?
+                .trim_end_matches(['\r', '\n']);
+            let Some(index) = roots.iter().position(|root| {
+                Path::new(pointer) == Path::new(&git_path_arg(&root.join(&id).join(".git")))
+            }) else {
+                return Ok(None);
+            };
+            let (target, metadata) = registration(source, roots[index], &id)?;
+            Ok(Some((index, target, metadata)))
         };
-        let (target, metadata) = registration(source, roots[index], &id)?;
-        result.push((index, id, target, metadata));
+        match (one(), skipped.as_deref_mut()) {
+            (Ok(Some((index, target, metadata))), _) => result.push((index, id, target, metadata)),
+            (Ok(None), _) => {}
+            (Err(error), Some(count)) => {
+                *count += 1;
+                eprintln!(
+                    "warning: skipped legacy worktree registration {id}: {}",
+                    error.code()
+                );
+            }
+            (Err(error), None) => return Err(error),
+        }
     }
     Ok(result)
 }
 /// A1 C4 (N1): the registered detached trees directly under any of `roots`, as
 /// `(root index, id, head)`, from a single registry pass. Every root is pinned.
+/// A1 C2-ad (NB3): an entry whose registration or HEAD is broken is skipped and
+/// counted in the returned warning total; only the pass itself can fail.
+/// `(root index, id, head)` entries plus the count of skipped broken entries.
+pub(super) type RegisteredUnder = (Vec<(usize, String, String)>, usize);
+
 pub(super) fn list_registered_under(
     authority: &Path,
     roots: &[PathBuf],
-) -> WorktreeResult<Vec<(usize, String, String)>> {
+) -> WorktreeResult<RegisteredUnder> {
     let source = objects::open_source(authority)?;
     let mut pins = vec![
         (source.root.clone(), identity(&source.root)?),
@@ -129,16 +153,25 @@ pub(super) fn list_registered_under(
     }
     let borrowed: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
     let mut result = Vec::new();
-    for (index, id, _, metadata) in registered_in(&source, &borrowed)? {
-        let head = objects::oid(&read_file(&metadata.join("HEAD"), 128)?)?;
-        result.push((index, id, head.to_string()));
+    let mut skipped = 0usize;
+    for (index, id, _, metadata) in registered_in(&source, &borrowed, Some(&mut skipped))? {
+        match read_file(&metadata.join("HEAD"), 128).and_then(|raw| objects::oid(&raw)) {
+            Ok(head) => result.push((index, id, head.to_string())),
+            Err(error) => {
+                skipped += 1;
+                eprintln!(
+                    "warning: skipped legacy worktree registration {id}: {}",
+                    error.code()
+                );
+            }
+        }
     }
     for (path, expected) in pins {
         if identity(&path)? != expected {
             return Err(failure("BOUNDARY_VIOLATION"));
         }
     }
-    Ok(result)
+    Ok((result, skipped))
 }
 
 pub(super) fn run_git(
@@ -328,4 +361,115 @@ fn matches_git_link(bytes: &[u8], prefix: &str, path: &Path) -> bool {
     // Preserve only the exact previous broker serialization of this validated
     // path. Do not canonicalize arbitrary metadata paths or rewrite old records.
     bytes == canonical.as_bytes() || bytes == legacy.as_bytes()
+}
+
+/// A1 C2-ad (N2 + NB-e, SPEC-A1 v5.1 §1.7): `head` is reachable from a ref of
+/// the source repository (main `HEAD`, any loose ref under `.git/refs`, or a
+/// `packed-refs` line; annotated tags are peeled). Legacy trees are detached,
+/// so an unreachable HEAD may be the only copy of a commit and must not be
+/// removed. Any doubt (unreadable ref, missing object, bound hit) is `false`.
+pub(super) fn head_reachable_from_refs(authority: &Path, head: &str) -> WorktreeResult<bool> {
+    let source = objects::open_source(authority)?;
+    let head = objects::oid(head.as_bytes())?;
+    let mut tips = Vec::new();
+    if let Ok(main) = objects::head(&source) {
+        tips.push(main);
+    }
+    let refs = source.git.join("refs");
+    let mut stack = vec![refs.clone()];
+    let mut seen = 0usize;
+    while let Some(dir) = stack.pop() {
+        if objects::checked_path(&source.git, &dir).is_err() {
+            continue;
+        }
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            seen += 1;
+            if seen > 4096 {
+                return Ok(false);
+            }
+            let path = entry.path();
+            let Ok(metadata) = fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if metadata.file_type().is_symlink() {
+                continue;
+            }
+            if metadata.is_dir() {
+                stack.push(path);
+            } else if let Ok(oid) = read_file(&path, 128).and_then(|raw| objects::oid(&raw)) {
+                tips.push(oid);
+            }
+        }
+    }
+    let packed = source.git.join("packed-refs");
+    if fs::symlink_metadata(&packed).is_ok() && objects::checked_path(&source.git, &packed).is_ok()
+    {
+        if let Ok(bytes) = read_file(&packed, 1024 * 1024) {
+            for line in bytes.split(|byte| *byte == b'\n') {
+                let line = line.strip_prefix(b"^").unwrap_or(line);
+                if let Some(hash) = line.get(..40) {
+                    if let Ok(oid) = objects::oid(hash) {
+                        tips.push(oid);
+                    }
+                }
+            }
+        }
+    }
+    for tip in tips {
+        let Ok(commit) = source
+            .repo
+            .find_object(tip, None)
+            .and_then(|object| object.peel_to_commit())
+        else {
+            continue;
+        };
+        let commit = commit.id();
+        if commit == head
+            || source
+                .repo
+                .graph_descendant_of(commit, head)
+                .unwrap_or(false)
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// A1 C2-ad (N2 crash recovery, v5 §1.7 / §4.1): the tree `root/id` is
+/// already gone; drop only its own `.git/worktrees/<id>` registration, and only
+/// when that registration's back-pointer names exactly that tree. Never a
+/// global prune. Returns whether a registration was removed.
+pub(super) fn prune_missing_registration(
+    authority: &Path,
+    root: &Path,
+    id: &str,
+) -> WorktreeResult<bool> {
+    let source = objects::open_source(authority)?;
+    if id.len() != 32
+        || !id
+            .bytes()
+            .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
+    {
+        return Err(failure("INVALID_ID"));
+    }
+    let target = root.join(id);
+    if fs::symlink_metadata(&target).is_ok() {
+        return Err(failure("BOUNDARY_VIOLATION"));
+    }
+    let metadata = source.git.join("worktrees").join(id);
+    if fs::symlink_metadata(&metadata).is_err() {
+        return Ok(false);
+    }
+    objects::checked_path(&source.git, &metadata)?;
+    validate_tree(&metadata, 64, 8 * 1024 * 1024)?;
+    let gitdir = read_file(&metadata.join("gitdir"), 8192)?;
+    if !matches_git_link(&gitdir, "", &target.join(".git")) {
+        return Err(failure("BOUNDARY_VIOLATION"));
+    }
+    fs::remove_dir_all(&metadata).map_err(|_| failure("IO_FAILED"))?;
+    Ok(true)
 }

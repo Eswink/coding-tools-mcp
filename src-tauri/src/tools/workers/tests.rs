@@ -288,11 +288,12 @@ fn state_machine_rejects_invalid_transitions() {
     assert_eq!(set_cwd(&f.ctx, id, ".").unwrap_err().code(), "WORKER_STATE");
     let ready = scoped(&f.ctx, |c| complete_spawn(c, id)).unwrap();
     assert_eq!(ready.state, WorkerState::Ready);
-    let cancelled = cancel(&f.ctx, id).unwrap();
+    let (cancelled, killed) = cancel(&f.ctx, id).unwrap();
     assert_eq!(cancelled.state, WorkerState::Cancelled);
+    assert_eq!(killed, 0);
     assert_eq!(
         cancel(&f.ctx, id).unwrap(),
-        cancelled,
+        (cancelled, 0),
         "cancel is idempotent"
     );
     assert_eq!(set_cwd(&f.ctx, id, ".").unwrap_err().code(), "WORKER_STATE");
@@ -880,7 +881,7 @@ fn worker_context_sandbox_reads_but_cannot_write_its_gitdirs() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");
     let tree = worker_tree(&f.ctx, &worker);
-    let (worker_ctx, _, _guard) = bind(
+    let (worker_ctx, _, _guard, _) = bind(
         &f.ctx,
         "exec_command",
         &json!(worker.worker_id.as_str()),
@@ -1598,23 +1599,23 @@ fn discard_returns_worker_busy_while_a_worker_exec_runs_and_keeps_the_worktree()
         status(&f.ctx, Some(&id)).unwrap()[0].state,
         WorkerState::Ready
     );
-    // cancel marks the worker only; it does not stop the worker's commands.
+    // A1 C2-a (SPEC-A1 v5 §5.2): cancel now also stops the worker's background
+    // exec (C3 only marked the worker) and reports how many it stopped.
     let out = subagent(&f.ctx, "subagent_cancel", json!({"worker_id": id}));
     assert_eq!(out["ok"], true, "{out}");
-    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
-    assert_eq!(code(&out), "WORKER_BUSY", "{out}");
-    assert!(tree.is_dir());
-    // Stop the task through the worker's own routing would need a ready worker;
-    // the main session's task store holds the job, so cancel it there.
-    let stop = call_tool(&f.ctx, "cancel_exec_task", &json!({"job_id": job}));
-    assert_eq!(stop["ok"], true, "{stop}");
+    assert_eq!(out["killed_tasks"], 1, "{out}");
+    let mut last = Value::Null;
     for _ in 0..200 {
-        let got = call_tool(&f.ctx, "get_exec_task", &json!({"job_id": job}));
-        if !["queued", "running", "cancelling"].contains(&got["status"].as_str().unwrap()) {
+        last = call_tool(&f.ctx, "get_exec_task", &json!({"job_id": job}));
+        if !["queued", "running", "cancelling"].contains(&last["status"].as_str().unwrap()) {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
+    assert!(
+        !["queued", "running", "cancelling"].contains(&last["status"].as_str().unwrap()),
+        "cancel left the worker's task running: {last}"
+    );
     let out = discard_when_root_settles(&f.ctx, &id);
     assert_eq!(out["ok"], true, "{out}");
     assert!(!tree.exists());
@@ -1716,4 +1717,373 @@ fn concurrent_duplicate_spawns_with_one_request_id_end_failed_without_a_leak() {
         let created = call_tool(&f.ctx, "worktree_create", &json!({}));
         assert_eq!(created["ok"], true, "slot {n}: {created}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// A1 C2-a (SPEC-A1 v5 §5.2 C2-a, §2.1, T14): background exec counts toward the
+// flight registry; discard backs off on a busy main root; NB-f re-check.
+// ---------------------------------------------------------------------------
+/// Holds one main-root dispatch chain on another thread for `hold`.
+fn hold_main_root<'s>(
+    scope: &'s std::thread::Scope<'s, '_>,
+    ctx: &'s ToolContext,
+    hold: std::time::Duration,
+) -> std::thread::ScopedJoinHandle<'s, ()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = scope.spawn(move || {
+        scoped(ctx, |_| {
+            tx.send(()).unwrap();
+            std::thread::sleep(hold);
+        })
+    });
+    rx.recv().unwrap();
+    handle
+}
+
+/// Holds one main-root dispatch chain on another thread until `release`
+/// fires (load-independent: the hold cannot end inside the 2 s backoff).
+fn hold_main_root_until<'s>(
+    scope: &'s std::thread::Scope<'s, '_>,
+    ctx: &'s ToolContext,
+    release: std::sync::mpsc::Receiver<()>,
+) -> std::thread::ScopedJoinHandle<'s, ()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let handle = scope.spawn(move || {
+        scoped(ctx, |_| {
+            tx.send(()).unwrap();
+            let _ = release.recv_timeout(std::time::Duration::from_secs(60));
+        })
+    });
+    rx.recv().unwrap();
+    handle
+}
+
+#[test]
+fn discard_backs_off_then_answers_retryable_main_root_busy_and_changes_nothing() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    std::thread::scope(|scope| {
+        let (release, held) = std::sync::mpsc::channel();
+        let holder = hold_main_root_until(scope, &f.ctx, held);
+        let started = std::time::Instant::now();
+        let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+        let elapsed = started.elapsed();
+        release.send(()).unwrap();
+        assert_eq!(code(&out), "NATIVE_ROOT_UNAVAILABLE", "{out}");
+        assert_eq!(out["error"]["retryable"], true, "{out}");
+        assert_eq!(out["error"]["details"]["reason"], "main_root_busy", "{out}");
+        assert!(
+            elapsed >= std::time::Duration::from_millis(1900),
+            "no 2 s backoff before main_root_busy: {elapsed:?}"
+        );
+        assert_eq!(
+            status(&f.ctx, Some(&id)).unwrap()[0].state,
+            WorkerState::Ready
+        );
+        assert!(tree.is_dir(), "a refused discard removed the worktree");
+        holder.join().unwrap();
+    });
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(!tree.exists());
+}
+
+#[test]
+fn discard_waits_out_a_short_main_root_hold_inside_its_backoff() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    std::thread::scope(|scope| {
+        let holder = hold_main_root(scope, &f.ctx, std::time::Duration::from_millis(500));
+        let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+        assert_eq!(out["ok"], true, "{out}");
+        holder.join().unwrap();
+    });
+    assert!(!tree.exists());
+}
+
+#[cfg(unix)]
+fn wait_terminal(ctx: &ToolContext, job: &str) -> Value {
+    let mut last = Value::Null;
+    for _ in 0..200 {
+        last = call_tool(ctx, "get_exec_task", &json!({"job_id": job}));
+        if !["queued", "running", "cancelling"].contains(&last["status"].as_str().unwrap_or("")) {
+            return last;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    panic!("job never reached a terminal state: {last}");
+}
+
+#[cfg(unix)]
+#[test]
+fn integrate_drain_waits_for_worker_background_exec_and_lists_it() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let started = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &with_worker(
+            &id,
+            json!({"cmd":"python3 -c \"import time; time.sleep(30)\"","request_id":"bg"}),
+        ),
+    );
+    assert_eq!(started["ok"], true, "{started}");
+    let job = started["job_id"].as_str().unwrap().to_owned();
+    // No routed call is in flight any more; only the background task runs.
+    let store = WorkerStore::open_existing(&f.ctx.host).unwrap().unwrap();
+    assert!(store.flight().active.is_empty());
+    let busy = scoped(&f.ctx, |c| {
+        drain_for_integrate(c, std::time::Duration::from_millis(400)).err()
+    })
+    .expect("drain must wait for the worker's background exec");
+    assert_eq!(code(&busy), "INTEGRATE_BUSY", "{busy}");
+    assert_eq!(
+        busy["error"]["details"]["blocking_tasks"],
+        json!([{"worker_id": id, "running": 1}]),
+        "{busy}"
+    );
+    assert_eq!(busy["error"]["details"]["other_sessions_blocking"], 0);
+    // Another conversation sees only a count, never the worker id.
+    let other = session(&f.ctx, "conversation-b");
+    let busy_b = scoped(&other, |c| {
+        drain_for_integrate(c, std::time::Duration::from_millis(100)).err()
+    })
+    .unwrap();
+    assert_eq!(
+        busy_b["error"]["details"]["other_sessions_blocking"], 1,
+        "{busy_b}"
+    );
+    assert_eq!(
+        busy_b["error"]["details"]["blocking_tasks"],
+        json!([]),
+        "{busy_b}"
+    );
+    assert!(!busy_b.to_string().contains(&id), "{busy_b}");
+    // cancel stops it; then the drain goes through.
+    let out = subagent(&f.ctx, "subagent_cancel", json!({"worker_id": id}));
+    assert_eq!(out["killed_tasks"], 1, "{out}");
+    wait_terminal(&f.ctx, &job);
+    let drained = scoped(&f.ctx, |c| {
+        drain_for_integrate(c, std::time::Duration::from_secs(5)).is_ok()
+    });
+    assert!(drained, "drain still blocked after the task ended");
+}
+
+/// NB-f: a call in flight before discard's root guard registers background exec
+/// after the first idle check; the re-check under the guard refuses.
+#[cfg(unix)]
+#[test]
+fn discard_rechecks_background_exec_registered_after_its_first_check() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _enter = runtime.enter();
+    let late = Arc::new(crate::tools::session::SessionStore::new());
+    let child = runtime.block_on(async {
+        tokio::process::Command::new("/bin/sleep")
+            .arg("30")
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap()
+    });
+    let pid = child.id().unwrap();
+    late.insert(crate::tools::session::ExecSession::new(child).for_worker(Some(id.clone())));
+    assert_eq!(late.unfinished_worker_count(&id, &[]), 1);
+    {
+        let store = WorkerStore::open_existing(&f.ctx.host).unwrap().unwrap();
+        let owner = WorkerOwner::from_context(&f.ctx).unwrap();
+        let worker_id = WorkerId::parse(&id).unwrap();
+        let source = BackgroundSource {
+            tasks: std::sync::Weak::new(),
+            sessions: Arc::downgrade(&late),
+        };
+        discard_hooks::arm(move || store.note_background(&owner, &worker_id, source));
+    }
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(code(&out), "WORKER_BUSY", "{out}");
+    assert!(
+        tree.is_dir(),
+        "discard removed a worktree with a running exec"
+    );
+    assert_eq!(
+        status(&f.ctx, Some(&id)).unwrap()[0].state,
+        WorkerState::Ready
+    );
+    // Stop exactly the child this test started (by its own session / PID).
+    assert_eq!(late.kill_worker(&id, &[]), 1, "pid {pid}");
+    assert_eq!(late.unfinished_worker_count(&id, &[]), 0);
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(!tree.exists());
+}
+
+// ---------------------------------------------------------------------------
+// A1 C2-d (SPEC-A1 v5 §1.4.4, T16): the stored worker cwd is re-canonicalized
+// on every bind; a missing / non-directory / escaping cwd resets to the root.
+// ---------------------------------------------------------------------------
+fn cwd_after(f: &Fixture, id: &str) -> (Value, String) {
+    let got = call_tool(&f.ctx, "get_default_cwd", &with_worker(id, json!({})));
+    assert_eq!(got["ok"], true, "{got}");
+    (got, status(&f.ctx, Some(id)).unwrap()[0].cwd.clone())
+}
+
+#[test]
+fn a_stale_worker_cwd_falls_back_to_the_root_with_worker_cwd_reset() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    // Only the unix symlink case escapes to it.
+    #[cfg_attr(not(unix), allow(unused_variables))]
+    let outside = tempfile::tempdir().unwrap();
+    #[allow(clippy::type_complexity)]
+    let cases: Vec<(&str, Box<dyn Fn(&Path)>)> = vec![
+        (
+            "missing",
+            Box::new(|sub: &Path| fs::remove_dir_all(sub).unwrap()),
+        ),
+        (
+            "not_dir",
+            Box::new(|sub: &Path| {
+                fs::remove_dir_all(sub).unwrap();
+                fs::write(sub, "file\n").unwrap();
+            }),
+        ),
+        #[cfg(unix)]
+        (
+            "outside",
+            Box::new(|sub: &Path| {
+                fs::remove_dir_all(sub).unwrap();
+                std::os::unix::fs::symlink(outside.path(), sub).unwrap();
+            }),
+        ),
+    ];
+    for (reason, break_it) in cases {
+        let sub = tree.join("sub");
+        let _ = fs::remove_file(&sub);
+        let _ = fs::remove_dir_all(&sub);
+        fs::create_dir_all(&sub).unwrap();
+        set_cwd(&f.ctx, &id, "sub").unwrap();
+        // A healthy cwd is used unchanged and nothing is reported.
+        let (got, stored) = cwd_after(&f, &id);
+        assert!(got.get("worker_cwd_reset").is_none(), "{got}");
+        assert_eq!(stored, "sub");
+        break_it(&sub);
+        let (got, stored) = cwd_after(&f, &id);
+        assert_eq!(
+            got["worker_cwd_reset"],
+            json!({"previous": "sub", "reason": reason}),
+            "{got}"
+        );
+        assert_eq!(stored, ".", "{reason}: the stored cwd was not reset");
+        let (got, _) = cwd_after(&f, &id);
+        assert!(
+            got.get("worker_cwd_reset").is_none(),
+            "reported twice: {got}"
+        );
+    }
+    // Exec through the worker runs at the root, never outside it.
+    #[cfg(unix)]
+    {
+        let sub = tree.join("sub");
+        let _ = fs::remove_file(&sub);
+        let _ = fs::remove_dir_all(&sub);
+        fs::create_dir_all(&sub).unwrap();
+        set_cwd(&f.ctx, &id, "sub").unwrap();
+        fs::remove_dir_all(&sub).unwrap();
+        std::os::unix::fs::symlink(outside.path(), &sub).unwrap();
+        let run = call_tool(
+            &f.ctx,
+            "exec_command",
+            &with_worker(&id, json!({"cmd":"pwd -P","yield_time_ms":5000})),
+        );
+        assert_eq!(run["worker_cwd_reset"]["reason"], "outside", "{run}");
+        let text = run.to_string();
+        let canonical_tree = fs::canonicalize(&tree).unwrap();
+        assert!(
+            text.contains(canonical_tree.to_str().unwrap()),
+            "exec did not run at the worktree root: {run}"
+        );
+        assert!(
+            !text.contains(fs::canonicalize(outside.path()).unwrap().to_str().unwrap()),
+            "{run}"
+        );
+    }
+}
+
+/// Windows: a directory junction out of the worktree resets like a symlink.
+/// Compile-checked by the win-gnu cross build; it runs only on a Windows host.
+#[cfg(windows)]
+#[test]
+fn a_worker_cwd_junction_out_of_the_worktree_resets_to_the_root() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    let outside = tempfile::tempdir().unwrap();
+    let sub = tree.join("sub");
+    fs::create_dir_all(&sub).unwrap();
+    set_cwd(&f.ctx, &id, "sub").unwrap();
+    fs::remove_dir(&sub).unwrap();
+    let made = Command::new("cmd")
+        .args(["/C", "mklink", "/J"])
+        .arg(&sub)
+        .arg(outside.path())
+        .output()
+        .unwrap();
+    assert!(made.status.success(), "{made:?}");
+    let (got, stored) = cwd_after(&f, &id);
+    assert_eq!(got["worker_cwd_reset"]["reason"], "outside", "{got}");
+    assert_eq!(stored, ".");
+}
+
+/// A1 C2-ad (N2, SPEC-A1 v5 §1.7, T17): eight legacy chat-v1 trees alone fill
+/// the slots: spawn and create return CAPACITY{legacy_slots:8, hint}; nothing is
+/// deleted automatically; after a local owner cleanup of one, spawn succeeds.
+#[test]
+fn eight_legacy_trees_return_capacity_legacy_slots_until_one_is_cleaned_locally() {
+    use crate::commands::{legacy_cleanup, native_owner::OwnerApproval};
+    use crate::harness::worktree::WorktreeManager;
+    let f = Fixture::new();
+    let ws = f.ctx.host.workspace_id.clone();
+    let legacy_root = f.ctx.host.store_root.join("chat-v1").join("ab".repeat(32));
+    fs::create_dir_all(&legacy_root).unwrap();
+    let legacy = WorktreeManager::new(f.root.path(), &legacy_root, &ws).unwrap();
+    let ids: Vec<String> = (0..8)
+        .map(|_| legacy.create_detached().unwrap().id)
+        .collect();
+    let details = json!({"legacy_slots": 8, "hint": "local_cleanup"});
+    for n in 0..2 {
+        let spawned = subagent(
+            &f.ctx,
+            "subagent_spawn",
+            json!({"request_id": format!("cap{n}")}),
+        );
+        assert_eq!(spawned["error"]["code"], "CAPACITY", "{spawned}");
+        assert_eq!(spawned["error"]["details"], details, "{spawned}");
+        let created = call_tool(&f.ctx, "worktree_create", &json!({}));
+        assert_eq!(created["error"]["code"], "CAPACITY", "{created}");
+        assert_eq!(created["error"]["details"], details, "{created}");
+    }
+    assert_eq!(legacy.list().unwrap().len(), 8, "no automatic deletion");
+    let main = WorktreeManager::new(f.root.path(), &f.ctx.host.store_root, &ws).unwrap();
+    let digest = legacy_cleanup::preview_for(&main).unwrap()["digest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let approval = OwnerApproval::for_test(legacy_cleanup::SCOPE, &digest);
+    let out = legacy_cleanup::apply_approved(&main, &approval, &ids[..1], &digest).unwrap();
+    assert_eq!(out.len(), 1);
+    let spawned = subagent(&f.ctx, "subagent_spawn", json!({"request_id": "cap-after"}));
+    assert_eq!(spawned["ok"], true, "{spawned}");
 }

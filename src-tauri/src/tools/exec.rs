@@ -307,6 +307,8 @@ async fn run_command(
         }
         .for_worker(ctx.worker.as_ref().map(|w| w.worker_id.as_str().to_owned())),
     );
+    // A1 C2-a (SPEC-A1 v5 §5.2): a worker's live session counts toward the drain.
+    crate::tools::worktree_tools::workers::note_background(ctx);
     session.spawn_readers().await;
     #[cfg(target_os = "linux")]
     super::execution_sandbox::retain_admission(session.clone(), admission);

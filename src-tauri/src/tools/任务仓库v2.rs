@@ -140,6 +140,79 @@ impl ExecTaskStore {
             .any(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
     }
 
+    /// A1 C2-a (SPEC-A1 v5 §5.2): tagged tasks of this worker that still hold
+    /// capacity. An unreadable store counts as one (fail closed).
+    pub(crate) fn unfinished_worker_count(&self, worker_id: &str) -> usize {
+        let Ok(mut inner) = self.inner.lock() else {
+            return 1;
+        };
+        if self.initialize(&mut inner).is_err() {
+            return 1;
+        }
+        inner
+            .jobs
+            .values()
+            .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+            .filter(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
+            .count()
+    }
+
+    /// A1 C2-a: the exec sessions that back this worker's tasks, so a task and
+    /// the session it runs in count (and report) as one unit of work.
+    pub(crate) fn worker_session_ids(&self, worker_id: &str) -> Vec<String> {
+        let Ok(inner) = self.inner.lock() else {
+            return Vec::new();
+        };
+        inner
+            .jobs
+            .values()
+            .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+            .filter_map(|job| {
+                let data = job.data.lock().ok()?;
+                data.session.as_ref().map(|s| s.session_id.clone())
+            })
+            .collect()
+    }
+
+    /// A1 C2-a (v5 §5.2 cancel): request cancellation of every non-terminal task
+    /// tagged with this worker, exactly like `cancel_exec_task`. Returns the count.
+    pub(crate) fn cancel_worker(&self, worker_id: &str) -> usize {
+        let jobs: Vec<Arc<Job>> = {
+            let Ok(mut inner) = self.inner.lock() else {
+                return 0;
+            };
+            if self.initialize(&mut inner).is_err() {
+                return 0;
+            }
+            inner
+                .jobs
+                .values()
+                .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+                .cloned()
+                .collect()
+        };
+        let mut cancelled = 0;
+        for job in jobs {
+            let changed = {
+                let Ok(mut data) = job.data.lock() else {
+                    continue;
+                };
+                if data.status.terminal() {
+                    false
+                } else {
+                    data.cancel_requested = true;
+                    data.status = super::state::Status::Cancelling;
+                    true
+                }
+            };
+            if changed {
+                let _ = self.checkpoint(&job);
+                cancelled += 1;
+            }
+        }
+        cancelled
+    }
+
     pub(crate) fn persistent(&self) -> bool {
         self.root.is_some()
     }

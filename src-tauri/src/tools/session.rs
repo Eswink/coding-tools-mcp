@@ -59,18 +59,50 @@ impl SessionStore {
         self.any_unfinished(|s| s.worker.as_deref() == Some(worker_id))
     }
 
+    /// A1 C2-a (SPEC-A1 v5 §5.2): live sessions started by this worker, except
+    /// those in `skip` (sessions that back a task already counted as a task).
+    pub(crate) fn unfinished_worker_count(&self, worker_id: &str, skip: &[String]) -> usize {
+        let Ok(sessions) = self.sessions.lock() else {
+            return 1;
+        };
+        sessions
+            .values()
+            .filter(|s| s.worker.as_deref() == Some(worker_id))
+            .filter(|s| !skip.contains(&s.session_id))
+            .filter(|s| session_unfinished(s))
+            .count()
+    }
+
+    /// A1 C2-a (v5 §5.2 cancel): KILL every live session started by this worker.
+    /// Returns how many were running when the kill was sent, not counting those
+    /// in `skip` (killed as well, but already counted as their task).
+    pub(crate) fn kill_worker(&self, worker_id: &str, skip: &[String]) -> usize {
+        let ids: Vec<String> = match self.sessions.lock() {
+            Ok(sessions) => sessions
+                .values()
+                .filter(|s| s.worker.as_deref() == Some(worker_id))
+                .filter(|s| session_unfinished(s))
+                .map(|s| s.session_id.clone())
+                .collect(),
+            Err(_) => return 0,
+        };
+        for id in &ids {
+            let _ = kill_session(
+                self,
+                &json!({"session_id": id, "signal": "KILL", "wait_ms": 1000}),
+            );
+        }
+        ids.iter().filter(|id| !skip.contains(id)).count()
+    }
+
     fn any_unfinished(&self, selected: impl Fn(&ExecSession) -> bool) -> bool {
         let Ok(sessions) = self.sessions.lock() else {
             return true;
         };
-        sessions.values().filter(|s| selected(s)).any(|s| {
-            if let Ok(mut child) = s.child.try_lock() {
-                if let Ok(Some(status)) = child.try_wait() {
-                    s.record_exit_status(status);
-                }
-            }
-            !s.has_exited() || s.tree_cleanup_failed.load(Ordering::Acquire)
-        })
+        sessions
+            .values()
+            .filter(|s| selected(s))
+            .any(|s| session_unfinished(s))
     }
 
     pub(crate) fn cancel_local(&self) {
@@ -477,6 +509,15 @@ fn truncate_tail(bytes: &[u8], max_bytes: usize) -> Truncated {
         content: String::from_utf8_lossy(&bytes[bytes.len().saturating_sub(take)..]).into_owned(),
         truncated,
     }
+}
+
+fn session_unfinished(s: &ExecSession) -> bool {
+    if let Ok(mut child) = s.child.try_lock() {
+        if let Ok(Some(status)) = child.try_wait() {
+            s.record_exit_status(status);
+        }
+    }
+    !s.has_exited() || s.tree_cleanup_failed.load(Ordering::Acquire)
 }
 
 pub fn read_output(store: &SessionStore, args: &Value) -> Result<Value, WorkspaceError> {

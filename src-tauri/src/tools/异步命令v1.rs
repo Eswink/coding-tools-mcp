@@ -134,6 +134,8 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         summary["deduplicated"] = json!(true);
         return Ok(tool_ok(summary));
     }
+    // A1 C2-a (SPEC-A1 v5 §5.2): a worker's accepted job counts toward the drain.
+    crate::tools::worktree_tools::workers::note_background(ctx);
     // reserve() durably writes the exact conversation-scoped command key under
     // one mutex. Only its creator may execute hooks or launch the primary.
     // Concurrent/new outer requests see queued or terminal state without replay.

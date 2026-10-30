@@ -1,5 +1,6 @@
 pub(crate) mod chat_notifications;
 pub(crate) mod cloud_connection;
+pub(crate) mod legacy_cleanup;
 pub(crate) mod managed_workspace;
 pub(crate) mod native_owner;
 pub(crate) mod policy_hooks;

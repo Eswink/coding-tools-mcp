@@ -17,6 +17,8 @@ const LEGACY_ROOT_LIMIT: usize = 256;
 thread_local! {
     /// Test seam (A1 C4 N1): `git worktree list` runs made by legacy scans.
     static LEGACY_GIT_RUNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    /// Test seam (A1 C2-ad NB3): broken legacy registrations skipped by the last scan.
+    static LEGACY_BROKEN: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -35,14 +37,25 @@ pub struct ManagedWorktree {
 pub struct WorktreeError {
     code: &'static str,
     message: &'static str,
+    /// A1 C2-ad (N2, v5 §1.7): set on CAPACITY when legacy trees alone fill
+    /// the shared slots, so callers can answer `details.legacy_slots` + hint.
+    legacy_slots: Option<usize>,
 }
 
 impl WorktreeError {
     pub(super) fn new(code: &'static str, message: &'static str) -> Self {
-        Self { code, message }
+        Self {
+            code,
+            message,
+            legacy_slots: None,
+        }
     }
     pub fn code(&self) -> &'static str {
         self.code
+    }
+    /// The legacy tree count when legacy trees alone fill the eight slots.
+    pub fn legacy_slots(&self) -> Option<usize> {
+        self.legacy_slots
     }
 }
 
@@ -131,9 +144,7 @@ impl WorktreeManager {
     pub fn create_detached(&self) -> WorktreeResult<ManagedWorktree> {
         let _guard = native::lock()?;
         // Not-yet-built worker reservations share the same eight-slot budget.
-        if self.slots_in_use()? >= MAX_MANAGED_WORKTREES {
-            return Err(error("CAPACITY", "Managed worktree capacity reached."));
-        }
+        self.ensure_free_slot(MAX_MANAGED_WORKTREES)?;
         let (id, target) = self.allocate()?;
         self.add_locked(id, target)
     }
@@ -153,9 +164,7 @@ impl WorktreeManager {
     /// pins the opaque id the later build will use. Dropping the guard frees the slot.
     pub(crate) fn reserve_slot(&self) -> WorktreeResult<SlotReservation> {
         let _guard = native::lock()?;
-        if self.slots_in_use()? >= MAX_MANAGED_WORKTREES {
-            return Err(error("CAPACITY", "Managed worktree capacity reached."));
-        }
+        self.ensure_free_slot(MAX_MANAGED_WORKTREES)?;
         let (id, _) = self.allocate()?;
         Ok(reservations::take(&self.managed_root, id))
     }
@@ -193,9 +202,8 @@ impl WorktreeManager {
         if slot.root() != self.managed_root.as_path() || !valid_id(slot.id()) {
             return Err(boundary_error());
         }
-        if self.slots_in_use()? > MAX_MANAGED_WORKTREES {
-            return Err(error("CAPACITY", "Managed worktree capacity reached."));
-        }
+        // The slot being built is itself one of the counted reservations.
+        self.ensure_free_slot(MAX_MANAGED_WORKTREES + 1)?;
         let id = slot.id().to_owned();
         let target = self.managed_root.join(&id);
         if target.exists() || target.is_symlink() {
@@ -283,12 +291,32 @@ impl WorktreeManager {
     }
     /// A1 C3: slots held on this main root: its managed trees, the legacy
     /// chat-v1 trees of the same workspace, and not-yet-built reservations.
-    fn slots_in_use(&self) -> WorktreeResult<usize> {
-        Ok(
-            self.list()?.len()
-                + self.legacy_list()?.len()
-                + reservations::count(&self.managed_root),
-        )
+    fn slots_in_use(&self) -> WorktreeResult<(usize, usize)> {
+        let legacy = self.legacy_list()?.len();
+        Ok((
+            self.list()?.len() + legacy + reservations::count(&self.managed_root),
+            legacy,
+        ))
+    }
+    /// CAPACITY when `limit` or more slots are in use. A1 C2-ad (N2, v5 §1.7):
+    /// when the legacy trees alone hold all eight, the error carries their count
+    /// (`details.legacy_slots`, `hint:"local_cleanup"`); nothing is migrated or removed.
+    fn ensure_free_slot(&self, limit: usize) -> WorktreeResult<()> {
+        let (used, legacy) = self.slots_in_use()?;
+        if used < limit {
+            return Ok(());
+        }
+        let mut capacity = error("CAPACITY", "Managed worktree capacity reached.");
+        if legacy >= MAX_MANAGED_WORKTREES {
+            capacity.legacy_slots = Some(legacy);
+        }
+        Err(capacity)
+    }
+    #[cfg(test)]
+    pub(crate) fn legacy_scan_warnings_for_test(&self) -> (Vec<ManagedWorktree>, usize) {
+        LEGACY_BROKEN.with(|count| count.set(0));
+        let (items, _) = self.legacy_scan().expect("legacy scan");
+        (items, LEGACY_BROKEN.with(|count| count.get()))
     }
     /// A1 C3: the managed trees followed by the legacy chat-v1 trees (by id).
     pub fn list_with_legacy(&self) -> WorktreeResult<Vec<ManagedWorktree>> {
@@ -316,6 +344,12 @@ impl WorktreeManager {
     /// Beyond [`LEGACY_ROOT_LIMIT`] such roots (by name) the rest are skipped and
     /// reported, never an error. `git worktree list` runs once, filtered by parent.
     fn legacy_scan(&self) -> WorktreeResult<(Vec<ManagedWorktree>, usize)> {
+        let (rooted, skipped) = self.legacy_scan_rooted()?;
+        Ok((rooted.into_iter().map(|(item, _)| item).collect(), skipped))
+    }
+    /// [`Self::legacy_scan`] with each tree's legacy managed root
+    /// (`chat-v1/<key>/worktrees-v1/<ws>`), for the local cleanup path (N2).
+    fn legacy_scan_rooted(&self) -> WorktreeResult<(Vec<(ManagedWorktree, PathBuf)>, usize)> {
         let real_dir = |path: &Path| {
             fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !is_link_or_reparse(&m))
         };
@@ -360,22 +394,34 @@ impl WorktreeManager {
         #[cfg(test)]
         LEGACY_GIT_RUNS.with(|runs| runs.set(runs.get() + 1));
         let mut legacy = Vec::new();
-        for (_, id, head) in list_registered_under(&self.repository_root, &roots)? {
+        let (entries, broken) = list_registered_under(&self.repository_root, &roots)?;
+        #[cfg(test)]
+        LEGACY_BROKEN.with(|count| count.set(broken));
+        #[cfg(not(test))]
+        let _ = broken;
+        for (index, id, head) in entries {
             if valid_id(&id) && valid_head(&head) {
-                legacy.push(ManagedWorktree {
-                    display_path: format!("legacy/{id}"),
-                    id,
-                    head,
-                    detached: true,
-                    legacy: true,
-                });
+                legacy.push((
+                    ManagedWorktree {
+                        display_path: format!("legacy/{id}"),
+                        id,
+                        head,
+                        detached: true,
+                        legacy: true,
+                    },
+                    roots[index].clone(),
+                ));
             }
         }
-        legacy.sort_by(|left, right| left.id.cmp(&right.id));
+        legacy.sort_by(|left, right| left.0.id.cmp(&right.0.id));
         Ok((legacy, skipped))
     }
     pub fn remove_clean(&self, id: &str) -> WorktreeResult<()> {
         let _guard = native::lock()?;
+        self.remove_clean_locked(id)
+    }
+    /// [`Self::remove_clean`] for a caller already holding the lifecycle lock.
+    fn remove_clean_locked(&self, id: &str) -> WorktreeResult<()> {
         if !valid_id(id) {
             return Err(error("INVALID_ID", "Invalid managed worktree identifier."));
         }
@@ -607,9 +653,15 @@ fn ensure_owned_directory(path: &Path) -> WorktreeResult<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;
+            use std::os::unix::fs::PermissionsExt;
             fs::DirBuilder::new()
                 .mode(0o700)
                 .create(path)
+                .map_err(|_| io_failure())?;
+            // A1 C2-ad (NB4): exactly 0700 whatever the umask. Only directories
+            // the harness creates here are set; an existing root is never
+            // tightened (it is only checked above).
+            fs::set_permissions(path, fs::Permissions::from_mode(0o700))
                 .map_err(|_| io_failure())?;
         }
         #[cfg(not(unix))]
@@ -684,6 +736,12 @@ pub(crate) use snapshot::SnapshotTarget;
 
 #[path = "worktree_native.rs"]
 mod native;
+
+#[path = "worktree_legacy.rs"]
+mod legacy;
+#[cfg(all(test, unix))]
+pub(crate) use legacy::LegacyState;
+pub(crate) use legacy::{legacy_digest, LegacyCandidate, LegacyJournal, LegacyOutcome};
 
 #[path = "worktree_reservations.rs"]
 mod reservations;

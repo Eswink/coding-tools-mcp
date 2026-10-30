@@ -72,10 +72,16 @@ pub(crate) const WORKER_TOOLS: &[&str] = &[
 pub(crate) struct WorkerError {
     code: &'static str,
     message: &'static str,
+    /// A1 C2-ad (N2): CAPACITY because legacy trees alone hold the slots.
+    legacy_slots: Option<usize>,
 }
 impl WorkerError {
     const fn new(code: &'static str, message: &'static str) -> Self {
-        Self { code, message }
+        Self {
+            code,
+            message,
+            legacy_slots: None,
+        }
     }
     pub(crate) fn code(&self) -> &'static str {
         self.code
@@ -87,7 +93,10 @@ impl WorkerError {
 impl From<WorktreeError> for WorkerError {
     fn from(value: WorktreeError) -> Self {
         // CAPACITY / DIRTY / boundary codes pass through unchanged.
-        Self::new(value.code(), "Managed worktree operation failed.")
+        Self {
+            legacy_slots: value.legacy_slots(),
+            ..Self::new(value.code(), "Managed worktree operation failed.")
+        }
     }
 }
 const INVALID_WORKER_ID: &str = "Invalid worker identifier.";
@@ -127,6 +136,20 @@ fn root_unavailable() -> WorkerError {
         "Source workspace writers are not proven quiescent; no worker operation started.",
     )
 }
+/// A1 C2-a (SPEC-A1 v5 §5.2): discard waited out its 2 s backoff while the main
+/// root stayed held by the main session. Retryable; the worker is unchanged.
+const MAIN_ROOT_BUSY: &str = "The main workspace root is busy; retry the discard later.";
+fn main_root_busy() -> WorkerError {
+    WorkerError::new("NATIVE_ROOT_UNAVAILABLE", MAIN_ROOT_BUSY)
+}
+fn worker_busy() -> WorkerError {
+    WorkerError::new(
+        "WORKER_BUSY",
+        "Worker still has running commands; stop them before discarding.",
+    )
+}
+/// Discard's bounded wait for the main-root exclusive guard (v5 §5.2 C2-a).
+const DISCARD_ROOT_BACKOFF_MS: &[u64] = &[50, 100, 200, 400, 600, 650];
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -288,6 +311,58 @@ pub(crate) struct WorkerStore {
 struct Flight {
     draining: bool,
     active: HashMap<WorkerId, (WorkerOwner, usize)>,
+    /// A1 C2-a (SPEC-A1 v5 §5.2, §2.1): background exec started by a worker
+    /// (`start_exec_task` jobs and still-running `exec_command` sessions). Keyed by
+    /// worker id; each entry holds the owner and the stores the work was started
+    /// in. Liveness is probed from those stores on demand (the stores own the
+    /// handles), so an entry never outlives the work it counts.
+    background: HashMap<WorkerId, (WorkerOwner, Vec<BackgroundSource>)>,
+}
+/// One store pair a worker started background exec in (deduplicated by pointer).
+#[derive(Clone)]
+struct BackgroundSource {
+    tasks: std::sync::Weak<crate::tools::exec_tasks::ExecTaskStore>,
+    sessions: std::sync::Weak<crate::tools::session::SessionStore>,
+}
+impl BackgroundSource {
+    fn of(ctx: &ToolContext) -> Self {
+        Self {
+            tasks: Arc::downgrade(&ctx.exec_tasks),
+            sessions: Arc::downgrade(&ctx.sessions),
+        }
+    }
+    fn same(&self, other: &Self) -> bool {
+        self.tasks.ptr_eq(&other.tasks) && self.sessions.ptr_eq(&other.sessions)
+    }
+    fn dead(&self) -> bool {
+        self.tasks.strong_count() == 0 && self.sessions.strong_count() == 0
+    }
+    /// Running units: each task once (its backing session is not counted again)
+    /// plus the worker's interactive sessions.
+    fn running(&self, id: &str) -> usize {
+        let tasks = self.tasks.upgrade();
+        let backing = tasks
+            .as_ref()
+            .map(|t| t.worker_session_ids(id))
+            .unwrap_or_default();
+        tasks.map_or(0, |t| t.unfinished_worker_count(id))
+            + self
+                .sessions
+                .upgrade()
+                .map_or(0, |s| s.unfinished_worker_count(id, &backing))
+    }
+    fn kill(&self, id: &str) -> usize {
+        let tasks = self.tasks.upgrade();
+        let backing = tasks
+            .as_ref()
+            .map(|t| t.worker_session_ids(id))
+            .unwrap_or_default();
+        tasks.map_or(0, |t| t.cancel_worker(id))
+            + self
+                .sessions
+                .upgrade()
+                .map_or(0, |s| s.kill_worker(id, &backing))
+    }
 }
 /// Held for the duration of one routed worker call.
 pub(crate) struct FlightGuard {
@@ -445,6 +520,50 @@ impl WorkerStore {
     }
     pub(crate) fn draining(&self) -> bool {
         self.flight().draining
+    }
+    /// A1 C2-a: register that `id` started background exec in `source`'s stores.
+    fn note_background(&self, owner: &WorkerOwner, id: &WorkerId, source: BackgroundSource) {
+        let mut flight = self.flight();
+        let entry = flight
+            .background
+            .entry(id.clone())
+            .or_insert_with(|| (owner.clone(), Vec::new()));
+        entry.1.retain(|s| !s.dead());
+        if !entry.1.iter().any(|s| s.same(&source)) {
+            entry.1.push(source);
+        }
+    }
+    fn background_sources(&self, id: &WorkerId) -> Vec<BackgroundSource> {
+        self.flight()
+            .background
+            .get(id)
+            .map(|(_, sources)| sources.clone())
+            .unwrap_or_default()
+    }
+    /// Running background work per worker (probed outside the flight lock).
+    fn background_running(&self) -> Vec<(WorkerId, WorkerOwner, usize)> {
+        let entries: Vec<(WorkerId, WorkerOwner, Vec<BackgroundSource>)> = {
+            let mut flight = self.flight();
+            flight.background.retain(|_, (_, sources)| {
+                sources.retain(|s| !s.dead());
+                !sources.is_empty()
+            });
+            flight
+                .background
+                .iter()
+                .map(|(id, (owner, sources))| (id.clone(), owner.clone(), sources.clone()))
+                .collect()
+        };
+        entries
+            .into_iter()
+            .filter_map(|(id, owner, sources)| {
+                let running: usize = sources.iter().map(|s| s.running(id.as_str())).sum();
+                (running > 0).then_some((id, owner, running))
+            })
+            .collect()
+    }
+    fn in_flight(&self, id: &WorkerId) -> bool {
+        self.flight().active.contains_key(id)
     }
     /// Resolves a `ready` worker of `owner` and registers one in-flight call.
     /// Ownership is checked before draining so a foreign or unknown id never
@@ -972,22 +1091,37 @@ pub(crate) fn status(
     Ok(records)
 }
 
-pub(crate) fn cancel(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord, WorkerError> {
+/// A1 C2-a (SPEC-A1 v5 §5.2): cancel marks the worker `cancelled` and stops the
+/// background exec it started (async tasks get `cancel_exec_task` semantics,
+/// interactive sessions a KILL). Returns the record and how many were stopped.
+pub(crate) fn cancel(
+    ctx: &ToolContext,
+    worker_id: &str,
+) -> Result<(WorkerRecord, usize), WorkerError> {
     let id = WorkerId::parse(worker_id)?;
     let owner = WorkerOwner::from_context(ctx)?;
     let (_, store) = open(ctx)?;
-    let mut inner = store.lock()?;
-    let record = inner.owned(&owner, &id)?;
-    match record.state {
-        WorkerState::Ready => {}
-        WorkerState::Cancelled => return Ok(record.clone()),
-        _ => return Err(state_error()),
+    let record = {
+        let mut inner = store.lock()?;
+        let record = inner.owned(&owner, &id)?;
+        match record.state {
+            WorkerState::Ready => inner.update(&owner, &id, |record| {
+                record.state = WorkerState::Cancelled;
+                record.last_activity_at = now();
+                Ok(record.clone())
+            })?,
+            WorkerState::Cancelled => record.clone(),
+            _ => return Err(state_error()),
+        }
+    };
+    // Killed outside the store lock: a KILL waits up to 1 s per session.
+    let mut sources = store.background_sources(&id);
+    let own = BackgroundSource::of(ctx);
+    if !sources.iter().any(|s| s.same(&own)) {
+        sources.push(own);
     }
-    inner.update(&owner, &id, |record| {
-        record.state = WorkerState::Cancelled;
-        record.last_activity_at = now();
-        Ok(record.clone())
-    })
+    let killed = sources.iter().map(|s| s.kill(id.as_str())).sum();
+    Ok((record, killed))
 }
 
 /// Removes the worker's worktree only when clean. DIRTY passes through unchanged;
@@ -995,11 +1129,23 @@ pub(crate) fn cancel(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord,
 pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord, WorkerError> {
     let id = WorkerId::parse(worker_id)?;
     let owner = WorkerOwner::from_context(ctx)?;
-    // A1 C3: checked before the root guard, which a running command would
-    // otherwise turn into NATIVE_ROOT_UNAVAILABLE. The tagged commands live in this
-    // context's own stores, so this reveals nothing about foreign workers.
+    // A1 C3 / C2-a (v5 §5.2): checked before the root guard, which a running
+    // command would otherwise turn into NATIVE_ROOT_UNAVAILABLE. The caller's own
+    // stores reveal nothing about foreign workers; the flight registry is only
+    // consulted once ownership is proven.
     worker_idle(ctx, &id)?;
-    let _root = root_work::exclusive_context(ctx).map_err(|_| root_unavailable())?;
+    if let Some(store) = WorkerStore::open_existing(&ctx.host)? {
+        if store.draining() {
+            return Err(busy());
+        }
+        let owned = store.lock()?.owned(&owner, &id).is_ok();
+        if owned && background_busy(&store, &id) {
+            return Err(worker_busy());
+        }
+    }
+    #[cfg(test)]
+    discard_hooks::after_idle_check();
+    let _root = exclusive_with_backoff(ctx)?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
     inner.cleanup(&manager)?;
@@ -1009,8 +1155,12 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         WorkerState::Creating => return Err(state_error()),
         _ => {}
     }
-    // Re-checked under the root guard (a command may have started meanwhile).
+    // NB-f: re-checked under the root guard. A call in flight before the guard
+    // may have registered background exec after the first check.
     worker_idle(ctx, &id)?;
+    if store.in_flight(&id) || background_busy(&store, &id) {
+        return Err(worker_busy());
+    }
     let removal = match record.worktree_id.as_deref() {
         Some(tree) => manager.remove_clean(tree),
         None => Ok(()),
@@ -1020,25 +1170,88 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         Err(error) if error.code() == "DIRTY" => return Err(error.into()),
         Err(_) => WorkerState::PendingCleanup,
     };
-    inner.update(&owner, &id, |record| {
+    let out = inner.update(&owner, &id, |record| {
         record.state = next;
         record.last_activity_at = now();
         Ok(record.clone())
-    })
+    })?;
+    if out.state == WorkerState::Discarded {
+        store.flight().background.remove(&id);
+    }
+    Ok(out)
 }
 
-/// A1 C3: cancel does not stop a worker's commands, so discard refuses while any
-/// async task or interactive session it started still runs; nothing is removed.
+/// The main-root exclusive guard, retried with bounded backoff (2 s total).
+/// When the main session keeps the root, the answer is the retryable
+/// `main_root_busy` variant of NATIVE_ROOT_UNAVAILABLE; nothing changed.
+fn exclusive_with_backoff(ctx: &ToolContext) -> Result<root_work::RootExclusiveGuard, WorkerError> {
+    for wait in DISCARD_ROOT_BACKOFF_MS
+        .iter()
+        .map(|ms| Some(*ms))
+        .chain(std::iter::once(None))
+    {
+        if let Ok(guard) = root_work::exclusive_context(ctx) {
+            return Ok(guard);
+        }
+        match wait {
+            Some(ms) => std::thread::sleep(Duration::from_millis(ms)),
+            None => break,
+        }
+    }
+    Err(main_root_busy())
+}
+
+/// A1 C2-a: background exec registered in the flight registry for `id`.
+fn background_busy(store: &WorkerStore, id: &WorkerId) -> bool {
+    store
+        .background_sources(id)
+        .iter()
+        .any(|s| s.running(id.as_str()) > 0)
+}
+
+/// Registers the bound worker's newly started background exec (a reserved
+/// `start_exec_task` job or a still-running `exec_command` session) with the
+/// main-root flight registry. Best effort; the stores remain authoritative.
+pub(crate) fn note_background(ctx: &ToolContext) {
+    let Some(binding) = ctx.worker.as_ref() else {
+        return;
+    };
+    if let Ok(Some(store)) = WorkerStore::open_existing(&ctx.host) {
+        store.note_background(
+            &binding.owner,
+            &binding.worker_id,
+            BackgroundSource::of(ctx),
+        );
+    }
+}
+
+/// Discard refuses while any async task or interactive session the worker
+/// started in the caller's stores still runs; nothing is removed.
 fn worker_idle(ctx: &ToolContext, id: &WorkerId) -> Result<(), WorkerError> {
     if ctx.exec_tasks.has_unfinished_worker_work(id.as_str())
         || ctx.sessions.has_unfinished_worker_work(id.as_str())
     {
-        return Err(WorkerError::new(
-            "WORKER_BUSY",
-            "Worker still has running commands; stop them before discarding.",
-        ));
+        return Err(worker_busy());
     }
     Ok(())
+}
+
+/// A1 C2-d (SPEC-A1 v5 §1.4.4): the stored worker cwd re-canonicalized under the
+/// (canonical) worktree root. It must exist, stay inside the root and be a
+/// directory; otherwise the reason the caller resets it to `.`.
+pub(crate) fn checked_cwd(root: &Path, cwd: &str) -> Result<PathBuf, &'static str> {
+    let root = root.canonicalize().map_err(|_| "missing")?;
+    if cwd == "." {
+        return Ok(root);
+    }
+    let target = root.join(cwd).canonicalize().map_err(|_| "missing")?;
+    if !target.starts_with(&root) {
+        return Err("outside");
+    }
+    if !target.is_dir() {
+        return Err("not_dir");
+    }
+    Ok(target)
 }
 
 /// Validates a worker-relative cwd: an existing directory inside `root`. Returns
@@ -1207,8 +1420,31 @@ pub(crate) fn owned_worktrees(ctx: &ToolContext) -> Result<BTreeSet<String>, Wor
 }
 
 /// Structured tool error for a worker failure. INTEGRATE_BUSY is retryable.
+/// A1 C2-ad (N2, v5 §1.7): legacy chat-v1 trees fill the shared slots; only a
+/// local (native UI) cleanup frees them.
+pub(crate) fn legacy_capacity_details(slots: usize) -> Value {
+    json!({ "legacy_slots": slots, "hint": "local_cleanup" })
+}
 pub(crate) fn error_value(error: &WorkerError) -> Value {
     let busy = error.code() == "INTEGRATE_BUSY";
+    if error.message() == MAIN_ROOT_BUSY {
+        return crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
+            code: error.code(),
+            message: error.message().into(),
+            category: "worker",
+            retryable: true,
+            details: json!({ "retry_after_ms": RETRY_AFTER_MS, "reason": "main_root_busy" }),
+        });
+    }
+    if let Some(slots) = error.legacy_slots {
+        return crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
+            code: error.code(),
+            message: error.message().into(),
+            category: "worker",
+            retryable: false,
+            details: legacy_capacity_details(slots),
+        });
+    }
     crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
         code: error.code(),
         message: error.message().into(),
@@ -1242,7 +1478,13 @@ pub(crate) fn route(
     }
     let raw = args.as_object()?.get("worker_id")?;
     Some(match bind(ctx, name, raw, args) {
-        Ok((worker_ctx, stripped, _guard)) => run(&worker_ctx, &stripped),
+        Ok((worker_ctx, stripped, _guard, reset)) => {
+            let mut out = run(&worker_ctx, &stripped);
+            if let (Some(reset), Some(obj)) = (reset, out.as_object_mut()) {
+                obj.insert("worker_cwd_reset".into(), reset);
+            }
+            out
+        }
         Err(error) => error_value(&error),
     })
 }
@@ -1251,7 +1493,7 @@ fn bind(
     name: &str,
     raw: &Value,
     args: &Value,
-) -> Result<(ToolContext, Value, FlightGuard), WorkerError> {
+) -> Result<(ToolContext, Value, FlightGuard, Option<Value>), WorkerError> {
     let id = raw
         .as_str()
         .ok_or_else(|| invalid(INVALID_WORKER_ID))
@@ -1270,12 +1512,31 @@ fn bind(
     let target = manager(ctx)?
         .snapshot_target(&worktree_id)
         .map_err(|_| state_error())?;
+    // A1 C2-d (v5 §1.4.4): a stored cwd that no longer resolves to a directory
+    // inside the worktree (deleted, replaced by a file, or a symlink/junction out)
+    // falls back to the root; the call proceeds and reports worker_cwd_reset.
+    let (cwd, reset) = match checked_cwd(&target.root, &record.cwd) {
+        Ok(_) => (record.cwd, None),
+        Err(reason) => {
+            if let Ok(mut inner) = store.lock() {
+                let previous = record.cwd.clone();
+                let _ = inner.update(&owner, &id, |r| {
+                    if r.cwd == previous {
+                        r.cwd = default_cwd();
+                    }
+                    Ok(())
+                });
+            }
+            let reset = json!({ "previous": record.cwd, "reason": reason });
+            (default_cwd(), Some(reset))
+        }
+    };
     let binding = WorkerBinding {
         worker_id: id,
         owner,
         worktree_id,
         worktree_root: target.root,
-        cwd: record.cwd,
+        cwd,
     };
     let worker_ctx = ctx
         .for_worker(Arc::new(binding))
@@ -1284,7 +1545,7 @@ fn bind(
     if let Some(obj) = stripped.as_object_mut() {
         obj.remove("worker_id");
     }
-    Ok((worker_ctx, stripped, guard))
+    Ok((worker_ctx, stripped, guard, reset))
 }
 
 /// Integration drain (v4 §5.2): raise the main-root draining flag, wait (bounded
@@ -1310,7 +1571,7 @@ pub(crate) fn drain_for_integrate(
     let deadline = Instant::now() + budget;
     let mut step = 0;
     loop {
-        if store.flight().active.is_empty() {
+        if store.flight().active.is_empty() && store.background_running().is_empty() {
             if let Ok(exclusive) = root_work::exclusive_context(ctx) {
                 return Ok(DrainGuard {
                     store,
@@ -1335,16 +1596,29 @@ pub(crate) fn drain_for_integrate(
     }
 }
 fn busy_value(store: &WorkerStore, owner: &WorkerOwner) -> Value {
+    // A1 C2-a: background exec blocks as well; the caller sees its own workers'
+    // running counts, other sessions only add to the count of blocking workers.
+    let background = store.background_running();
     let flight = store.flight();
     let mut own: Vec<&str> = Vec::new();
-    let mut others = 0usize;
+    let mut foreign: BTreeSet<&str> = BTreeSet::new();
     for (id, (holder, _)) in flight.active.iter() {
         if holder == owner {
             own.push(id.as_str());
         } else {
-            others += 1;
+            foreign.insert(id.as_str());
         }
     }
+    let mut tasks: Vec<Value> = Vec::new();
+    for (id, holder, running) in &background {
+        if holder == owner {
+            tasks.push(json!({ "worker_id": id.as_str(), "running": running }));
+        } else {
+            foreign.insert(id.as_str());
+        }
+    }
+    tasks.sort_by(|a, b| a["worker_id"].as_str().cmp(&b["worker_id"].as_str()));
+    let others = foreign.len();
     own.sort_unstable();
     let error = busy();
     crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
@@ -1356,12 +1630,32 @@ fn busy_value(store: &WorkerStore, owner: &WorkerOwner) -> Value {
             "retry_after_ms": RETRY_AFTER_MS,
             "blocking_worker_ids": own,
             "other_sessions_blocking": others,
+            "blocking_tasks": tasks,
         }),
     })
 }
 
 #[path = "workers/subagent.rs"]
 pub(crate) mod subagent;
+
+/// Test hook (NB-f): runs between discard's idle check and its root guard.
+#[cfg(test)]
+pub(crate) mod discard_hooks {
+    use std::cell::RefCell;
+    thread_local! {
+        static HOOK: RefCell<Option<Box<dyn FnOnce()>>> = RefCell::new(None);
+    }
+    // Only the unix NB-f race test arms it.
+    #[cfg_attr(not(unix), allow(dead_code))]
+    pub(crate) fn arm(hook: impl FnOnce() + 'static) {
+        HOOK.with(|h| *h.borrow_mut() = Some(Box::new(hook)));
+    }
+    pub(crate) fn after_idle_check() {
+        if let Some(hook) = HOOK.with(|h| h.borrow_mut().take()) {
+            hook();
+        }
+    }
+}
 
 #[cfg(test)]
 #[path = "workers/tests.rs"]

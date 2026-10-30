@@ -9,6 +9,16 @@ use crate::{
 use serde_json::{json, Value};
 
 fn error(value: WorktreeError) -> WorkspaceError {
+    if let Some(slots) = value.legacy_slots() {
+        // A1 C2-ad (N2, v5 §1.7): legacy trees alone hold all eight slots.
+        return WorkspaceError::ToolDetails {
+            code: value.code(),
+            message: value.to_string(),
+            category: "security",
+            retryable: false,
+            details: workers::legacy_capacity_details(slots),
+        };
+    }
     WorkspaceError::Tool {
         code: value.code(),
         message: value.to_string(),

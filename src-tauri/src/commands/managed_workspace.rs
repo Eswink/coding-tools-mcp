@@ -23,6 +23,18 @@ pub(crate) struct NativeSourceLease {
     root: std::path::PathBuf,
     guard: crate::tools::root_work::RootRestoreGuard,
 }
+impl NativeSourceLease {
+    /// A1 C2-ad (N2): the lease is for `root` and its restore guard still holds.
+    pub(crate) fn validate(&self, root: &Path) -> AppResult<()> {
+        if self.root != root {
+            return Err(unavailable());
+        }
+        self.guard.validate().map_err(|_| unavailable())
+    }
+    pub(crate) fn root(&self) -> &Path {
+        &self.root
+    }
+}
 pub(crate) fn source_lease(state: &AppState, source: &str) -> AppResult<NativeSourceLease> {
     let root = state.with_workspaces(|store| {
         store

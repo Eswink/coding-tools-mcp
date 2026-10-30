@@ -116,11 +116,12 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
         "subagent_cancel" | "subagent_discard" => {
             let obj = object(args, &["worker_id"], &["worker_id"])?;
             let id = text(obj, "worker_id")?.unwrap_or_default();
-            let record = if name == "subagent_cancel" {
-                cancel(ctx, id)?
-            } else {
-                discard(ctx, id)?
-            };
+            if name == "subagent_cancel" {
+                // A1 C2-a (v5 §5.2): cancel also stops the worker's background exec.
+                let (record, killed) = cancel(ctx, id)?;
+                return Ok(json!({"worker": view(&record), "killed_tasks": killed}));
+            }
+            let record = discard(ctx, id)?;
             Ok(json!({"worker": view(&record)}))
         }
         "subagent_collect" => {

@@ -202,11 +202,10 @@ impl ToolContext {
             Workspace::new(binding.worktree_root.clone()).map_err(|e| e.message())?;
         workspace.confine_reads();
         let root = workspace.root().to_path_buf();
-        let cwd = if binding.cwd == "." {
-            root.clone()
-        } else {
-            root.join(&binding.cwd)
-        };
+        // A1 C2-d (SPEC-A1 v5 §1.4.4): re-canonicalized after the join; anything
+        // that is not an existing directory inside the root falls back to the root.
+        let cwd = super::worktree_tools::workers::checked_cwd(&root, &binding.cwd)
+            .unwrap_or_else(|_| root.clone());
         let mut copy = self.background_snapshot();
         #[cfg(target_os = "linux")]
         {
