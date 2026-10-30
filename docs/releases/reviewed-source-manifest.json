@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch4 tip-fix (short PNG read-only screenshot retry; keeps 5000-byte floor; #175 reconnect log + CTM_RECONNECT_LOG + rc080 topology CI + v10 v7) on develop/0.8.0 0ae772bd. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH4-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c1 (A1 C1 narrowed worker core) on develop/0.8.0 df806b05. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-30 by 专业打工人; digests rc_bundle/multiagent/a1/c1/A1-C1-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4520,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "307dd8e7f419497c0c7c73c43695053c9e829c68",
-        "sha256": "d607cc3b82ad1a0245b947c6da5c985b91e0ff063fe03bb053a35498cf86c09a"
+        "blob_sha": "24811bd3d6837505ece55766f62ef5c451a76e3d",
+        "sha256": "9bdb350cd4bf0cdb9fbc3d7792926c384a9c69af6e9b9bf855bd86bff9f44a96"
       }
     },
     {
@@ -9316,8 +9316,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "26c82edb459834dc9e4296946dd94eae3fcec962",
-        "sha256": "7ebbf6b50d82fd71a3f70221a7069aeb5c965330ebf26680d83b764a4034697e"
+        "blob_sha": "79311371bec5ef2ff0145b5447683f964d8e2c6c",
+        "sha256": "aea84c30f49370e3649d9e45cd1cafacf0be9166382c17c25c7345400a10238d"
       }
     },
     {
@@ -9358,6 +9358,16 @@
         "mode": "100644",
         "blob_sha": "f94dff9696de87c9594ee2054fa5259d6ba7fdea",
         "sha256": "34de3b7d316e3d0c829a0f4c9c8187f9d5e33d99c5999898ea60c528014288f1"
+      }
+    },
+    {
+      "path": "src-tauri/src/harness/worktree_reservations.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5438803a01d52d8e65e655b815a749452f9e61f8",
+        "sha256": "498516edf7c14cbf13fb0af1c19cdfb437d44315cfae515dbc77e91a47228bc5"
       }
     },
     {
@@ -10389,6 +10399,26 @@
       }
     },
     {
+      "path": "src-tauri/src/tools/workers.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c34c0e62a13516ceff157254a45bb3822170174d",
+        "sha256": "69178d894fce9213f20ca03f4018a79c4a3a59c77919595b188e907445dda79e"
+      }
+    },
+    {
+      "path": "src-tauri/src/tools/workers/tests.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "52572bfe520631fd1641def5b907b75e1c0e5abd",
+        "sha256": "479416b27d6a81d1ac6643c5357c78bef2743f2a49bc8b6609e0678bf8571b76"
+      }
+    },
+    {
       "path": "src-tauri/src/tools/workspace.rs",
       "status": "M",
       "before": {
@@ -10408,8 +10438,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fecf528ac409bd2c9e02f210bc4c6c5a2f3cc32b",
-        "sha256": "916da9d6707b90fbf614bf7e2c1ede3c446a207892c7bd57ba228727a0007dfb"
+        "blob_sha": "d42c0cff5036715217c63a0a3d5d2152433be7d3",
+        "sha256": "0a494fa3413c6ca7bed35c6299fba74ace1bfc55257123555191848958149428"
       }
     },
     {
