@@ -14,12 +14,6 @@ use serde_json::{json, Map, Value};
 fn invalid(message: &'static str) -> WorkerError {
     super::invalid(message)
 }
-fn unsupported() -> WorkerError {
-    WorkerError::new(
-        "INTEGRATE_UNSUPPORTED",
-        "Rollback is not available before A1 C5-6.",
-    )
-}
 fn state_label(state: WorkerState) -> &'static str {
     match state {
         WorkerState::Creating => "creating",
@@ -120,7 +114,17 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             let obj = object(args, &["worker_id"], &[])?;
             let id = text(obj, "worker_id")?;
             let records = status(ctx, id)?;
-            Ok(json!({"workers": records.iter().map(view).collect::<Vec<_>>()}))
+            // NB-a: the rollback window is evaluated read-only here.
+            let windows = super::integration::rollback_views(ctx, &records)?;
+            let mut workers: Vec<Value> = records.iter().map(view).collect();
+            for worker in &mut workers {
+                let integration = &mut worker["integration"];
+                let id = integration["integration_id"].as_str().unwrap_or_default();
+                if let Some((_, window)) = windows.iter().find(|(i, _)| i == id) {
+                    integration["rollback"] = window.clone();
+                }
+            }
+            Ok(json!({"workers": workers}))
         }
         "subagent_cancel" | "subagent_discard" => {
             let obj = object(args, &["worker_id"], &["worker_id"])?;
@@ -171,8 +175,11 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
                 &["integration_id", "request_id"],
             )?;
             hex(text(obj, "integration_id")?, 32)?;
-            text(obj, "request_id")?;
-            Err(unsupported())
+            super::integration::rollback_request(
+                ctx,
+                text(obj, "integration_id")?.unwrap_or_default(),
+                text(obj, "request_id")?.unwrap_or_default(),
+            )
         }
         _ => Err(invalid("Unknown subagent tool.")),
     }

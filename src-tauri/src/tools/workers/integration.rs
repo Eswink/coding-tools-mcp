@@ -9,7 +9,7 @@ use super::{
     integrate::{files_value, worker_diff_of},
     journal::{check_size, sha_hex, Journal, JournalDoc, JournalEntry, JournalState},
     mainfs::{self, Current, Parents, Step},
-    now, open,
+    not_owned, now, open,
     recovery::{self, Action},
     state_error, Document, Inner, WorkerError, WorkerId, WorkerOp, WorkerOwner, WorkerRecord,
     WorkerState, DRAIN_BUDGET, MAX_OPS,
@@ -31,6 +31,9 @@ const MAX_LISTED: usize = 32;
 pub(crate) const INTEGRATE_SCOPE: &str = "subagent_integrate";
 const DIGEST_DOMAIN: &str = "subagent_integrate/v1";
 const MAX_SUMMARY: usize = 65_536;
+/// The native confirm scope and digest domain of a rollback (O7).
+pub(crate) const ROLLBACK_SCOPE: &str = "subagent_rollback";
+const ROLLBACK_DOMAIN: &str = "subagent_rollback/v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -208,6 +211,8 @@ pub(crate) fn view(integration: &IntegrationRecord) -> Value {
         "files": integration.files,
         "main_changed_since_spawn": integration.main_changed_since_spawn,
         "expires_at": integration.expires_at,
+        "rollback_expires_at": integration.rollback_expires_at,
+        "closed_reason": integration.closed_reason,
     })
 }
 
@@ -406,16 +411,26 @@ pub(crate) fn pending(ctx: &ToolContext) -> Result<Vec<Value>, WorkerError> {
     let mut out = Vec::new();
     for record in &inner.doc.workers {
         for integration in &record.integrations {
-            if integration.state == IntegrationState::Pending {
-                let mut item = view(integration);
-                item["worker_id"] = json!(record.worker_id.as_str());
-                item["label"] = json!(record.label);
-                item["digest"] = json!(digest(
-                    &integration.integration_id,
-                    &integration.diff_sha256
-                ));
-                out.push(item);
-            }
+            let (kind, digest) = match integration.state {
+                IntegrationState::Pending => (
+                    "integrate",
+                    digest(&integration.integration_id, &integration.diff_sha256),
+                ),
+                IntegrationState::RollbackPending => (
+                    "rollback",
+                    rollback_digest(
+                        &integration.integration_id,
+                        integration.journal_epoch.as_deref().unwrap_or_default(),
+                    ),
+                ),
+                _ => continue,
+            };
+            let mut item = view(integration);
+            item["kind"] = json!(kind);
+            item["worker_id"] = json!(record.worker_id.as_str());
+            item["label"] = json!(record.label);
+            item["digest"] = json!(digest);
+            out.push(item);
         }
     }
     Ok(out)
@@ -608,6 +623,7 @@ pub(crate) fn apply(
     if let Some(recovered) = recover_locked(&mut *store.lock()?, &ctx.host, &root)? {
         return Err(busy().with_details(json!({"reason": "recovered", "recovery": recovered})));
     }
+    sweep_head(&mut *store.lock()?, &ctx.host, &manager)?;
     let id = confirmation.integration_id.as_str();
     let record = pending_record(&mut *store.lock()?, id)?;
     let diff = fresh_diff(&manager, &record, &confirmation.diff_sha256)?;
@@ -904,8 +920,433 @@ pub(crate) fn recover(ctx: &ToolContext) -> Result<Value, WorkerError> {
     let root = manager.repository_root().to_path_buf();
     let mut inner = store.lock()?;
     let out = recover_locked(&mut inner, &ctx.host, &root)?;
+    sweep_head(&mut inner, &ctx.host, &manager)?;
     let state = journal_rw(&mut inner, &ctx.host)?.doc().state;
     drop(inner);
     drop(drain);
     Ok(out.unwrap_or_else(|| json!({"state": "none", "journal": state})))
+}
+
+// ---- C5-6: rollback (§5 step 6, §5.1.1 rollback column, §5.4 window) ----
+
+fn expired(integration_id: &str, reason: &str) -> WorkerError {
+    integrate_error(
+        "ROLLBACK_EXPIRED",
+        "The rollback window of this integration is closed.",
+    )
+    .with_details(json!({"integration_id": integration_id, "reason": reason}))
+}
+fn rollback_conflict(conflicts: Vec<Value>) -> WorkerError {
+    let total = conflicts.len();
+    let listed: Vec<Value> = conflicts.into_iter().take(MAX_LISTED).collect();
+    integrate_error(
+        "ROLLBACK_CONFLICT",
+        "The main workspace changed since the integration; nothing was rolled back.",
+    )
+    .with_details(json!({"conflicts": listed, "conflicts_total": total}))
+}
+fn no_rollback() -> WorkerError {
+    integrate_error("WORKER_STATE", "No pending rollback with this id.")
+}
+pub(crate) fn rollback_digest(integration_id: &str, journal_epoch: &str) -> String {
+    let doc = json!([ROLLBACK_DOMAIN, integration_id, journal_epoch]);
+    sha_hex(doc.to_string().as_bytes())
+}
+
+/// §5.4 ①-⑤ in order (NB-b); `None` while the window is open. `journal` is
+/// `None` when no journal document exists; `head` is (HEAD, branch) now.
+fn window_reason(
+    integration: &IntegrationRecord,
+    journal: Option<&JournalDoc>,
+    head: &(String, String),
+) -> Option<String> {
+    if let Some(reason) = &integration.closed_reason {
+        return Some(reason.clone());
+    }
+    // Never committed (pending, rejected, expired, failed, or rolled back by
+    // recovery): there is nothing this id could roll back.
+    let Some(epoch) = integration.journal_epoch.as_deref() else {
+        return Some("not_committed".into());
+    };
+    let Some(journal) = journal.filter(|j| j.journal_epoch == epoch) else {
+        return Some("journal_reset".into());
+    };
+    if journal.integration_id.as_deref() != Some(integration.integration_id.as_str()) {
+        return Some("superseded".into());
+    }
+    if journal.state != JournalState::Committed {
+        return Some("not_committed".into());
+    }
+    if journal.head_at_commit.as_deref() != Some(head.0.as_str())
+        || journal.branch_at_commit.as_deref() != Some(head.1.as_str())
+    {
+        return Some("head_moved".into());
+    }
+    None
+}
+fn head_of(manager: &WorktreeManager) -> (String, String) {
+    // Unreadable HEAD never matches a recorded 40-hex id: the window closes.
+    manager.main_head_branch().unwrap_or_default()
+}
+
+/// Read-write path (§5.4 detection): a `committed` journal whose HEAD/branch
+/// moved is released (state `none`, pre-images dropped), its integration
+/// records `head_moved` and the audit `rollback_expired`.
+fn sweep_head(
+    inner: &mut Inner,
+    host: &HostRoots,
+    manager: &WorktreeManager,
+) -> Result<(), WorkerError> {
+    let journal = journal_rw(inner, host)?;
+    let doc = journal.doc().clone();
+    if doc.state != JournalState::Committed {
+        return Ok(());
+    }
+    let head = head_of(manager);
+    if doc.head_at_commit.as_deref() == Some(head.0.as_str())
+        && doc.branch_at_commit.as_deref() == Some(head.1.as_str())
+    {
+        return Ok(());
+    }
+    journal.write(doc.idle())?;
+    if let Some(id) = doc.integration_id.as_deref() {
+        close(inner, id, "head_moved");
+    }
+    Ok(())
+}
+/// Records the window's closing reason once (later requests answer with it, ①)
+/// and drops a still-pending rollback back to `committed`. Best effort.
+fn close(inner: &mut Inner, integration_id: &str, reason: &str) {
+    let _ = inner.apply(|doc| {
+        let Some((w, i)) = locate(doc, integration_id) else {
+            return Ok(());
+        };
+        let record = &mut doc.workers[w];
+        let integration = &mut record.integrations[i];
+        if integration.closed_reason.is_some() {
+            return Ok(());
+        }
+        integration.closed_reason = Some(reason.to_owned());
+        if integration.state == IntegrationState::RollbackPending {
+            integration.state = IntegrationState::Committed;
+            integration.rollback_expires_at = None;
+        }
+        audit(record, "rollback_expired", Some(reason), 0);
+        Ok(())
+    });
+}
+/// Read-write window check: on a closed window the reason is recorded first.
+fn window_rw(
+    inner: &mut Inner,
+    host: &HostRoots,
+    manager: &WorktreeManager,
+    integration_id: &str,
+) -> Result<JournalDoc, WorkerError> {
+    sweep_head(inner, host, manager)?;
+    let journal = journal_rw(inner, host)?.doc().clone();
+    let (w, i) = locate(&inner.doc, integration_id).ok_or_else(no_rollback)?;
+    let integration = inner.doc.workers[w].integrations[i].clone();
+    if let Some(reason) = window_reason(&integration, Some(&journal), &head_of(manager)) {
+        close(inner, integration_id, &reason);
+        return Err(expired(integration_id, &reason));
+    }
+    Ok(journal)
+}
+/// §5.1.1 «rollback 请求» column over every entry: all allowed or CONFLICT.
+fn rollback_rows(root: &Path, journal: &JournalDoc) -> Result<Vec<recovery::Verdict>, WorkerError> {
+    let verdicts: Vec<_> = journal
+        .entries
+        .iter()
+        .map(|entry| recovery::classify(root, entry))
+        .collect();
+    let conflicts: Vec<Value> = journal
+        .entries
+        .iter()
+        .zip(&verdicts)
+        .filter(|(_, v)| !v.rollback)
+        .map(|(e, v)| json!({"path": e.path, "row": v.row}))
+        .collect();
+    if conflicts.is_empty() {
+        Ok(verdicts)
+    } else {
+        Err(rollback_conflict(conflicts))
+    }
+}
+
+/// Read-only window view for `subagent_status` (NB-a): never writes the
+/// journal or a WorkerRecord; `{available, reason}` per committed integration.
+pub(crate) fn rollback_views(
+    ctx: &ToolContext,
+    records: &[WorkerRecord],
+) -> Result<Vec<(String, Value)>, WorkerError> {
+    let wanted: Vec<&IntegrationRecord> = records
+        .iter()
+        .filter_map(|r| r.integrations.last())
+        .filter(|i| {
+            matches!(
+                i.state,
+                IntegrationState::Committed | IntegrationState::RollbackPending
+            )
+        })
+        .collect();
+    if wanted.is_empty() {
+        return Ok(Vec::new());
+    }
+    let (manager, store) = open(ctx)?;
+    let inner = store.lock()?;
+    let journal = match inner.journal.as_ref() {
+        Some(journal) => journal.peek(&ctx.host)?,
+        None => Journal::open_existing(&ctx.host)?.map(|j| j.doc().clone()),
+    };
+    drop(inner);
+    let head = head_of(&manager);
+    Ok(wanted
+        .into_iter()
+        .map(|integration| {
+            let reason = window_reason(integration, journal.as_ref(), &head);
+            (
+                integration.integration_id.clone(),
+                json!({"available": reason.is_none(), "reason": reason}),
+            )
+        })
+        .collect())
+}
+
+/// `subagent_rollback` (§5 step 6): owner → window → content → a
+/// `rollback_pending` request for the native confirm. Never writes files.
+pub(crate) fn rollback_request(
+    ctx: &ToolContext,
+    integration_id: &str,
+    request_id: &str,
+) -> Result<Value, WorkerError> {
+    super::validate_request(request_id, "")?;
+    let owner = WorkerOwner::from_context(ctx)?;
+    let (manager, store) = open(ctx)?;
+    if store.draining() {
+        return Err(busy());
+    }
+    let mut inner = store.lock()?;
+    inner.apply(|doc| {
+        expire_all(doc, now());
+        Ok(())
+    })?;
+    let (w, i) = locate(&inner.doc, integration_id)
+        .filter(|(w, _)| inner.doc.workers[*w].owner == owner)
+        .ok_or_else(not_owned)?;
+    let integration = inner.doc.workers[w].integrations[i].clone();
+    if integration.rollback_request_id.as_deref() == Some(request_id) {
+        let mut out = rollback_view(&integration);
+        out["deduplicated"] = json!(true);
+        return Ok(out);
+    }
+    if integration.state == IntegrationState::RollbackPending {
+        return Err(busy());
+    }
+    let journal = window_rw(&mut inner, &ctx.host, &manager, integration_id)?;
+    rollback_rows(manager.repository_root(), &journal)?;
+    let at = now();
+    inner.apply(|doc| {
+        let record = &mut doc.workers[w];
+        let integration = &mut record.integrations[i];
+        integration.state = IntegrationState::RollbackPending;
+        integration.rollback_request_id = Some(request_id.to_owned());
+        integration.rollback_expires_at = Some(at + PENDING_TTL_SECS);
+        let out = rollback_view(integration);
+        let files = integration.files;
+        audit(record, "rollback_requested", None, files);
+        Ok(out)
+    })
+}
+fn rollback_view(integration: &IntegrationRecord) -> Value {
+    json!({
+        "integration_id": integration.integration_id,
+        "state": integration.state.label(),
+        "files": integration.files,
+        "expires_at": integration.rollback_expires_at,
+    })
+}
+
+/// What the owner saw in the native rollback dialog.
+#[derive(Clone, Debug)]
+pub(crate) struct RollbackConfirmation {
+    pub(crate) integration_id: String,
+    pub(crate) digest: String,
+    pub(crate) title: String,
+    pub(crate) summary: Value,
+    seen: Vec<(String, Current)>,
+}
+fn rollback_pending(inner: &mut Inner, integration_id: &str) -> Result<WorkerRecord, WorkerError> {
+    inner.apply(|doc| {
+        expire_all(doc, now());
+        Ok(())
+    })?;
+    let (w, i) = locate(&inner.doc, integration_id).ok_or_else(no_rollback)?;
+    let record = &inner.doc.workers[w];
+    if record.integrations[i].state != IntegrationState::RollbackPending {
+        return Err(no_rollback());
+    }
+    Ok(record.clone())
+}
+
+/// Native, before the rollback dialog: window and content re-checked.
+pub(crate) fn prepare_rollback(
+    ctx: &ToolContext,
+    integration_id: &str,
+) -> Result<RollbackConfirmation, WorkerError> {
+    let (manager, store) = open(ctx)?;
+    let mut inner = store.lock()?;
+    let record = rollback_pending(&mut inner, integration_id)?;
+    let journal = window_rw(&mut inner, &ctx.host, &manager, integration_id)?;
+    drop(inner);
+    let root = manager.repository_root();
+    rollback_rows(root, &journal)?;
+    let files: Vec<Value> = journal
+        .entries
+        .iter()
+        .take(MAX_LISTED * 8)
+        .map(|e| {
+            let status = e.kind().map_or("unknown", |k| k.label());
+            json!({"path": e.path, "status": status})
+        })
+        .collect();
+    Ok(RollbackConfirmation {
+        digest: rollback_digest(integration_id, &journal.journal_epoch),
+        title: format!("Roll back worker \u{201c}{}\u{201d}", record.label),
+        summary: json!({
+            "worker": record.label,
+            "files": files,
+            "files_total": journal.entries.len(),
+            "stages_or_commits": false,
+        }),
+        integration_id: integration_id.to_owned(),
+        seen: journal
+            .entries
+            .iter()
+            .map(|e| (e.path.clone(), mainfs::current(root, &e.path)))
+            .collect(),
+    })
+}
+
+/// Native, after the owner approved: drain, window + content + «所见» again
+/// under the exclusive guard, `rolling_back`, one transaction, `none`.
+pub(crate) fn apply_rollback(
+    ctx: &ToolContext,
+    confirmation: &RollbackConfirmation,
+    approval: &OwnerApproval,
+) -> Result<Value, WorkerError> {
+    if !approval.validates(ROLLBACK_SCOPE, &confirmation.digest) {
+        return Err(confirmation_required());
+    }
+    let drain = drain_for_integrate(ctx, DRAIN_BUDGET).map_err(|v| busy_from(&v))?;
+    let (manager, store) = open(ctx)?;
+    let root = manager.repository_root().to_path_buf();
+    let id = confirmation.integration_id.as_str();
+    let mut inner = store.lock()?;
+    if let Some(recovered) = recover_locked(&mut inner, &ctx.host, &root)? {
+        return Err(busy().with_details(json!({"reason": "recovered", "recovery": recovered})));
+    }
+    let record = rollback_pending(&mut inner, id)?;
+    let journal = window_rw(&mut inner, &ctx.host, &manager, id)?;
+    if confirmation.digest != rollback_digest(id, &journal.journal_epoch) {
+        return Err(confirmation_required());
+    }
+    let verdicts = rollback_rows(&root, &journal)?;
+    let moved: Vec<Value> = journal
+        .entries
+        .iter()
+        .filter(|e| {
+            let now = mainfs::current(&root, &e.path);
+            !confirmation
+                .seen
+                .iter()
+                .any(|(path, seen)| *path == e.path && *seen == now)
+        })
+        .map(|e| json!({"path": e.path, "reason": "changed_since_confirm"}))
+        .collect();
+    if !moved.is_empty() || confirmation.seen.len() != journal.entries.len() {
+        return Err(conflict(moved));
+    }
+    let steps = recovery::restore_steps(&root, &journal.entries, &verdicts)
+        .ok_or_else(super::unavailable)?;
+    let rolling = JournalDoc {
+        state: JournalState::RollingBack,
+        ..journal.clone()
+    };
+    journal_rw(&mut inner, &ctx.host)?.write(rolling)?;
+    let files = record
+        .integrations
+        .iter()
+        .find(|i| i.integration_id == id)
+        .map_or(0, |i| i.files);
+    match mainfs::transact(&root, &steps) {
+        Err(failed) => {
+            // Undone: back to committed, the window stays open. Otherwise the
+            // journal stays `rolling_back` for recovery (§5.1.1).
+            if failed.restored {
+                journal_rw(&mut inner, &ctx.host)?.write(journal)?;
+            }
+            let _ = inner.apply(|doc| {
+                if let Some((w, i)) = locate(doc, id) {
+                    let record = &mut doc.workers[w];
+                    record.integrations[i].state = IntegrationState::Committed;
+                    record.integrations[i].rollback_expires_at = None;
+                    audit(record, "rollback_failed", Some("INTEGRATE_FAILED"), files);
+                }
+                Ok(())
+            });
+            drop(drain);
+            Err(integrate_error(
+                "INTEGRATE_FAILED",
+                "Writing the main workspace failed during rollback.",
+            )
+            .with_details(json!({"path": failed.path, "restored": failed.restored})))
+        }
+        Ok(dirs_kept) => {
+            journal_rw(&mut inner, &ctx.host)?.write(journal.idle())?;
+            inner.apply(|doc| {
+                let (w, i) = locate(doc, id).ok_or_else(no_rollback)?;
+                let record = &mut doc.workers[w];
+                let integration = &mut record.integrations[i];
+                integration.state = IntegrationState::RolledBack;
+                integration.rollback_expires_at = None;
+                // ①: a second rollback of this id answers `not_committed`.
+                integration.closed_reason = Some("not_committed".into());
+                let prior = integration.prior_state;
+                if record.state == WorkerState::Integrated {
+                    record.state = prior;
+                }
+                audit(record, "rollback_committed", None, files);
+                Ok(())
+            })?;
+            drop(inner);
+            drop(drain);
+            Ok(json!({
+                "integration_id": id,
+                "state": "rolled_back",
+                "files": steps.len(),
+                "dirs_kept": dirs_kept,
+                "staged": false,
+            }))
+        }
+    }
+}
+
+/// Native "reject" on the rollback card: back to `committed`, nothing written.
+pub(crate) fn reject_rollback(
+    ctx: &ToolContext,
+    integration_id: &str,
+) -> Result<Value, WorkerError> {
+    let (_, store) = open(ctx)?;
+    let mut inner = store.lock()?;
+    rollback_pending(&mut inner, integration_id)?;
+    inner.apply(|doc| {
+        let (w, i) = locate(doc, integration_id).ok_or_else(no_rollback)?;
+        let record = &mut doc.workers[w];
+        record.integrations[i].state = IntegrationState::Committed;
+        record.integrations[i].rollback_expires_at = None;
+        let files = record.integrations[i].files;
+        audit(record, "rollback_rejected", None, files);
+        Ok(())
+    })?;
+    Ok(json!({"integration_id": integration_id, "state": "integrated"}))
 }

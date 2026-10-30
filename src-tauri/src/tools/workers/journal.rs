@@ -266,6 +266,19 @@ impl Journal {
             doc,
         }))
     }
+    /// Read-only re-read (NB-a): the document as it is on disk now, `None` when
+    /// it is gone. Never re-creates or writes.
+    pub(crate) fn peek(&self, host: &HostRoots) -> Result<Option<JournalDoc>, WorkerError> {
+        if self.missing() {
+            return Ok(None);
+        }
+        let disk = self.disk.as_ref().ok_or_else(unavailable)?;
+        let loaded = AuthDocumentReader::default().load::<JournalDoc>(disk);
+        match loaded.map_err(|_| unavailable())? {
+            Some(doc) if doc.valid(host) => Ok(Some(doc)),
+            _ => Err(unavailable()),
+        }
+    }
     pub(crate) fn doc(&self) -> &JournalDoc {
         &self.doc
     }

@@ -1122,3 +1122,295 @@ fn an_interrupted_rollback_completes_and_an_interrupted_integrate_fails() {
         "worker\n"
     );
 }
+
+// ---- C5-6: rollback, the §5.4 window and its reasons (NB-a, NB-b) ----
+
+use integration::{IntegrationRecord, IntegrationState};
+
+/// A committed integration on `rich()`: a modify, an add with new parents, a delete.
+fn committed(f: &Fixture, request: &str, label: &str) -> (WorkerRecord, String) {
+    let worker = spawn_ok(&f.ctx, &format!("s-{request}"), label);
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("fixture.txt"), format!("{label}\n")).unwrap();
+    write(&tree, &format!("{label}/new/n.txt"), b"added\n");
+    if tree.join("gone.txt").exists() {
+        fs::remove_file(tree.join("gone.txt")).unwrap();
+    }
+    let out = integrate(&f.ctx, id, &sha_of(&f.ctx, id), request);
+    assert_eq!(out["ok"], true, "{out}");
+    let iid = out["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &iid)["state"], "integrated");
+    (worker, iid)
+}
+fn rollback(ctx: &ToolContext, iid: &str, request_id: &str) -> Value {
+    subagent(
+        ctx,
+        "subagent_rollback",
+        json!({"integration_id": iid, "request_id": request_id}),
+    )
+}
+fn confirm_rollback(ctx: &ToolContext, iid: &str) -> Value {
+    let card = match scoped(ctx, |c| integration::prepare_rollback(c, iid)) {
+        Ok(card) => card,
+        Err(e) => return error_value(&e),
+    };
+    let approval = OwnerApproval::for_test(integration::ROLLBACK_SCOPE, &card.digest);
+    as_value(scoped(ctx, |c| {
+        integration::apply_rollback(c, &card, &approval)
+    }))
+}
+fn reason(out: &Value) -> &str {
+    out["error"]["details"]["reason"]
+        .as_str()
+        .unwrap_or_default()
+}
+/// The journal as it is on disk, without the read-write refresh.
+fn journal_peek(ctx: &ToolContext) -> Option<JournalDoc> {
+    let (_, store) = open(ctx).unwrap();
+    let inner = store.lock().unwrap();
+    match inner.journal.as_ref() {
+        Some(journal) => journal.peek(&ctx.host).unwrap(),
+        None => Journal::open_existing(&ctx.host)
+            .unwrap()
+            .map(|j| j.doc().clone()),
+    }
+}
+fn window(ctx: &ToolContext, id: &str) -> Value {
+    let status = subagent(ctx, "subagent_status", json!({"worker_id": id}));
+    status["workers"][0]["integration"]["rollback"].clone()
+}
+fn last(ctx: &ToolContext, id: &str) -> IntegrationRecord {
+    record_of(ctx, id).integrations.last().unwrap().clone()
+}
+
+#[test]
+fn rollback_restores_main_after_the_native_confirm_exactly_once() {
+    let f = rich();
+    let root = f.root.path();
+    let (worker, iid) = committed(&f, "i1", "w");
+    let id = worker.worker_id.as_str();
+    assert_eq!(fs::read_to_string(root.join("fixture.txt")).unwrap(), "w\n");
+    assert!(!root.join("gone.txt").exists());
+    assert_eq!(
+        window(&f.ctx, id),
+        json!({"available": true, "reason": null})
+    );
+
+    let out = rollback(&f.ctx, &iid, "r1");
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["state"], "rollback_pending", "{out}");
+    // The request alone writes nothing.
+    assert_eq!(fs::read_to_string(root.join("fixture.txt")).unwrap(), "w\n");
+    let again = rollback(&f.ctx, &iid, "r1");
+    assert_eq!(again["deduplicated"], true, "{again}");
+    let other = rollback(&f.ctx, &iid, "r2");
+    assert_eq!(code(&other), "INTEGRATE_BUSY", "{other}");
+    let listed = integration::pending(&f.ctx).unwrap();
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0]["kind"], "rollback");
+    let epoch = journal_of(&f.ctx).journal_epoch;
+    assert_eq!(
+        listed[0]["digest"],
+        integration::rollback_digest(&iid, &epoch).as_str()
+    );
+    // An integrate-scoped approval never applies a rollback.
+    let card = scoped(&f.ctx, |c| integration::prepare_rollback(c, &iid)).unwrap();
+    assert!(card.title.starts_with("Roll back worker"), "{}", card.title);
+    assert!(
+        card.summary.to_string().contains("w/new/n.txt"),
+        "{}",
+        card.summary
+    );
+    let wrong = OwnerApproval::for_test(integration::INTEGRATE_SCOPE, &card.digest);
+    let refused = as_value(scoped(&f.ctx, |c| {
+        integration::apply_rollback(c, &card, &wrong)
+    }));
+    assert_eq!(code(&refused), "OWNER_CONFIRMATION_REQUIRED", "{refused}");
+    assert_eq!(fs::read_to_string(root.join("fixture.txt")).unwrap(), "w\n");
+
+    let done = confirm_rollback(&f.ctx, &iid);
+    assert_eq!(done["state"], "rolled_back", "{done}");
+    assert_eq!(done["staged"], false, "{done}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+    assert_eq!(fs::read_to_string(root.join("gone.txt")).unwrap(), "bye\n");
+    assert!(!root.join("w").exists(), "created parents are removed");
+    assert_eq!(git(root, &["status", "--porcelain"]), "");
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Ready);
+    let ops = ops(&record);
+    assert!(ops.contains(&"rollback_requested".to_owned()), "{ops:?}");
+    assert!(ops.contains(&"rollback_committed".to_owned()), "{ops:?}");
+    let journal = journal_of(&f.ctx);
+    assert_eq!(journal.state, JournalState::None);
+    assert!(journal.entries.is_empty());
+    // Twice: the window is closed with not_committed.
+    let twice = rollback(&f.ctx, &iid, "r3");
+    assert_eq!(code(&twice), "ROLLBACK_EXPIRED", "{twice}");
+    assert_eq!(reason(&twice), "not_committed", "{twice}");
+    assert_eq!(twice["error"]["details"]["integration_id"], iid.as_str());
+    assert_eq!(window(&f.ctx, id), Value::Null, "rolled back has no window");
+}
+
+#[test]
+fn rollback_conflicts_by_row_and_reject_or_expiry_keep_the_window() {
+    let f = rich();
+    let root = f.root.path();
+    let (worker, iid) = committed(&f, "i1", "w");
+    let id = worker.worker_id.as_str();
+    // Row 3 (an owner edit) and row 7 (the deleted file came back changed).
+    fs::write(root.join("fixture.txt"), "owner\n").unwrap();
+    fs::write(root.join("gone.txt"), "other\n").unwrap();
+    let clash = rollback(&f.ctx, &iid, "r1");
+    assert_eq!(code(&clash), "ROLLBACK_CONFLICT", "{clash}");
+    assert_eq!(
+        clash["error"]["details"]["conflicts"],
+        json!([{"path": "fixture.txt", "row": 3}, {"path": "gone.txt", "row": 7}]),
+        "{clash}"
+    );
+    assert_eq!(last(&f.ctx, id).state, IntegrationState::Committed);
+    fs::write(root.join("fixture.txt"), "w\n").unwrap();
+    fs::remove_file(root.join("gone.txt")).unwrap();
+
+    // Another session can neither see nor roll back this integration.
+    let foreign = as_value(scoped(&remote(&f.ctx, "other"), |c| {
+        integration::rollback_request(c, &iid, "x")
+    }));
+    assert_eq!(code(&foreign), "WORKER_NOT_OWNED", "{foreign}");
+
+    assert_eq!(rollback(&f.ctx, &iid, "r2")["state"], "rollback_pending");
+    let rejected = as_value(scoped(&f.ctx, |c| integration::reject_rollback(c, &iid)));
+    assert_eq!(rejected["state"], "integrated", "{rejected}");
+    assert_eq!(fs::read_to_string(root.join("fixture.txt")).unwrap(), "w\n");
+    assert_eq!(rollback(&f.ctx, &iid, "r3")["state"], "rollback_pending");
+    {
+        let (_, store) = open(&f.ctx).unwrap();
+        let mut inner = store.lock().unwrap();
+        inner
+            .update(&worker.owner, &worker.worker_id, |record| {
+                record.integrations.last_mut().unwrap().rollback_expires_at = Some(1);
+                Ok(())
+            })
+            .unwrap();
+    }
+    let expired =
+        as_value(scoped(&f.ctx, |c| integration::prepare_rollback(c, &iid)).map(|_| json!({})));
+    assert_eq!(code(&expired), "WORKER_STATE", "{expired}");
+    assert_eq!(last(&f.ctx, id).state, IntegrationState::Committed);
+    assert_eq!(rollback(&f.ctx, &iid, "r4")["state"], "rollback_pending");
+    assert_eq!(confirm_rollback(&f.ctx, &iid)["state"], "rolled_back");
+}
+
+#[test]
+fn head_moved_is_reported_read_only_and_recorded_on_the_read_write_path() {
+    let f = rich();
+    let root = f.root.path();
+    let (worker, iid) = committed(&f, "i1", "w");
+    let id = worker.worker_id.as_str();
+    // The owner commits the integrated result.
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-qm", "owner"]);
+    let seen = window(&f.ctx, id);
+    assert_eq!(seen, json!({"available": false, "reason": "head_moved"}));
+    // NB-a: the read-only path wrote nothing.
+    let journal = journal_peek(&f.ctx).unwrap();
+    assert_eq!(journal.state, JournalState::Committed);
+    assert!(!journal.entries.is_empty());
+    assert_eq!(last(&f.ctx, id).closed_reason, None);
+    assert!(!ops(&record_of(&f.ctx, id)).contains(&"rollback_expired".to_owned()));
+
+    let out = rollback(&f.ctx, &iid, "r1");
+    assert_eq!(code(&out), "ROLLBACK_EXPIRED", "{out}");
+    assert_eq!(reason(&out), "head_moved", "{out}");
+    let journal = journal_peek(&f.ctx).unwrap();
+    assert_eq!(journal.state, JournalState::None);
+    assert!(journal.entries.is_empty(), "pre-images are dropped");
+    assert_eq!(
+        last(&f.ctx, id).closed_reason.as_deref(),
+        Some("head_moved")
+    );
+    assert!(ops(&record_of(&f.ctx, id)).contains(&"rollback_expired".to_owned()));
+    // Moving HEAD back does not reopen a recorded window (①).
+    git(root, &["reset", "-q", "--hard", "HEAD~1"]);
+    let again = rollback(&f.ctx, &iid, "r2");
+    assert_eq!(reason(&again), "head_moved", "{again}");
+}
+
+/// The read-only window of a worker's last integration, as another session sees it.
+fn window_of(ctx: &ToolContext, id: &str) -> Value {
+    let records = scoped(ctx, |c| status(c, Some(id))).unwrap();
+    let views = scoped(ctx, |c| integration::rollback_views(c, &records)).unwrap();
+    views.first().map_or(Value::Null, |(_, v)| v.clone())
+}
+
+#[test]
+fn superseded_and_journal_reset_close_the_window() {
+    let f = rich();
+    let (a, first) = committed(&f, "i1", "a");
+    // Session B integrates its own worker into the same main workspace.
+    let b_ctx = remote(&f.ctx, "session-b");
+    let worker = spawn_ok(&b_ctx, "sb", "b");
+    let bid = worker.worker_id.as_str();
+    write(&worker_tree(&b_ctx, &worker), "b.txt", b"b\n");
+    let sha = scoped(&b_ctx, |c| integrate::collect(c, bid, 1 << 20, None)).unwrap()["diff_sha256"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let out = scoped(&b_ctx, |c| integration::request(c, bid, &sha, "ib")).unwrap();
+    let second = out["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &second)["state"], "integrated");
+
+    let old = rollback(&f.ctx, &first, "r1");
+    assert_eq!(code(&old), "ROLLBACK_EXPIRED", "{old}");
+    assert_eq!(reason(&old), "superseded", "{old}");
+    assert!(
+        !old.to_string().contains(&second),
+        "no other id leaks: {old}"
+    );
+    assert_eq!(window(&f.ctx, a.worker_id.as_str())["reason"], "superseded");
+    assert_eq!(
+        window_of(&b_ctx, bid),
+        json!({"available": true, "reason": null})
+    );
+
+    // The journal document is deleted externally: a reset, never a rollback.
+    let file = namespace(&f.ctx.host).join("integration-journal/auth.json");
+    fs::remove_file(&file).unwrap();
+    assert_eq!(window_of(&b_ctx, bid)["reason"], "journal_reset");
+    assert!(!file.exists(), "the read-only status never re-creates it");
+    let reset = as_value(scoped(&b_ctx, |c| {
+        integration::rollback_request(c, &second, "r2")
+    }));
+    assert_eq!(reason(&reset), "journal_reset", "{reset}");
+    assert!(f.root.path().join("b.txt").exists());
+}
+
+#[test]
+fn head_moving_while_the_dialog_is_open_writes_nothing() {
+    let f = rich();
+    let root = f.root.path();
+    let (worker, iid) = committed(&f, "i1", "w");
+    assert_eq!(rollback(&f.ctx, &iid, "r1")["state"], "rollback_pending");
+    let card = scoped(&f.ctx, |c| integration::prepare_rollback(c, &iid)).unwrap();
+    fs::write(root.join("unrelated.txt"), "x\n").unwrap();
+    git(root, &["add", "unrelated.txt"]);
+    git(root, &["commit", "-qm", "unrelated"]);
+    let approval = OwnerApproval::for_test(integration::ROLLBACK_SCOPE, &card.digest);
+    let out = as_value(scoped(&f.ctx, |c| {
+        integration::apply_rollback(c, &card, &approval)
+    }));
+    assert_eq!(code(&out), "ROLLBACK_EXPIRED", "{out}");
+    assert_eq!(reason(&out), "head_moved", "{out}");
+    assert_eq!(fs::read_to_string(root.join("fixture.txt")).unwrap(), "w\n");
+    assert!(root.join("w/new/n.txt").exists());
+    assert!(!root.join("gone.txt").exists());
+    let record = record_of(&f.ctx, worker.worker_id.as_str());
+    assert_eq!(record.state, WorkerState::Integrated);
+    assert_eq!(
+        record.integrations.last().unwrap().state,
+        IntegrationState::Committed
+    );
+}

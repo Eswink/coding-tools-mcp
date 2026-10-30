@@ -1295,7 +1295,7 @@ fn subagent_tools_manage_the_callers_workers_through_dispatch() {
     let collected = subagent(&f.ctx, "subagent_collect", json!({"worker_id": id}));
     assert_eq!(collected["ok"], true, "{collected}");
     assert_eq!(collected["total_bytes"], 0, "{collected}");
-    // C5-4: integrate is live (a sha that is not the current diff is stale).
+    // C5-4/C5-6: integrate and rollback are live (a stale sha, an unknown id).
     for (name, args, want) in [
         (
             "subagent_integrate",
@@ -1305,7 +1305,7 @@ fn subagent_tools_manage_the_callers_workers_through_dispatch() {
         (
             "subagent_rollback",
             json!({"integration_id": "0".repeat(32), "request_id": "b1"}),
-            "INTEGRATE_UNSUPPORTED",
+            "WORKER_NOT_OWNED",
         ),
     ] {
         let out = subagent(&f.ctx, name, args);
