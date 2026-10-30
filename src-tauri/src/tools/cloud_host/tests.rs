@@ -558,3 +558,124 @@ fn windows_restricted_mode_environment_is_the_357518a5_refusal() {
         ])
     );
 }
+
+// ---------------------------------------------------------------------------
+// A1 C2 (SPEC-A1 v4 §3.5): a worker_id call is resolved before path checks:
+// build the request -> identity() -> open the main-root WorkerStore read-only
+// via store_root -> owner/state -> path checks against the worktree root.
+// ---------------------------------------------------------------------------
+fn worker_git(dir: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git")
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {out:?}");
+}
+fn spawn_worker(f: &Fixture, conversation: &str) -> (String, std::path::PathBuf) {
+    if !f.root.path().join(".git").exists() {
+        worker_git(f.root.path(), &["init", "-q"]);
+        worker_git(f.root.path(), &["config", "user.name", "Fixture"]);
+        worker_git(
+            f.root.path(),
+            &["config", "user.email", "fixture@example.invalid"],
+        );
+        worker_git(f.root.path(), &["add", "."]);
+        worker_git(f.root.path(), &["commit", "-qm", "fixture"]);
+    }
+    let mut ctx = f.host.context.background_snapshot();
+    ctx.remote_request = Some(f.host.request(conversation).unwrap());
+    let mut out = None;
+    super::super::root_work::dispatch(&ctx, |c| {
+        let (record, _) = crate::tools::worktree_tools::workers::spawn(c, "req", "w").unwrap();
+        let ready =
+            crate::tools::worktree_tools::workers::complete_spawn(c, record.worker_id.as_str())
+                .unwrap();
+        out = Some(ready);
+        Value::Null
+    })
+    .unwrap();
+    let ready = out.unwrap();
+    let tree = crate::tools::worktree_tools::workers::worktree_path(
+        &f.host.context.host,
+        ready.worktree_id.as_deref().unwrap(),
+    );
+    (ready.worker_id.as_str().to_owned(), tree)
+}
+fn worker_read(
+    f: &Fixture,
+    a: &NativeAuthority,
+    id: &Value,
+    path: &str,
+) -> Result<PreparedCall, &'static str> {
+    f.host.prepare(
+        a,
+        "read_file",
+        &json!({"path":path,"worker_id":id}),
+        now().unwrap() + 30,
+    )
+}
+
+#[test]
+fn cloud_worker_calls_without_a_store_fail_closed_and_create_nothing() {
+    let f = Fixture::new();
+    let a = f.approve(&["files.read"]);
+    let store = f.host.context.host.store_root.join("agents-v1");
+    assert!(!store.exists());
+    let unknown = json!("0123456789abcdef0123456789abcdef");
+    assert_eq!(
+        worker_read(&f, &a, &unknown, "fixture.txt").err(),
+        Some("WORKER_NOT_OWNED")
+    );
+    for bad in [json!("NOT-HEX"), json!(1), json!(null)] {
+        assert_eq!(
+            worker_read(&f, &a, &bad, "fixture.txt").err(),
+            Some("CLOUD_ARGUMENTS_REJECTED"),
+            "{bad}"
+        );
+    }
+    // The read-only open never creates the store directory or its document.
+    assert!(!store.exists());
+}
+
+#[test]
+fn cloud_worker_paths_are_checked_against_the_worktree_and_then_fail_closed_on_scope() {
+    let f = Fixture::new();
+    let a = f.approve(&["files.read"]);
+    let (id, tree) = spawn_worker(&f, &f.conversation());
+    std::fs::write(tree.join("worker-only.txt"), "w").unwrap();
+    // Exists only in the worker: passes the worktree path check, then the
+    // agents.manage scope (never granted in C2) fails closed.
+    assert_eq!(
+        worker_read(&f, &a, &json!(id), "worker-only.txt").err(),
+        Some("INSUFFICIENT_CHAT_SCOPE")
+    );
+    #[cfg(unix)]
+    {
+        // An escaping symlink inside the worker is caught against the worktree
+        // root even though the same name does not exist in the main root.
+        std::os::unix::fs::symlink(f.root.path(), tree.join("escape")).unwrap();
+        assert_eq!(
+            worker_read(&f, &a, &json!(id), "escape/fixture.txt").err(),
+            Some("CLOUD_ARGUMENTS_REJECTED")
+        );
+        assert!(!f.root.path().join("escape").exists());
+    }
+    // A worker owned by another conversation is indistinguishable from unknown.
+    let other = URL_SAFE_NO_PAD.encode([8; 32]);
+    let (foreign, _) = spawn_worker(&f, &other);
+    assert_eq!(
+        worker_read(&f, &a, &json!(foreign), "fixture.txt").err(),
+        Some("WORKER_NOT_OWNED")
+    );
+    // Without worker_id the existing behaviour is unchanged.
+    assert!(f
+        .host
+        .prepare(
+            &a,
+            "read_file",
+            &json!({"path":"fixture.txt"}),
+            now().unwrap() + 30
+        )
+        .is_ok());
+}

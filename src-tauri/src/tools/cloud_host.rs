@@ -181,25 +181,31 @@ impl NativeToolHost {
         {
             return Err("CLOUD_ARGUMENTS_REJECTED");
         }
+        // A1 C2 (SPEC-A1 v4 §3.5): a worker call is resolved before any path
+        // check, so paths are confined to the worker worktree, not the main root.
+        let worker_space = match obj.get("worker_id") {
+            Some(raw) => Some(self.worker_workspace(authority, raw)?),
+            None => None,
+        };
+        let space = worker_space.as_ref().unwrap_or(&self.context.workspace);
         // Native file-reading APIs may accept explicitly external paths for
         // trusted local use. A cloud caller never inherits that local feature.
         for key in ["path", "workdir", "directory", "cwd", "history_dir"] {
             if let Some(value) = obj.get(key) {
                 let text = value.as_str().ok_or("CLOUD_ARGUMENTS_REJECTED")?;
-                self.context
-                    .workspace
+                space
                     .reject_unsafe_text(text)
                     .map_err(|_| "CLOUD_ARGUMENTS_REJECTED")?;
                 // Existing paths must also survive canonical containment.
-                let candidate = self.context.workspace.root().join(text);
+                let candidate = space.root().join(text);
                 if (candidate.exists() || candidate.is_symlink())
-                    && self.context.workspace.resolve_existing(text).is_err()
+                    && space.resolve_existing(text).is_err()
                 {
                     return Err("CLOUD_ARGUMENTS_REJECTED");
                 }
             }
         }
-        let scopes = chat_domain::required(tool, args).ok_or("REMOTE_TOOL_NOT_PERMITTED")?;
+        let scopes = chat_domain::scopes(tool, args).ok_or("REMOTE_TOOL_NOT_PERMITTED")?;
         if scopes.iter().any(|s| !authority.view.scopes().contains(*s)) {
             return Err("INSUFFICIENT_CHAT_SCOPE");
         }
@@ -213,7 +219,7 @@ impl NativeToolHost {
         let request = self.request(&authority.conversation)?;
         let ticket = self.authorizer.issue_local_admission_ticket(
             &request,
-            scopes,
+            &scopes,
             &self.context.execution_gate,
         )?;
         Ok(PreparedCall {
@@ -226,6 +232,41 @@ impl NativeToolHost {
             deadline: started + Duration::from_secs(deadline - timestamp),
             deadline_epoch: deadline,
         })
+    }
+
+    /// SPEC-A1 v4 §3.5 order: parse worker_id -> build the request -> identity()
+    /// -> open the main-root WorkerStore read-only via store_root (never creates
+    /// it) -> owner + `ready` -> a confined Workspace at the worktree root for the
+    /// path checks. Unknown, foreign and non-ready workers are indistinguishable.
+    fn worker_workspace(
+        &self,
+        authority: &NativeAuthority,
+        raw: &Value,
+    ) -> Result<super::Workspace, &'static str> {
+        use super::worktree_tools::workers::{worktree_path, WorkerId, WorkerOwner, WorkerStore};
+        let id = raw
+            .as_str()
+            .and_then(|v| WorkerId::parse(v).ok())
+            .ok_or("CLOUD_ARGUMENTS_REJECTED")?;
+        let request = self.request(&authority.conversation)?;
+        request.identity()?;
+        let host = &self.context.host;
+        let store = match WorkerStore::open_existing(host) {
+            Ok(Some(store)) => store,
+            Ok(None) => return Err("WORKER_NOT_OWNED"),
+            Err(_) => return Err("STORE_UNAVAILABLE"),
+        };
+        let owner = WorkerOwner::from_request(&request).map_err(|_| "WORKER_NOT_OWNED")?;
+        let tree = store
+            .ready_worktree(&owner, &id)
+            .map_err(|e| match e.code() {
+                "STORE_UNAVAILABLE" => "STORE_UNAVAILABLE",
+                _ => "WORKER_NOT_OWNED",
+            })?;
+        let mut space =
+            super::Workspace::new(worktree_path(host, &tree)).map_err(|_| "WORKER_NOT_OWNED")?;
+        space.confine_reads();
+        Ok(space)
     }
 
     /// The outer durable claim must happen before this consumes its ticket.

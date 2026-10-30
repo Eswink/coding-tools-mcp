@@ -47,6 +47,9 @@ pub struct ToolContext {
     pub(crate) managed_task: bool,
     pub(crate) local_task_control: bool,
     pub exec_tasks: Arc<crate::tools::exec_tasks::ExecTaskStore>,
+    /// A1 C2 (SPEC-A1 v4 §1.4): set only by `for_worker`; carried through every
+    /// recursive dispatch and background snapshot so a worker call never re-roots.
+    pub(crate) worker: Option<Arc<super::worktree_tools::workers::WorkerBinding>>,
 }
 
 pub type SharedToolContext = Arc<ToolContext>;
@@ -135,6 +138,7 @@ impl ToolContext {
             managed_task: false,
             local_task_control: false,
             exec_tasks: Arc::new(crate::tools::exec_tasks::ExecTaskStore::default()),
+            worker: None,
         }
     }
 
@@ -181,7 +185,37 @@ impl ToolContext {
             exec_tasks: self.exec_tasks.clone(),
             managed_task: self.managed_task,
             local_task_control: self.local_task_control,
+            worker: self.worker.clone(),
         }
+    }
+
+    /// A1 C2 (SPEC-A1 v4 §1.4.2): the same chat-scoped domain re-rooted at one
+    /// worker worktree. Built after `ChatDomains::scoped()`, so authority, owner,
+    /// hooks, gates and the main-root anchors (`host`) are inherited unchanged; only
+    /// the file/exec root, the confined reads, the cwd and the Linux sandbox root
+    /// move. The binding stays on the context for the rest of the call.
+    pub(crate) fn for_worker(
+        &self,
+        binding: Arc<super::worktree_tools::workers::WorkerBinding>,
+    ) -> Result<Self, String> {
+        let mut workspace =
+            Workspace::new(binding.worktree_root.clone()).map_err(|e| e.message())?;
+        workspace.confine_reads();
+        let root = workspace.root().to_path_buf();
+        let cwd = if binding.cwd == "." {
+            root.clone()
+        } else {
+            root.join(&binding.cwd)
+        };
+        let mut copy = self.background_snapshot();
+        #[cfg(target_os = "linux")]
+        {
+            copy.linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
+        }
+        copy.workspace = workspace;
+        copy.default_cwd = Arc::new(Mutex::new(cwd));
+        copy.worker = Some(binding);
+        Ok(copy)
     }
 
     pub(crate) fn execution_gate(&self) -> Arc<crate::runtime::WorkspaceExecutionGate> {

@@ -1,4 +1,4 @@
-//! A1 C1 (narrowed, SPEC-A1 v4 §7.4): worker identity, ownership, durable store,
+//! A1 C1 + C2 (SPEC-A1 v4 §7.4): worker identity, ownership, durable store,
 //! state machine, concurrency cap, slot reservation and stored cwd. All worker
 //! state hangs off the main root (v4 §1.5), never a chat session root.
 use super::*;
@@ -518,7 +518,7 @@ fn records_persist_encrypted_across_reopen_and_interrupted_spawns_recover() {
 }
 
 #[test]
-fn c1_exposes_no_worker_surface_through_public_tools() {
+fn public_schemas_expose_no_worker_surface_but_worker_id_routes_to_the_worker() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");
     for tool in crate::tools::list_tools() {
@@ -527,8 +527,8 @@ fn c1_exposes_no_worker_surface_through_public_tools() {
         assert!(!tool["name"].as_str().unwrap().starts_with("subagent_"));
         assert!(!tool["name"].as_str().unwrap().starts_with("worker_"));
     }
-    // worker_id is not an argument of existing tools: it can never re-root a call
-    // into the worker worktree in C1 (routing is C2).
+    // C2 (v4 §7.4): schemas and the catalog stay unchanged until C6, but dispatch
+    // already re-roots a supported call carrying worker_id into the worker worktree.
     let tree = f
         .ctx
         .harness
@@ -542,7 +542,9 @@ fn c1_exposes_no_worker_surface_through_public_tools() {
         "read_file",
         &json!({"path":"fixture.txt","worker_id":worker.worker_id.as_str()}),
     );
-    assert_eq!(result["content"], "original\n", "{result}");
+    assert_eq!(result["content"], "worker copy\n", "{result}");
+    let main = call_tool(&f.ctx, "read_file", &json!({"path":"fixture.txt"}));
+    assert_eq!(main["content"], "original\n", "{main}");
 }
 
 /// A real `ChatDomains::scoped()` session context (per-session harness root).
@@ -726,4 +728,400 @@ fn a_failed_commit_rolls_back_make_room_and_releases_the_reservation() {
         let created = call_tool(&f.ctx, "worktree_create", &json!({}));
         assert_eq!(created["ok"], true, "slot {n}: {created}");
     }
+}
+
+// ---------------------------------------------------------------------------
+// C2 (SPEC-A1 v4 §1.4, §3, §5.2): ToolContext::for_worker, dispatch stripping,
+// remote scope computation and the main-root drain primitive.
+// ---------------------------------------------------------------------------
+
+fn worker_tree(ctx: &ToolContext, worker: &WorkerRecord) -> std::path::PathBuf {
+    worktree_path(&ctx.host, worker.worktree_id.as_deref().unwrap())
+}
+fn with_worker(id: &str, args: Value) -> Value {
+    let mut args = args;
+    args["worker_id"] = json!(id);
+    args
+}
+fn code(value: &Value) -> &str {
+    value["error"]["code"].as_str().unwrap_or_default()
+}
+/// The inner routing layer as the chat-scoped domain sees it (after scoped()).
+/// These sessions are deliberately unapproved, so the re-entered tool runs on
+/// the worker context directly instead of through a second chat permit.
+fn routed(ctx: &ToolContext, name: &str, args: &Value) -> Value {
+    assert_eq!(name, "read_file");
+    route(ctx, name, args, |worker_ctx, stripped| {
+        assert!(worker_ctx.worker.is_some());
+        assert!(stripped.get("worker_id").is_none());
+        crate::tools::file::read_file(&worker_ctx.workspace, stripped)
+            .unwrap_or_else(crate::tools::workspace::tool_err)
+    })
+    .expect("worker_id present")
+}
+
+#[test]
+fn worker_id_reroutes_file_git_and_patch_tools_into_the_worker_worktree() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("fixture.txt"), "worker copy\n").unwrap();
+    fs::create_dir(tree.join("only-in-worker")).unwrap();
+    let id = worker.worker_id.as_str();
+
+    let listed = call_tool(&f.ctx, "list_dir", &with_worker(id, json!({"path":"."})));
+    assert_eq!(listed["ok"], true, "{listed}");
+    assert!(listed.to_string().contains("only-in-worker"), "{listed}");
+    let main = call_tool(&f.ctx, "list_dir", &json!({"path":"."}));
+    assert!(!main.to_string().contains("only-in-worker"), "{main}");
+
+    let status = call_tool(&f.ctx, "git_status", &with_worker(id, json!({})));
+    assert_eq!(status["ok"], true, "{status}");
+    // Known C2 gap (SPEC-A1 v4 §4.2, closed by C4 `LinuxSandbox::for_worktree`):
+    // the Linux git runner's Landlock root is the worktree, so the linked
+    // worktree's gitdir under the main `.git/worktrees/` is unreadable. The
+    // call is still routed into the worker worktree, never the main root.
+    #[cfg(target_os = "linux")]
+    {
+        assert_eq!(status["is_repo"], false, "{status}");
+        assert!(status.to_string().contains(".git/worktrees/"), "{status}");
+    }
+    #[cfg(not(target_os = "linux"))]
+    assert!(status.to_string().contains("fixture.txt"), "{status}");
+    let main_status = call_tool(&f.ctx, "git_status", &json!({}));
+    assert!(
+        !main_status.to_string().contains("fixture.txt"),
+        "{main_status}"
+    );
+
+    let patch = "*** Begin Patch\n*** Add File: worker-made.txt\n+from worker\n*** End Patch\n";
+    let written = call_tool(
+        &f.ctx,
+        "apply_patch",
+        &with_worker(id, json!({"patch":patch})),
+    );
+    assert_eq!(written["ok"], true, "{written}");
+    assert_eq!(
+        fs::read_to_string(tree.join("worker-made.txt")).unwrap(),
+        "from worker\n"
+    );
+    assert!(!f.root.path().join("worker-made.txt").exists());
+    // Worker writes never touch the main task baseline or operation log (v4 §1.4.3).
+    assert!(written.get("operation_id").is_none(), "{written}");
+    assert!(written.get("harness").is_none(), "{written}");
+    // The worker's paths are confined to its worktree: the main root is outside it.
+    let escape = call_tool(
+        &f.ctx,
+        "read_file",
+        &with_worker(id, json!({"path": f.root.path().join("fixture.txt")})),
+    );
+    assert_eq!(escape["ok"], false, "{escape}");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn worker_exec_runs_with_the_worker_worktree_as_its_root_and_cwd() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    let out = call_tool(
+        &f.ctx,
+        "exec_command",
+        &with_worker(worker.worker_id.as_str(), json!({"cmd":"pwd"})),
+    );
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(
+        out.to_string().contains(tree.to_str().unwrap()),
+        "{out} / {}",
+        tree.display()
+    );
+}
+
+#[test]
+fn worker_default_cwd_is_per_worker_and_persisted_in_the_store() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::create_dir_all(tree.join("sub/dir")).unwrap();
+    let id = worker.worker_id.as_str();
+    let set = call_tool(
+        &f.ctx,
+        "set_default_cwd",
+        &with_worker(id, json!({"path":"sub/dir"})),
+    );
+    assert_eq!(set["ok"], true, "{set}");
+    let stored = status(&f.ctx, Some(id)).unwrap();
+    assert_eq!(stored[0].cwd, "sub/dir");
+    // Survives a process restart: a fresh store reads the persisted cwd.
+    WorkerStore::evict_for_test(&f.ctx.host);
+    let got = call_tool(&f.ctx, "get_default_cwd", &with_worker(id, json!({})));
+    assert_eq!(got["ok"], true, "{got}");
+    assert!(got.to_string().contains("sub/dir"), "{got}");
+    // The main task's cwd is untouched.
+    let main = call_tool(&f.ctx, "get_default_cwd", &json!({}));
+    assert!(!main.to_string().contains("sub/dir"), "{main}");
+    // A worker cwd outside the worktree is rejected.
+    let bad = call_tool(
+        &f.ctx,
+        "set_default_cwd",
+        &with_worker(id, json!({"path": f.root.path()})),
+    );
+    assert_eq!(bad["ok"], false, "{bad}");
+    assert_eq!(status(&f.ctx, Some(id)).unwrap()[0].cwd, "sub/dir");
+}
+
+#[test]
+fn worker_id_is_rejected_on_unsupported_tools_and_malformed_ids() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    for tool in [
+        "worktree_list",
+        "history_session_read",
+        "server_info",
+        "change_summary",
+        "list_exec_tasks",
+    ] {
+        let out = call_tool(&f.ctx, tool, &with_worker(id, json!({})));
+        assert_eq!(code(&out), "INVALID_ARGUMENT", "{tool}: {out}");
+    }
+    for bad in [json!("NOT-HEX"), json!(7), json!(null)] {
+        let out = call_tool(
+            &f.ctx,
+            "read_file",
+            &json!({"path":"fixture.txt","worker_id":bad}),
+        );
+        assert_eq!(code(&out), "INVALID_ARGUMENT", "{bad}: {out}");
+    }
+    assert!(WORKER_TOOLS.contains(&"read_file"));
+    assert!(!WORKER_TOOLS.contains(&"change_summary"));
+    assert_eq!(WORKER_TOOLS.len(), 20);
+}
+
+#[test]
+fn unknown_and_foreign_worker_ids_are_indistinguishable_through_dispatch() {
+    let f = Fixture::new();
+    let a = session(&f.ctx, "conversation-a");
+    let b = session(&f.ctx, "conversation-b");
+    let mine = spawn_ok(&a, "req", "a");
+    let local = spawn_ok(&f.ctx, "req", "local");
+    let unknown = WorkerId::generate();
+    let args = |id: &str| with_worker(id, json!({"path":"fixture.txt"}));
+    let ok = routed(&a, "read_file", &args(mine.worker_id.as_str()));
+    assert_eq!(ok["ok"], true, "{ok}");
+    let mut seen = Vec::new();
+    for (ctx, id) in [
+        (&b, mine.worker_id.as_str()),
+        (&b, unknown.as_str()),
+        (&a, local.worker_id.as_str()),
+    ] {
+        let out = routed(ctx, "read_file", &args(id));
+        assert_eq!(code(&out), "WORKER_NOT_OWNED", "{out}");
+        assert!(!out.to_string().contains(id), "{out}");
+        seen.push(out["error"].to_string());
+    }
+    assert!(seen.windows(2).all(|w| w[0] == w[1]), "{seen:?}");
+    let out = call_tool(&f.ctx, "read_file", &args(mine.worker_id.as_str()));
+    assert_eq!(code(&out), "WORKER_NOT_OWNED", "{out}");
+}
+
+#[test]
+fn only_ready_workers_route_and_nested_worker_ids_are_rejected() {
+    let f = Fixture::new();
+    let creating = reserve_ok(&f.ctx, "req-c", "c");
+    let out = call_tool(
+        &f.ctx,
+        "read_file",
+        &with_worker(creating.worker_id.as_str(), json!({"path":"fixture.txt"})),
+    );
+    assert_eq!(code(&out), "WORKER_STATE", "{out}");
+    let ready = spawn_ok(&f.ctx, "req-r", "r");
+    let id = ready.worker_id.as_str().to_owned();
+    let nested = route(
+        &f.ctx,
+        "read_file",
+        &with_worker(&id, json!({"path":"fixture.txt"})),
+        |worker_ctx, _| {
+            assert!(worker_ctx.worker.is_some());
+            assert_eq!(worker_ctx.worker.as_ref().unwrap().worker_id.as_str(), id);
+            call_tool(
+                worker_ctx,
+                "read_file",
+                &with_worker(&id, json!({"path":"fixture.txt"})),
+            )
+        },
+    )
+    .unwrap();
+    assert_eq!(code(&nested), "WORKER_STATE", "{nested}");
+    cancel(&f.ctx, &id).unwrap();
+    let out = call_tool(
+        &f.ctx,
+        "read_file",
+        &with_worker(&id, json!({"path":"fixture.txt"})),
+    );
+    assert_eq!(code(&out), "WORKER_STATE", "{out}");
+    // Calls without worker_id are not routed at all.
+    assert!(route(
+        &f.ctx,
+        "read_file",
+        &json!({"path":"fixture.txt"}),
+        |_, _| { unreachable!() }
+    )
+    .is_none());
+}
+
+#[test]
+fn worker_context_is_a_field_carried_through_background_snapshots() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    let id = worker.worker_id.as_str().to_owned();
+    assert!(f.ctx.worker.is_none());
+    assert!(f.ctx.background_snapshot().worker.is_none());
+    route(
+        &f.ctx,
+        "read_file",
+        &with_worker(&id, json!({"path":"fixture.txt"})),
+        |w, stripped| {
+            assert!(stripped.get("worker_id").is_none(), "{stripped}");
+            assert_eq!(stripped["path"], "fixture.txt");
+            let copy = w.background_snapshot();
+            let binding = copy.worker.as_ref().unwrap();
+            assert_eq!(binding.worker_id.as_str(), id);
+            assert_eq!(binding.worktree_root, tree);
+            assert_eq!(copy.workspace.root(), tree.as_path());
+            // The store root stays the main root's harness, not the worktree.
+            assert_eq!(copy.host.store_root, f.ctx.host.store_root);
+            Value::Null
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn remote_worker_calls_add_agents_manage_to_the_required_scopes() {
+    use crate::tools::chat_domain::{required, scopes};
+    let base = required("read_file", &json!({})).unwrap();
+    assert_eq!(scopes("read_file", &json!({})).unwrap(), base.to_vec());
+    let with = scopes("read_file", &json!({"worker_id":"x"})).unwrap();
+    assert!(with.contains(&"agents.manage"), "{with:?}");
+    for s in base {
+        assert!(with.contains(s));
+    }
+    // Unknown tools stay unknown.
+    assert!(scopes("no_such_tool", &json!({"worker_id":"x"})).is_none());
+    // C2 grants never include agents.manage, so a remote worker call fails closed.
+    assert!(!crate::auth::chat::SCOPES.contains(&"agents.manage"));
+}
+
+/// Simulates a running worker call (the guard route() holds for the call).
+fn in_flight(ctx: &ToolContext, id: &str) -> FlightGuard {
+    let owner = WorkerOwner::from_context(ctx).unwrap();
+    let store = WorkerStore::open_existing(&ctx.host).unwrap().unwrap();
+    store.enter(&owner, &WorkerId::parse(id).unwrap()).unwrap()
+}
+
+#[test]
+fn integrate_busy_lists_only_the_callers_own_blocking_workers() {
+    let f = Fixture::new();
+    let a = session(&f.ctx, "conversation-a");
+    let b = session(&f.ctx, "conversation-b");
+    let wa = spawn_ok(&a, "req", "a");
+    let wb = spawn_ok(&b, "req", "b");
+    let wb2 = spawn_ok(&b, "req2", "b2");
+    let _ga = in_flight(&a, wa.worker_id.as_str());
+    let _gb = in_flight(&b, wb.worker_id.as_str());
+    let _gb2 = in_flight(&b, wb2.worker_id.as_str());
+    let busy = scoped(&a, |c| {
+        drain_for_integrate(c, std::time::Duration::from_millis(300)).err()
+    })
+    .expect("drain must time out while workers are in flight");
+    assert_eq!(busy["error"]["code"], "INTEGRATE_BUSY", "{busy}");
+    assert_eq!(busy["error"]["retryable"], true, "{busy}");
+    let details = &busy["error"]["details"];
+    assert_eq!(details["retry_after_ms"], 1000, "{busy}");
+    assert_eq!(
+        details["blocking_worker_ids"],
+        json!([wa.worker_id.as_str()]),
+        "{busy}"
+    );
+    assert_eq!(details["other_sessions_blocking"], 2, "{busy}");
+    let text = busy.to_string();
+    assert!(!text.contains(wb.worker_id.as_str()), "{text}");
+    assert!(!text.contains(wb2.worker_id.as_str()), "{text}");
+    // Session B sees its own two, and only a count for A's.
+    let busy_b = scoped(&b, |c| {
+        drain_for_integrate(c, std::time::Duration::from_millis(100)).err()
+    })
+    .unwrap();
+    let ids = busy_b["error"]["details"]["blocking_worker_ids"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert_eq!(ids.len(), 2, "{busy_b}");
+    assert!(
+        !busy_b.to_string().contains(wa.worker_id.as_str()),
+        "{busy_b}"
+    );
+    assert_eq!(busy_b["error"]["details"]["other_sessions_blocking"], 1);
+    // A timed-out drain clears the flag: running work was not cancelled and new
+    // worker calls proceed.
+    let ok = routed(
+        &a,
+        "read_file",
+        &with_worker(wa.worker_id.as_str(), json!({"path":"fixture.txt"})),
+    );
+    assert_eq!(ok["ok"], true, "{ok}");
+}
+
+#[test]
+fn draining_covers_every_session_on_the_main_root_and_waits_for_running_calls() {
+    let f = Fixture::new();
+    let a = session(&f.ctx, "conversation-a");
+    let b = session(&f.ctx, "conversation-b");
+    let wa = spawn_ok(&a, "req", "a");
+    let wb = spawn_ok(&b, "req", "b");
+    let store = WorkerStore::open_existing(&f.ctx.host).unwrap().unwrap();
+    let guard = in_flight(&b, wb.worker_id.as_str());
+    let watcher = {
+        let store = store.clone();
+        std::thread::spawn(move || {
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
+            while !store.draining() {
+                assert!(std::time::Instant::now() < until, "drain never started");
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            drop(guard);
+        })
+    };
+    scoped(&a, |c| {
+        let drained = drain_for_integrate(c, std::time::Duration::from_secs(5));
+        assert!(drained.is_ok(), "{:?}", drained.as_ref().err());
+        assert!(store.draining());
+        // While draining, every session's new worker calls and spawns are refused.
+        for (ctx, id) in [(&a, wa.worker_id.as_str()), (&b, wb.worker_id.as_str())] {
+            let out = route(
+                ctx,
+                "read_file",
+                &with_worker(id, json!({"path":"fixture.txt"})),
+                |_, _| unreachable!("must not run while draining"),
+            )
+            .unwrap();
+            assert_eq!(code(&out), "INTEGRATE_BUSY", "{out}");
+        }
+        assert_eq!(
+            spawn(c, "req-new", "n").unwrap_err().code(),
+            "INTEGRATE_BUSY"
+        );
+        drop(drained);
+        assert!(!store.draining());
+    });
+    watcher.join().unwrap();
+    let ok = routed(
+        &a,
+        "read_file",
+        &with_worker(wa.worker_id.as_str(), json!({"path":"fixture.txt"})),
+    );
+    assert_eq!(ok["ok"], true, "{ok}");
 }

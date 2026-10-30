@@ -1,26 +1,28 @@
 //! A1 C1 core (SPEC-A1 v4 §1.1–§1.6, §7.4): worker identity, ownership, the durable
 //! encrypted WorkerStore, the worker state machine, the concurrency cap and the
-//! managed-slot reservation. C1 exposes no tool; dispatch and `for_worker` are C2.
+//! managed-slot reservation. C2 adds `route` (dispatch stripping + for_worker) and
+//! the main-root drain primitive; still no MCP tool or catalog entry (v4 §7.4).
 //!
 //! Scope (v4 §1.5): the store, the managed slots, the draining flag and the
 //! integration journal hang off the MAIN root (`ToolContext::host`), one per main
 //! root, never per chat session or epoch. Ownership is still the per-session hash.
 #![cfg_attr(not(test), allow(dead_code))]
-use crate::tools::{context::HostRoots, root_work, ToolContext};
+use crate::tools::{context::HostRoots, root_work, workspace::WorkspaceError, ToolContext};
 use crate::{
     data::{AuthDocument, AuthDocumentReader},
     harness::worktree::{SlotReservation, WorktreeError, WorktreeManager},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeSet, HashMap},
     path::{Component, Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc, Mutex, OnceLock,
+        Arc, Mutex, MutexGuard, OnceLock,
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 pub(crate) const DEFAULT_WORKER_LIMIT: usize = 4;
@@ -30,6 +32,39 @@ const MAX_REQUEST_ID: usize = 128;
 const MAX_LABEL_CHARS: usize = 80;
 const MAX_CWD_BYTES: usize = 1024;
 const STORE_DIR: &str = "agents-v1";
+/// INTEGRATE_BUSY retry hint and drain budget (v4 §5.2).
+pub(crate) const RETRY_AFTER_MS: u64 = 1000;
+/// The integrate drain budget; the caller is C5 `subagent_integrate`.
+#[allow(dead_code)]
+pub(crate) const DRAIN_BUDGET: Duration = Duration::from_secs(10);
+const DRAIN_BACKOFF_MS: &[u64] = &[50, 100, 200, 400, 800, 1600];
+const DRAIN_BACKOFF_CAP_MS: u64 = 2000;
+
+/// Tools that accept `worker_id` in C2 (v4 §2.3). `change_summary` and
+/// `list_exec_tasks` are deferred to C2b/C8: they read main-task harness state
+/// or the shared async task list and would misreport a worker.
+pub(crate) const WORKER_TOOLS: &[&str] = &[
+    "git_status",
+    "git_diff",
+    "git_log",
+    "git_show",
+    "git_blame",
+    "check_exec_environment",
+    "get_default_cwd",
+    "set_default_cwd",
+    "read_file",
+    "list_dir",
+    "list_files",
+    "search_text",
+    "grep_text",
+    "grep",
+    "view_image",
+    "patch_check",
+    "apply_patch",
+    "exec_command",
+    "exec_health_check",
+    "start_exec_task",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct WorkerError {
@@ -70,6 +105,12 @@ fn state_error() -> WorkerError {
     WorkerError::new(
         "WORKER_STATE",
         "Operation not allowed in the worker's current state.",
+    )
+}
+fn busy() -> WorkerError {
+    WorkerError::new(
+        "INTEGRATE_BUSY",
+        "An integration is draining this workspace's workers; retry later.",
     )
 }
 fn root_unavailable() -> WorkerError {
@@ -129,9 +170,15 @@ impl WorkerOwner {
         Self("local".into())
     }
     pub(crate) fn from_context(ctx: &ToolContext) -> Result<Self, WorkerError> {
-        let Some(request) = ctx.remote_request.as_ref() else {
-            return Ok(Self::local());
-        };
+        match ctx.remote_request.as_ref() {
+            Some(request) => Self::from_request(request),
+            None => Ok(Self::local()),
+        }
+    }
+    /// The same digest from a request alone (cloud_host prepare, v4 §3.5).
+    pub(crate) fn from_request(
+        request: &crate::auth::chat::RemoteRequest,
+    ) -> Result<Self, WorkerError> {
         let identity = request.identity().map_err(|_| not_owned())?;
         let mut digest = Sha256::new();
         for part in ["ctm-worker-owner-v1", &request.profile, identity] {
@@ -199,7 +246,55 @@ struct Inner {
 /// once; the document lock is held until the process exits.
 pub(crate) struct WorkerStore {
     state: Mutex<Inner>,
+    /// Memory only (v4 §5.2): the draining flag and the in-flight worker calls of
+    /// every session of this main root. Lock order: `state` before `flight`.
+    flight: Mutex<Flight>,
     generation: u64,
+}
+#[derive(Default)]
+struct Flight {
+    draining: bool,
+    active: HashMap<WorkerId, (WorkerOwner, usize)>,
+}
+/// Held for the duration of one routed worker call.
+pub(crate) struct FlightGuard {
+    store: Arc<WorkerStore>,
+    id: WorkerId,
+}
+impl Drop for FlightGuard {
+    fn drop(&mut self) {
+        let mut flight = self.store.flight();
+        if let Some(entry) = flight.active.get_mut(&self.id) {
+            entry.1 -= 1;
+            if entry.1 == 0 {
+                flight.active.remove(&self.id);
+            }
+        }
+    }
+}
+/// Holds the main-root exclusive guard and the draining flag until dropped (C5
+/// integrates while holding it).
+pub(crate) struct DrainGuard {
+    store: Arc<WorkerStore>,
+    _exclusive: root_work::RootExclusiveGuard,
+}
+impl Drop for DrainGuard {
+    fn drop(&mut self) {
+        self.store.flight().draining = false;
+    }
+}
+/// The worker a re-rooted ToolContext is bound to (v4 §1.4.2).
+#[derive(Debug)]
+pub(crate) struct WorkerBinding {
+    pub(crate) worker_id: WorkerId,
+    /// Read by C3 (worker history) and C5 (integrate attribution).
+    #[allow(dead_code)]
+    pub(crate) owner: WorkerOwner,
+    #[allow(dead_code)]
+    pub(crate) worktree_id: String,
+    pub(crate) worktree_root: PathBuf,
+    /// Worker-relative cwd at resolution time (`.` for the root).
+    pub(crate) cwd: String,
 }
 static REGISTRY: OnceLock<Mutex<HashMap<PathBuf, Arc<WorkerStore>>>> = OnceLock::new();
 static GENERATION: AtomicU64 = AtomicU64::new(1);
@@ -247,6 +342,7 @@ impl WorkerStore {
                 doc,
                 states_recovered: false,
             }),
+            flight: Mutex::default(),
             generation: GENERATION.fetch_add(1, Ordering::Relaxed),
         });
         registry.insert(namespace, store.clone());
@@ -311,6 +407,69 @@ impl WorkerStore {
     }
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner>, WorkerError> {
         self.state.lock().map_err(|_| unavailable())
+    }
+    fn flight(&self) -> MutexGuard<'_, Flight> {
+        self.flight.lock().unwrap_or_else(|p| p.into_inner())
+    }
+    pub(crate) fn draining(&self) -> bool {
+        self.flight().draining
+    }
+    /// Resolves a `ready` worker of `owner` and registers one in-flight call.
+    /// Ownership is checked before draining so a foreign or unknown id never
+    /// learns anything (B5). `last_activity_at` moves in memory only.
+    fn enter_record(
+        self: &Arc<Self>,
+        owner: &WorkerOwner,
+        id: &WorkerId,
+    ) -> Result<(FlightGuard, WorkerRecord), WorkerError> {
+        let mut inner = self.lock()?;
+        if inner.owned(owner, id)?.state != WorkerState::Ready {
+            return Err(state_error());
+        }
+        let mut flight = self.flight();
+        if flight.draining {
+            return Err(busy());
+        }
+        let entry = flight
+            .active
+            .entry(id.clone())
+            .or_insert_with(|| (owner.clone(), 0));
+        entry.1 += 1;
+        drop(flight);
+        let record = inner
+            .doc
+            .workers
+            .iter_mut()
+            .find(|r| &r.worker_id == id)
+            .ok_or_else(not_owned)?;
+        record.last_activity_at = now();
+        Ok((
+            FlightGuard {
+                store: self.clone(),
+                id: id.clone(),
+            },
+            record.clone(),
+        ))
+    }
+    pub(crate) fn enter(
+        self: &Arc<Self>,
+        owner: &WorkerOwner,
+        id: &WorkerId,
+    ) -> Result<FlightGuard, WorkerError> {
+        self.enter_record(owner, id).map(|(guard, _)| guard)
+    }
+    /// Read-only resolution for cloud_host prepare: owned and `ready`.
+    pub(crate) fn ready_worktree(
+        &self,
+        owner: &WorkerOwner,
+        id: &WorkerId,
+    ) -> Result<String, WorkerError> {
+        let inner = self.lock()?;
+        let record = inner.owned(owner, id)?;
+        if record.state != WorkerState::Ready {
+            return Err(not_owned());
+        }
+        record.worktree_id.clone().ok_or_else(not_owned)
     }
     /// Crash recovery, state part (v4 §1.5): a `creating` record with no live
     /// reservation becomes `ready` when its pinned worktree exists, otherwise `failed`.
@@ -537,6 +696,9 @@ pub(crate) fn spawn(
 ) -> Result<(WorkerRecord, bool), WorkerError> {
     validate_request(request_id, label)?;
     let owner = WorkerOwner::from_context(ctx)?;
+    if WorkerStore::open_existing(&ctx.host)?.is_some_and(|store| store.draining()) {
+        return Err(busy());
+    }
     let _root = root_work::exclusive_context(ctx).map_err(|_| root_unavailable())?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
@@ -821,6 +983,156 @@ pub(crate) fn owned_worktrees(ctx: &ToolContext) -> Result<BTreeSet<String>, Wor
         .filter(|r| r.state != WorkerState::Discarded)
         .filter_map(|r| r.worktree_id.clone())
         .collect())
+}
+
+/// Structured tool error for a worker failure. INTEGRATE_BUSY is retryable.
+pub(crate) fn error_value(error: &WorkerError) -> Value {
+    let busy = error.code() == "INTEGRATE_BUSY";
+    crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
+        code: error.code(),
+        message: error.message().into(),
+        category: if error.code() == "INVALID_ARGUMENT" {
+            "validation"
+        } else {
+            "worker"
+        },
+        retryable: busy,
+        details: if busy {
+            json!({ "retry_after_ms": RETRY_AFTER_MS })
+        } else {
+            json!({})
+        },
+    })
+}
+
+/// Dispatch stripping (v4 §1.4.1). `None` when the call carries no `worker_id`.
+/// Otherwise resolves the caller's `ready` worker on the main-root store, builds
+/// `ctx.for_worker(..)`, strips `worker_id` and runs the call there while it is
+/// registered as in flight. Runs on the chat-scoped context (after `scoped()`).
+pub(crate) fn route(
+    ctx: &ToolContext,
+    name: &str,
+    args: &Value,
+    run: impl FnOnce(&ToolContext, &Value) -> Value,
+) -> Option<Value> {
+    let raw = args.as_object()?.get("worker_id")?;
+    Some(match bind(ctx, name, raw, args) {
+        Ok((worker_ctx, stripped, _guard)) => run(&worker_ctx, &stripped),
+        Err(error) => error_value(&error),
+    })
+}
+fn bind(
+    ctx: &ToolContext,
+    name: &str,
+    raw: &Value,
+    args: &Value,
+) -> Result<(ToolContext, Value, FlightGuard), WorkerError> {
+    let id = raw
+        .as_str()
+        .ok_or_else(|| invalid("Invalid worker identifier."))
+        .and_then(WorkerId::parse)?;
+    if !WORKER_TOOLS.contains(&name) {
+        return Err(invalid("This tool does not accept worker_id."));
+    }
+    if ctx.worker.is_some() {
+        // A worker context never re-roots again.
+        return Err(state_error());
+    }
+    let owner = WorkerOwner::from_context(ctx)?;
+    let store = WorkerStore::open_existing(&ctx.host)?.ok_or_else(not_owned)?;
+    let (guard, record) = store.enter_record(&owner, &id)?;
+    let worktree_id = record.worktree_id.clone().ok_or_else(state_error)?;
+    let target = manager(ctx)?
+        .snapshot_target(&worktree_id)
+        .map_err(|_| state_error())?;
+    let binding = WorkerBinding {
+        worker_id: id,
+        owner,
+        worktree_id,
+        worktree_root: target.root,
+        cwd: record.cwd,
+    };
+    let worker_ctx = ctx
+        .for_worker(Arc::new(binding))
+        .map_err(|_| state_error())?;
+    let mut stripped = args.clone();
+    if let Some(obj) = stripped.as_object_mut() {
+        obj.remove("worker_id");
+    }
+    Ok((worker_ctx, stripped, guard))
+}
+
+/// Integration drain (v4 §5.2): raise the main-root draining flag, wait (bounded
+/// backoff 50..1600 ms then 2 s, total `budget`) until no worker call of ANY
+/// session is in flight and the main-root exclusive guard is free. Running work
+/// is never parked or cancelled. On timeout the flag is cleared and the result is
+/// INTEGRATE_BUSY listing only the caller's own blocking worker ids; other
+/// sessions appear only as `other_sessions_blocking: N` (B5).
+pub(crate) fn drain_for_integrate(
+    ctx: &ToolContext,
+    budget: Duration,
+) -> Result<DrainGuard, Value> {
+    let owner = WorkerOwner::from_context(ctx).map_err(|e| error_value(&e))?;
+    let (_, store) = open(ctx).map_err(|e| error_value(&e))?;
+    {
+        let mut flight = store.flight();
+        if flight.draining {
+            drop(flight);
+            return Err(busy_value(&store, &owner));
+        }
+        flight.draining = true;
+    }
+    let deadline = Instant::now() + budget;
+    let mut step = 0;
+    loop {
+        if store.flight().active.is_empty() {
+            if let Ok(exclusive) = root_work::exclusive_context(ctx) {
+                return Ok(DrainGuard {
+                    store,
+                    _exclusive: exclusive,
+                });
+            }
+        }
+        let now = Instant::now();
+        if now >= deadline {
+            let value = busy_value(&store, &owner);
+            store.flight().draining = false;
+            return Err(value);
+        }
+        let wait = Duration::from_millis(
+            DRAIN_BACKOFF_MS
+                .get(step)
+                .copied()
+                .unwrap_or(DRAIN_BACKOFF_CAP_MS),
+        );
+        step += 1;
+        std::thread::sleep(wait.min(deadline - now));
+    }
+}
+fn busy_value(store: &WorkerStore, owner: &WorkerOwner) -> Value {
+    let flight = store.flight();
+    let mut own: Vec<&str> = Vec::new();
+    let mut others = 0usize;
+    for (id, (holder, _)) in flight.active.iter() {
+        if holder == owner {
+            own.push(id.as_str());
+        } else {
+            others += 1;
+        }
+    }
+    own.sort_unstable();
+    let error = busy();
+    crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
+        code: error.code(),
+        message: error.message().into(),
+        category: "worker",
+        retryable: true,
+        details: json!({
+            "retry_after_ms": RETRY_AFTER_MS,
+            "blocking_worker_ids": own,
+            "other_sessions_blocking": others,
+        }),
+    })
 }
 
 #[cfg(test)]

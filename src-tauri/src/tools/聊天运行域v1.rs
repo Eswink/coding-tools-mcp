@@ -59,6 +59,24 @@ impl ChatDomains {
         Ok(copy)
     }
 }
+/// A1 C2 (SPEC-A1 v4 §3.2): `required` plus `agents.manage` when the call carries
+/// `worker_id`. `required` itself, the catalog and ScopeSet alignment stay
+/// unchanged until C6; `agents.manage` is not grantable yet, so every remote
+/// worker call fails closed with INSUFFICIENT_CHAT_SCOPE.
+pub(crate) fn scopes(name: &str, args: &Value) -> Option<Vec<&'static str>> {
+    let mut out = required(name, args)?.to_vec();
+    if args.get("worker_id").is_some() && !out.contains(&"agents.manage") {
+        out.push("agents.manage");
+    }
+    Some(out)
+}
+/// The outer layer only parses worker_id (v4 §1.4.1); resolution is inner.
+fn malformed_worker_id(args: &Value) -> bool {
+    args.get("worker_id").is_some_and(|raw| {
+        raw.as_str()
+            .is_none_or(|id| super::worktree_tools::workers::WorkerId::parse(id).is_err())
+    })
+}
 pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
     Some(match name {
         "server_info"
@@ -156,14 +174,17 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
     if name == "request_chat_authorization" {
         return Some(request_chat_authorization(ctx, req, args));
     }
-    let scopes = match required(name, args) {
+    let scopes = match scopes(name, args) {
         Some(s) => s,
         None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")),
     };
-    if ctx.chat_scoped {
-        return req.service.permit(req, scopes).err().map(denied);
+    if malformed_worker_id(args) {
+        return Some(denied("INVALID_ARGUMENT"));
     }
-    let _admission = match req.service.admit(req, scopes) {
+    if ctx.chat_scoped {
+        return req.service.permit(req, &scopes).err().map(denied);
+    }
+    let _admission = match req.service.admit(req, &scopes) {
         Ok(g) => g,
         Err(e) => return Some(denied(e)),
     };
