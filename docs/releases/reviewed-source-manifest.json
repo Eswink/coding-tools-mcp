@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c2ad worker background exec in flight + cwd re-canonicalize + NB3/NB4/NB5/NB-f + N2 owner-confirmed legacy cleanup, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-rc080-depth (admission chain dd5b5739) DEPTH_LIMIT 64->128, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4520,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "71251f174d6fbd2507df50070e9c3530aa21f2da",
-        "sha256": "59d4440961b1c10fc54ba260b3b58f14cbf968499fbe61b1a0ffb21f8a811179"
+        "blob_sha": "c3ce3550b0a071096d4b11e29e644eeb06e15284",
+        "sha256": "30539bfc263bf24455b684476e0532466223b89fa0aeb5b4cdb131593b605a1c"
       }
     },
     {
@@ -5084,8 +5084,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1ba9a391e68751813b5d24e6ed6a70ec5c1767b0",
-        "sha256": "19fc97176b56f9a860298df1b35323dbe526caff2af2a92fce44748fad3c8543"
+        "blob_sha": "6e09ef020dac467bb24033f53ef84cc054456cbe",
+        "sha256": "53274329e93de677bceebca4e024c01189e0dceec8ba9d8e74711e68764ef422"
       }
     },
     {
@@ -5094,8 +5094,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7d3729f62d07485be9e41c3bc2c39edee019c34b",
-        "sha256": "18c0c811c6bd9b5bdaae96f0f0a11f46e7f7c690787df0a4a2159d08332c204b"
+        "blob_sha": "dc7d21e9cf00cf12938a2c8afdb65f6cf381c6c6",
+        "sha256": "f0881208cb8dc0bb19b5572e1cd747054c05f0af5a8b52fddadc2110894c3f57"
       }
     },
     {
