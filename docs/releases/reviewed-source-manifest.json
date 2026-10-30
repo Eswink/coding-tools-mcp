@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch4 (#175 reconnect log + CTM_RECONNECT_LOG stderr echo + rc080 topology CI + v10 native acceptance v7) on develop/0.8.0 d5e5df51. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH4-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch4 tip-fix (short PNG read-only screenshot retry; keeps 5000-byte floor; #175 reconnect log + CTM_RECONNECT_LOG + rc080 topology CI + v10 v7) on develop/0.8.0 0ae772bd. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH4-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -3492,8 +3492,22 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "7f8fe82680b4f32dcb51531bd897d1748f3c21c2",
-        "sha256": "50db1d813312384913a0d07cee641589e4b8714c9fc18f7b579d19def20139a2"
+        "blob_sha": "bb2168dbaf6d456f2963450d91169a2535a5299e",
+        "sha256": "f14f642de91f782e70c764b66c10d9bc9323c2a48a8a0aedf2f79f039662963d"
+      }
+    },
+    {
+      "path": "scripts/Ubuntu截图回归v10.py",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "fb2c74ee0d19f06369186fc330ff5489c77d94db",
+        "sha256": "5e1dee0fbb052bbda037ad9e4edf941757a7f2498054f7f63e3611f9f999eb4e"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "6ee45775ab971f5ad469d3811052fabab432732d",
+        "sha256": "78e0df827e61a005f040193e67d7e19a11c7b4c0f3fc22982bb984b4ccba79b7"
       }
     },
     {
@@ -4506,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ffa3f27ffefd0dae1404ebe9df843b6e9653faca",
-        "sha256": "6fb390ab4646c8c97118a5112e28b82d086a38eb1f7b46262b51928e5b03c1fb"
+        "blob_sha": "307dd8e7f419497c0c7c73c43695053c9e829c68",
+        "sha256": "d607cc3b82ad1a0245b947c6da5c985b91e0ff063fe03bb053a35498cf86c09a"
       }
     },
     {
