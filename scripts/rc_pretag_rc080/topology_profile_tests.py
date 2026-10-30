@@ -84,8 +84,10 @@ class Rc080TopologyProfileTests(unittest.TestCase):
 
     def test_head_depth_headroom_is_at_least_16(self):
         head = git('rev-parse', 'HEAD').decode().strip()
-        if not is_ancestor(rc080.M, head):
-            return
+        # A1 C5: never a silent pass. A HEAD that does not descend from M has no
+        # rc080 depth to measure, so the headroom check fails instead of returning.
+        self.assertTrue(is_ancestor(rc080.M, head),
+                        'rc080 M %s is not an ancestor of HEAD %s; depth headroom unmeasurable' % (rc080.M, head))
         need = required_budget(head)
         self.assertIsNotNone(need, 'HEAD not admitted within DEPTH_LIMIT %d' % rc080.DEPTH_LIMIT)
         self.assertGreaterEqual(rc080.DEPTH_LIMIT - need, HEADROOM_WARN,
