@@ -392,7 +392,19 @@ mod tests {
             )
             .collect();
         assert_eq!(names, expected);
-        assert_eq!(names.len(), 49);
+        // A1 C2b: 2 auth tools + 47 + 7 subagent_* (SPEC-A1 v4 §2.1).
+        assert_eq!(names.len(), 56);
+        for name in [
+            "subagent_spawn",
+            "subagent_status",
+            "subagent_collect",
+            "subagent_cancel",
+            "subagent_integrate",
+            "subagent_rollback",
+            "subagent_discard",
+        ] {
+            assert!(names.iter().any(|n| n == name), "{name}");
+        }
         assert!(!names.iter().any(|name| name == "request_permissions"));
     }
 }

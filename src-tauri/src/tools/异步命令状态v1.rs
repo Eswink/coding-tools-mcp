@@ -80,6 +80,8 @@ pub(super) struct Job {
     pub persistent: bool,
     pub restored_elapsed: Option<u64>,
     pub persistence_failed: std::sync::atomic::AtomicBool,
+    /// A1 C2b: the managed worker whose re-rooted context submitted this job.
+    pub worker_id: Option<String>,
     pub data: Mutex<JobData>,
 }
 
@@ -100,6 +102,7 @@ impl Job {
             persistent,
             restored_elapsed: None,
             persistence_failed: std::sync::atomic::AtomicBool::new(false),
+            worker_id: None,
             data: Mutex::new(JobData {
                 status: Status::Queued,
                 cancel_requested: false,

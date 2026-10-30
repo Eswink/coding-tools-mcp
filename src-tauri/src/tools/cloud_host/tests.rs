@@ -616,6 +616,13 @@ fn worker_read(
     )
 }
 
+fn grant_agents_manage(f: &Fixture) -> NativeAuthority {
+    f.host
+        .authorizer
+        .grant_pending_scope_for_test(&f.profile, "agents.manage");
+    f.host.authority(&f.conversation()).unwrap()
+}
+
 #[test]
 fn cloud_worker_calls_without_a_store_fail_closed_and_create_nothing() {
     let f = Fixture::new();
@@ -623,6 +630,15 @@ fn cloud_worker_calls_without_a_store_fail_closed_and_create_nothing() {
     let store = f.host.context.host.store_root.join("agents-v1");
     assert!(!store.exists());
     let unknown = json!("0123456789abcdef0123456789abcdef");
+    // C2-b: without agents.manage the coarse scope check rejects first.
+    for id in [unknown.clone(), json!("NOT-HEX")] {
+        assert_eq!(
+            worker_read(&f, &a, &id, "fixture.txt").err(),
+            Some("INSUFFICIENT_CHAT_SCOPE"),
+            "{id}"
+        );
+    }
+    let a = grant_agents_manage(&f);
     assert_eq!(
         worker_read(&f, &a, &unknown, "fixture.txt").err(),
         Some("WORKER_NOT_OWNED")
@@ -639,17 +655,41 @@ fn cloud_worker_calls_without_a_store_fail_closed_and_create_nothing() {
 }
 
 #[test]
+fn cloud_worker_calls_without_agents_manage_never_touch_the_worker_store() {
+    use crate::tools::worktree_tools::workers::WorkerStore;
+    let f = Fixture::new();
+    let a = f.approve(&["files.read"]);
+    let (id, _) = spawn_worker(&f, &f.conversation());
+    // Simulate a fresh process: the store exists on disk but is not registered.
+    WorkerStore::evict_for_test(&f.host.context.host);
+    for path in ["fixture.txt", "missing.txt"] {
+        assert_eq!(
+            worker_read(&f, &a, &json!(id), path).err(),
+            Some("INSUFFICIENT_CHAT_SCOPE"),
+            "{path}"
+        );
+    }
+    assert!(!WorkerStore::registered_for_test(&f.host.context.host));
+    // With the scope the same call resolves (and registers) the store.
+    let a = grant_agents_manage(&f);
+    assert!(worker_read(&f, &a, &json!(id), "fixture.txt").is_ok());
+    assert!(WorkerStore::registered_for_test(&f.host.context.host));
+}
+
+#[test]
 fn cloud_worker_paths_are_checked_against_the_worktree_and_then_fail_closed_on_scope() {
     let f = Fixture::new();
     let a = f.approve(&["files.read"]);
     let (id, tree) = spawn_worker(&f, &f.conversation());
     std::fs::write(tree.join("worker-only.txt"), "w").unwrap();
-    // Exists only in the worker: passes the worktree path check, then the
-    // agents.manage scope (never granted in C2) fails closed.
+    // C2-b: no agents.manage -> rejected before any worker resolution.
     assert_eq!(
         worker_read(&f, &a, &json!(id), "worker-only.txt").err(),
         Some("INSUFFICIENT_CHAT_SCOPE")
     );
+    let a = grant_agents_manage(&f);
+    // Exists only in the worker: passes the worktree path check.
+    assert!(worker_read(&f, &a, &json!(id), "worker-only.txt").is_ok());
     #[cfg(unix)]
     {
         // An escaping symlink inside the worker is caught against the worktree

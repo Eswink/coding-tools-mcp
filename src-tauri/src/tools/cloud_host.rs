@@ -181,11 +181,21 @@ impl NativeToolHost {
         {
             return Err("CLOUD_ARGUMENTS_REJECTED");
         }
+        // A1 C2b (C2-b): the coarse scope check runs before any worker
+        // resolution, so a caller without agents.manage never opens the worker
+        // store, takes its lock or registers the singleton.
+        let scopes = chat_domain::scopes(tool, args).ok_or("REMOTE_TOOL_NOT_PERMITTED")?;
+        if scopes.iter().any(|s| !authority.view.scopes().contains(*s)) {
+            return Err("INSUFFICIENT_CHAT_SCOPE");
+        }
         // A1 C2 (SPEC-A1 v4 §3.5): a worker call is resolved before any path
         // check, so paths are confined to the worker worktree, not the main root.
+        // On subagent_* the worker_id names a target, not a routing key.
         let worker_space = match obj.get("worker_id") {
-            Some(raw) => Some(self.worker_workspace(authority, raw)?),
-            None => None,
+            Some(raw) if !tool.starts_with("subagent_") => {
+                Some(self.worker_workspace(authority, raw)?)
+            }
+            _ => None,
         };
         let space = worker_space.as_ref().unwrap_or(&self.context.workspace);
         // Native file-reading APIs may accept explicitly external paths for
@@ -204,10 +214,6 @@ impl NativeToolHost {
                     return Err("CLOUD_ARGUMENTS_REJECTED");
                 }
             }
-        }
-        let scopes = chat_domain::scopes(tool, args).ok_or("REMOTE_TOOL_NOT_PERMITTED")?;
-        if scopes.iter().any(|s| !authority.view.scopes().contains(*s)) {
-            return Err("INSUFFICIENT_CHAT_SCOPE");
         }
         // Linux: mandatory kernel isolation per child. Windows (Q3 = B): no
         // sandbox, user default permissions; restricted mode keeps the

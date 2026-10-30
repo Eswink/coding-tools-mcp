@@ -940,6 +940,25 @@ impl ChatAuthorizer {
         };
         Ok(())
     }
+    /// A1 C2b test seam (C2-c): `agents.manage` is pending (O13) and cannot be
+    /// requested or approved yet, so tests add it to the profile's active grants
+    /// to exercise the allowed path. Only this pending scope is accepted.
+    #[cfg(test)]
+    pub(crate) fn grant_pending_scope_for_test(&self, profile: &str, scope: &str) {
+        assert_eq!(
+            scope, "agents.manage",
+            "only pending scopes may be injected"
+        );
+        let mut state = self.state.lock().unwrap();
+        let mut granted = 0;
+        for record in state.records.values_mut() {
+            if record.profile == profile && record.view.status == "active" {
+                record.view.scopes.insert(scope.to_owned());
+                granted += 1;
+            }
+        }
+        assert!(granted > 0, "no active grant to extend");
+    }
     pub fn permit(&self, req: &RemoteRequest, scopes: &[&str]) -> Result<(), &'static str> {
         let key = req.identity()?;
         self.reconcile(&req.profile);

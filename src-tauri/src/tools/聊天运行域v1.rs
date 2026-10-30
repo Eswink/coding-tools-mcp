@@ -115,6 +115,14 @@ pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static st
         "start_task" | "update_task" | "pause_task" | "resume_task" | "finish_task" => {
             &["harness.write"]
         }
+        // A1 C2b (SPEC-A1 v4 §2.1): agents.manage is pending (never grantable
+        // before C6), so remote subagent_* calls fail closed.
+        "subagent_spawn" | "subagent_integrate" | "subagent_rollback" | "subagent_discard" => {
+            &["agents.manage", "files.write"]
+        }
+        "subagent_status" => &["agents.manage"],
+        "subagent_collect" => &["agents.manage", "files.read"],
+        "subagent_cancel" => &["agents.manage", "task.manage"],
         // request_permissions is intentionally not capable of granting remote scopes.
         _ => return None,
     })

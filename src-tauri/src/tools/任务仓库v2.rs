@@ -215,11 +215,33 @@ impl ExecTaskStore {
         self.reserve_checked(request_id, fingerprint, timeout_ms, || Ok(()))
     }
 
+    // Kept with its signature for 异步命令回归v1.rs (pinned); production uses reserve_tagged.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn reserve_checked(
         &self,
         request_id: &str,
         fingerprint: &str,
         timeout_ms: u64,
+        validate_submission: impl FnOnce() -> Result<(), WorkspaceError>,
+    ) -> Result<(Arc<Job>, bool), WorkspaceError> {
+        self.reserve_tagged(
+            request_id,
+            fingerprint,
+            timeout_ms,
+            None,
+            validate_submission,
+        )
+    }
+
+    /// A1 C2b: `reserve_checked` that durably tags the job with the submitting
+    /// worker. A request_id owned by a different tag is an IDEMPOTENCY_CONFLICT,
+    /// never a cross-worker (or worker/main) deduplicated hit.
+    pub(super) fn reserve_tagged(
+        &self,
+        request_id: &str,
+        fingerprint: &str,
+        timeout_ms: u64,
+        worker_id: Option<&str>,
         validate_submission: impl FnOnce() -> Result<(), WorkspaceError>,
     ) -> Result<(Arc<Job>, bool), WorkspaceError> {
         #[cfg(test)]
@@ -228,7 +250,7 @@ impl ExecTaskStore {
         self.initialize(&mut inner)?;
         self.prune(&mut inner);
         if let Some(job) = inner.jobs.values().find(|job| job.request_id == request_id) {
-            if job.fingerprint != fingerprint {
+            if job.fingerprint != fingerprint || job.worker_id.as_deref() != worker_id {
                 return Err(error(
                     "IDEMPOTENCY_CONFLICT",
                     "request_id already belongs to different command parameters",
@@ -255,12 +277,14 @@ impl ExecTaskStore {
         // Existing keys above are read-only reconciliation. A NEW acceptance
         // must still be live after all mutex, archive and pruning waits.
         validate_submission()?;
-        let job = Arc::new(Job::new(
+        let mut job = Job::new(
             request_id.into(),
             fingerprint.into(),
             timeout_ms,
             self.persistent(),
-        ));
+        );
+        job.worker_id = worker_id.map(str::to_owned);
+        let job = Arc::new(job);
         if let Some(archive) = &inner.archive {
             archive
                 .save(&job.id, || record::snapshot(&job))
@@ -291,7 +315,17 @@ impl ExecTaskStore {
             "Task unknown or expired in this workspace/service; do not automatically re-execute", false))
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn list(&self, request_id: Option<&str>) -> Result<Vec<Value>, WorkspaceError> {
+        self.list_filtered(request_id, None)
+    }
+
+    /// A1 C2b: `worker = Some(id)` lists only that worker's tagged jobs.
+    pub(super) fn list_filtered(
+        &self,
+        request_id: Option<&str>,
+        worker: Option<&str>,
+    ) -> Result<Vec<Value>, WorkspaceError> {
         let mut inner = self.inner.lock().expect("job store");
         self.initialize(&mut inner)?;
         self.prune(&mut inner);
@@ -299,6 +333,7 @@ impl ExecTaskStore {
             .jobs
             .values()
             .filter(|j| request_id.is_none_or(|r| j.request_id == r))
+            .filter(|j| worker.is_none_or(|w| j.worker_id.as_deref() == Some(w)))
             .cloned()
             .collect::<Vec<_>>();
         selected.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(a.id.cmp(&b.id)));

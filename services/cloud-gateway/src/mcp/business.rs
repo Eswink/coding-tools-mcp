@@ -111,7 +111,7 @@ pub(super) async fn business_call(
             let mut offline = false;
             let mut recovery = false;
             for required in spec.scopes_for(&args) {
-                match state.control.assess(&binding, required).await {
+                match state.control.assess(&binding, &required).await {
                     Ok(ProjectionDecision::AuthorizationUnavailable) => {
                         return permission("CHAT_AUTHORIZATION_REQUIRED")
                     }

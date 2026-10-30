@@ -122,11 +122,13 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         )
     );
     let mut native_work = super::native_drain::child(ctx)?;
-    let (job, created) =
-        ctx.exec_tasks
-            .reserve_checked(request_id, &fingerprint, timeout_ms, || {
-                validate_submission(ctx)
-            })?;
+    let (job, created) = ctx.exec_tasks.reserve_tagged(
+        request_id,
+        &fingerprint,
+        timeout_ms,
+        ctx.worker.as_ref().map(|w| w.worker_id.as_str()),
+        || validate_submission(ctx),
+    )?;
     if !created {
         let mut summary = job.summary();
         summary["deduplicated"] = json!(true);
@@ -384,7 +386,7 @@ pub fn list(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         None
     };
     Ok(tool_ok(
-        json!({"jobs": ctx.exec_tasks.list(filter)?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
+        json!({"jobs": ctx.exec_tasks.list_filtered(filter, ctx.worker.as_ref().map(|w| w.worker_id.as_str()))?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
         "restart_recoverable": ctx.exec_tasks.persistent(), "execution_survives_app_restart": false, "max_active": 4, "max_retained": 32}),
     ))
 }

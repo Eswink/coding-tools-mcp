@@ -89,6 +89,15 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         };
     }
 
+    // A1 C2b: worker control and the worker-scoped change summary never reach
+    // the harness (main-task state) branch below.
+    if name.starts_with("subagent_") {
+        return crate::tools::worktree_tools::workers::subagent::call(ctx, name, args);
+    }
+    if name == "change_summary" && ctx.worker.is_some() {
+        return crate::tools::worktree_tools::workers::subagent::worker_change_summary(ctx, args);
+    }
+
     if crate::harness::tools::TOOL_NAMES.contains(&name) {
         return match crate::harness::tools::call(ctx, name, args) {
             Ok(value) => value,

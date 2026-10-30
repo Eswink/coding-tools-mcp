@@ -1,6 +1,6 @@
 //! Host-owned worktree authority. Remote arguments never supply a root or Git option.
 use crate::{
-    harness::worktree::{WorktreeError, WorktreeManager},
+    harness::worktree::WorktreeError,
     tools::{
         workspace::{tool_ok, WorkspaceError},
         ToolContext,
@@ -56,12 +56,15 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
         }
         None
     };
-    let manager = WorktreeManager::new(
-        ctx.workspace.root(),
-        ctx.harness.store_root(),
-        ctx.harness.workspace_id(),
-    )
-    .map_err(error)?;
+    // A1 C2b (C1-b): always the main-root manager (ctx.host), never a remote
+    // session's chat-v1 harness root, so every session and every worker share
+    // the one device-level pool of 8 slots.
+    let manager = workers::manager(ctx).map_err(|e| WorkspaceError::Tool {
+        code: e.code(),
+        message: e.message().into(),
+        category: "security",
+        retryable: false,
+    })?;
     // A1 C1: worker-owned trees are managed only through the worker lifecycle.
     let owned = || {
         workers::owned_worktrees(ctx).map_err(|e| WorkspaceError::Tool {

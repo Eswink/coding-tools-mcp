@@ -518,17 +518,46 @@ fn records_persist_encrypted_across_reopen_and_interrupted_spawns_recover() {
 }
 
 #[test]
-fn public_schemas_expose_no_worker_surface_but_worker_id_routes_to_the_worker() {
+fn public_schemas_expose_worker_id_on_exactly_the_worker_tools_and_route_it() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");
-    for tool in crate::tools::list_tools() {
-        let text = tool.to_string();
-        assert!(!text.contains("worker_id"), "{text}");
-        assert!(!tool["name"].as_str().unwrap().starts_with("subagent_"));
-        assert!(!tool["name"].as_str().unwrap().starts_with("worker_"));
+    // A1 C2b (v4 §2.1): the 22 worker tools carry an optional 32-hex worker_id;
+    // the 7 subagent_* tools are registered; nothing else mentions worker_id.
+    let tools = crate::tools::list_tools();
+    let mut subagents = Vec::new();
+    for tool in &tools {
+        let name = tool["name"].as_str().unwrap();
+        let props = &tool["inputSchema"]["properties"];
+        if name.starts_with("subagent_") {
+            subagents.push(name.to_owned());
+            continue;
+        }
+        assert!(!name.starts_with("worker_"), "{name}");
+        if WORKER_TOOLS.contains(&name) {
+            assert_eq!(props["worker_id"]["type"], "string", "{name}");
+            assert_eq!(props["worker_id"]["pattern"], "^[0-9a-f]{32}$", "{name}");
+            let required = tool["inputSchema"]["required"].to_string();
+            assert!(!required.contains("worker_id"), "{name}");
+        } else {
+            assert!(!tool.to_string().contains("worker_id"), "{name}");
+        }
     }
-    // C2 (v4 §7.4): schemas and the catalog stay unchanged until C6, but dispatch
-    // already re-roots a supported call carrying worker_id into the worker worktree.
+    subagents.sort();
+    let mut expected: Vec<_> = crate::tools::registry::SUBAGENT_TOOLS
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    expected.sort();
+    assert_eq!(subagents, expected);
+    assert_eq!(expected.len(), 7);
+    // Every listed worker tool carries the parameter (aliases such as `grep`
+    // are dispatch-only and not listed).
+    let listed = tools
+        .iter()
+        .filter(|t| t["inputSchema"]["properties"]["worker_id"].is_object())
+        .count();
+    assert!(listed >= WORKER_TOOLS.len() - 1, "{listed}");
+    // Dispatch re-roots a supported call carrying worker_id into the worker worktree.
     let tree = f
         .ctx
         .harness
@@ -882,13 +911,7 @@ fn worker_id_is_rejected_on_unsupported_tools_and_malformed_ids() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");
     let id = worker.worker_id.as_str();
-    for tool in [
-        "worktree_list",
-        "history_session_read",
-        "server_info",
-        "change_summary",
-        "list_exec_tasks",
-    ] {
+    for tool in ["worktree_list", "history_session_read", "server_info"] {
         let out = call_tool(&f.ctx, tool, &with_worker(id, json!({})));
         assert_eq!(code(&out), "INVALID_ARGUMENT", "{tool}: {out}");
     }
@@ -901,8 +924,9 @@ fn worker_id_is_rejected_on_unsupported_tools_and_malformed_ids() {
         assert_eq!(code(&out), "INVALID_ARGUMENT", "{bad}: {out}");
     }
     assert!(WORKER_TOOLS.contains(&"read_file"));
-    assert!(!WORKER_TOOLS.contains(&"change_summary"));
-    assert_eq!(WORKER_TOOLS.len(), 20);
+    assert!(WORKER_TOOLS.contains(&"change_summary"));
+    assert!(WORKER_TOOLS.contains(&"list_exec_tasks"));
+    assert_eq!(WORKER_TOOLS.len(), 22);
 }
 
 #[test]
@@ -1131,4 +1155,201 @@ fn draining_covers_every_session_on_the_main_root_and_waits_for_running_calls() 
         &with_worker(wa.worker_id.as_str(), json!({"path":"fixture.txt"})),
     );
     assert_eq!(ok["ok"], true, "{ok}");
+}
+
+// ---------------------------------------------------------------------------
+// A1 C2b: subagent_* handlers, worker change_summary / list_exec_tasks routing,
+// and the C1-c spawn completion guard.
+// ---------------------------------------------------------------------------
+fn subagent(ctx: &ToolContext, name: &str, args: Value) -> Value {
+    call_tool(ctx, name, &args)
+}
+
+#[test]
+fn spawn_and_complete_never_leaks_a_pending_slot_on_early_return() {
+    // C1-c: whether the failure is before complete_spawn or inside it before the
+    // slot is taken, the guard releases the slot under the native lock and the
+    // record ends failed; all 8 device slots stay usable.
+    for point in [spawn_hooks::BEFORE_COMPLETE, spawn_hooks::INSIDE_COMPLETE] {
+        let f = Fixture::new();
+        let _ = SlotReservation::take_last_release_locked_for_test();
+        spawn_hooks::arm(point);
+        let out = subagent(
+            &f.ctx,
+            "subagent_spawn",
+            json!({"request_id":"r1","label":"w"}),
+        );
+        assert_eq!(code(&out), "STORE_UNAVAILABLE", "{point}: {out}");
+        let records = status(&f.ctx, None).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].state, WorkerState::Failed, "{point}");
+        assert!(records[0].worktree_id.is_none());
+        assert!(!pending_for_test(records[0].worker_id.as_str()));
+        assert_eq!(
+            SlotReservation::take_last_release_locked_for_test(),
+            Some(true),
+            "{point}"
+        );
+        for n in 0..8 {
+            let created = call_tool(&f.ctx, "worktree_create", &json!({}));
+            assert_eq!(created["ok"], true, "{point} slot {n}: {created}");
+        }
+    }
+}
+
+#[test]
+fn successful_spawn_consumes_its_reservation_and_the_guard_is_a_no_op() {
+    let f = Fixture::new();
+    let out = subagent(&f.ctx, "subagent_spawn", json!({"request_id":"r1"}));
+    assert_eq!(out["ok"], true, "{out}");
+    let id = out["worker"]["worker_id"].as_str().unwrap().to_owned();
+    assert!(!pending_for_test(&id));
+    let record = &status(&f.ctx, Some(&id)).unwrap()[0];
+    assert_eq!(record.state, WorkerState::Ready);
+    assert!(worker_tree(&f.ctx, record).is_dir());
+}
+
+#[test]
+fn subagent_tools_manage_the_callers_workers_through_dispatch() {
+    let f = Fixture::new();
+    let out = subagent(
+        &f.ctx,
+        "subagent_spawn",
+        json!({"request_id":"r1","label":"alpha","base":"HEAD"}),
+    );
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["deduplicated"], false);
+    let worker = &out["worker"];
+    assert_eq!(worker["state"], "ready");
+    assert_eq!(worker["label"], "alpha");
+    assert_eq!(worker["base_head"], f.head());
+    assert_eq!(worker["changed_files"], Value::Null);
+    assert!(worker.get("worktree_id").is_none(), "{worker}");
+    assert!(!out.to_string().contains("worktrees-v1"), "{out}");
+    let id = worker["worker_id"].as_str().unwrap().to_owned();
+    let again = subagent(
+        &f.ctx,
+        "subagent_spawn",
+        json!({"request_id":"r1","label":"alpha"}),
+    );
+    assert_eq!(again["deduplicated"], true, "{again}");
+    assert_eq!(again["worker"]["worker_id"], id.as_str());
+
+    let listed = subagent(&f.ctx, "subagent_status", json!({}));
+    assert_eq!(listed["workers"].as_array().unwrap().len(), 1, "{listed}");
+    let one = subagent(&f.ctx, "subagent_status", json!({"worker_id": id}));
+    assert_eq!(one["workers"][0]["worker_id"], id.as_str(), "{one}");
+
+    for (name, args) in [
+        ("subagent_collect", json!({"worker_id": id})),
+        (
+            "subagent_integrate",
+            json!({"worker_id": id, "diff_sha256": "0".repeat(64), "request_id": "i1"}),
+        ),
+        (
+            "subagent_rollback",
+            json!({"integration_id": "0".repeat(32), "request_id": "b1"}),
+        ),
+    ] {
+        let out = subagent(&f.ctx, name, args);
+        assert_eq!(code(&out), "INTEGRATE_UNSUPPORTED", "{name}: {out}");
+    }
+    for (name, args) in [
+        ("subagent_spawn", json!({})),
+        ("subagent_spawn", json!({"request_id":"r2","base":"main"})),
+        ("subagent_spawn", json!({"request_id":"r2","extra":1})),
+        ("subagent_status", json!({"worker_id": 7})),
+        ("subagent_cancel", json!({})),
+        ("subagent_collect", json!({"worker_id": id, "max_bytes": 1})),
+        (
+            "subagent_integrate",
+            json!({"worker_id": id, "diff_sha256": "x", "request_id": "i"}),
+        ),
+    ] {
+        let out = subagent(&f.ctx, name, args.clone());
+        assert_eq!(code(&out), "INVALID_ARGUMENT", "{name} {args}: {out}");
+    }
+    // worker_id on subagent_* names the target; it is never a routing key.
+    let cancelled = subagent(&f.ctx, "subagent_cancel", json!({"worker_id": id}));
+    assert_eq!(cancelled["worker"]["state"], "cancelled", "{cancelled}");
+    let discarded = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(discarded["worker"]["state"], "discarded", "{discarded}");
+    // Unknown ids stay indistinguishable from foreign ones.
+    let unknown = subagent(
+        &f.ctx,
+        "subagent_status",
+        json!({"worker_id": "0123456789abcdef0123456789abcdef"}),
+    );
+    assert_eq!(code(&unknown), "WORKER_NOT_OWNED", "{unknown}");
+}
+
+#[test]
+fn worker_change_summary_reports_only_the_workers_own_state() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    fs::write(
+        worker_tree(&f.ctx, &worker).join("fixture.txt"),
+        "changed\n",
+    )
+    .unwrap();
+    let out = call_tool(&f.ctx, "change_summary", &with_worker(id, json!({})));
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["worker_id"], id);
+    assert_eq!(out["state"], "ready");
+    assert_eq!(out["base_head"], f.head());
+    assert!(out.get("task_id").is_none(), "{out}");
+    assert!(!out.to_string().contains("worktrees-v1"), "{out}");
+    for args in [json!({"task_id":"t"}), json!({"change_id":"c"})] {
+        let out = call_tool(&f.ctx, "change_summary", &with_worker(id, args.clone()));
+        assert_eq!(code(&out), "INVALID_ARGUMENT", "{args}: {out}");
+    }
+}
+
+#[test]
+fn worker_exec_tasks_are_tagged_and_listed_per_worker() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    let started = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &with_worker(id, json!({"cmd":"echo w","request_id":"job-w"})),
+    );
+    assert_eq!(started["ok"], true, "{started}");
+    let main = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &json!({"cmd":"echo m","request_id":"job-m"}),
+    );
+    assert_eq!(main["ok"], true, "{main}");
+    let listed = call_tool(&f.ctx, "list_exec_tasks", &with_worker(id, json!({})));
+    assert_eq!(listed["ok"], true, "{listed}");
+    let jobs = listed["jobs"].as_array().unwrap();
+    assert_eq!(jobs.len(), 1, "{listed}");
+    assert_eq!(jobs[0]["job_id"], started["job_id"]);
+    // Reusing the worker's request_id from main is a conflict, never a hit.
+    let clash = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &json!({"cmd":"echo w","request_id":"job-w"}),
+    );
+    assert_eq!(code(&clash), "IDEMPOTENCY_CONFLICT", "{clash}");
+    // Main is not a worker: its listing is unfiltered.
+    let all = call_tool(&f.ctx, "list_exec_tasks", &json!({}));
+    assert_eq!(all["jobs"].as_array().unwrap().len(), 2, "{all}");
+}
+
+#[test]
+fn workers_cannot_manage_workers() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let out = route(
+        &f.ctx,
+        "read_file",
+        &with_worker(worker.worker_id.as_str(), json!({"path":"fixture.txt"})),
+        |worker_ctx, _| subagent::call(worker_ctx, "subagent_status", &json!({})),
+    )
+    .expect("worker_id present");
+    assert_eq!(code(&out), "WORKER_STATE", "{out}");
 }

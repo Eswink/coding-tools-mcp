@@ -17,6 +17,11 @@ pub struct ToolSpec {
     pub schema: Value,
 }
 
+const AGENTS_MANAGE: &str = "agents.manage";
+/// Scopes the catalog may declare that no grant can carry yet (A1 C2b): every
+/// remote call needing one fails closed until C6 makes it grantable (O13).
+pub const PENDING_SCOPES: &[&str] = &[AGENTS_MANAGE];
+
 pub fn tools() -> &'static [ToolSpec] {
     static TOOLS: OnceLock<Vec<ToolSpec>> = OnceLock::new();
     TOOLS.get_or_init(|| {
@@ -30,6 +35,7 @@ pub fn tools() -> &'static [ToolSpec] {
             include_str!("catalog/history_read.json"),
             include_str!("catalog/history_write.json"),
             include_str!("catalog/harness_write.json"),
+            include_str!("catalog/agents_manage.json"),
         ]
         .into_iter()
         .flat_map(|raw| {
@@ -44,10 +50,8 @@ pub fn tool(name: &str) -> Option<&'static ToolSpec> {
 }
 
 impl ToolSpec {
-    /// The wire binds the primary scope; every scope is also checked by both
-    /// gateway projection assessment and final native admission. No first-scope
-    /// shortcut is sufficient (notably write_stdin requires exec.run too).
-    pub fn scopes_for(&self, args: &Value) -> &[String] {
+    /// The repair-aware base set: `read_scopes` unless `repair: true`.
+    fn base_scopes(&self, args: &Value) -> &[String] {
         if args.get("repair").and_then(Value::as_bool) != Some(true) {
             if let Some(scopes) = &self.read_scopes {
                 return scopes;
@@ -55,8 +59,20 @@ impl ToolSpec {
         }
         &self.scopes
     }
+    /// The wire binds the primary scope; every scope is also checked by both
+    /// gateway projection assessment and final native admission. No first-scope
+    /// shortcut is sufficient (notably write_stdin requires exec.run too).
+    /// A1 C2b (SPEC-A1 v4 §3.2): a call carrying `worker_id` also requires
+    /// `agents.manage`, appended once; the primary scope never changes.
+    pub fn scopes_for(&self, args: &Value) -> Vec<String> {
+        let mut scopes = self.base_scopes(args).to_vec();
+        if args.get("worker_id").is_some() && !scopes.iter().any(|s| s == AGENTS_MANAGE) {
+            scopes.push(AGENTS_MANAGE.to_owned());
+        }
+        scopes
+    }
     pub fn primary_scope(&self, args: &Value) -> &str {
-        &self.scopes_for(args)[0]
+        &self.base_scopes(args)[0]
     }
     pub fn is_mutating(&self, args: &Value) -> bool {
         self.mutating
@@ -157,11 +173,15 @@ fn matches_schema(schema: &Value, value: &Value, depth: usize) -> bool {
             })
         }
         Some("string") => value.as_str().is_some_and(|text| {
-            // Only this reviewed fixed opaque-ID pattern is supported. Never
-            // evaluate attacker-supplied regexes or silently ignore a pattern.
+            // Only the reviewed fixed opaque-ID (32) and digest (64) patterns are
+            // supported. Never evaluate attacker-supplied regexes or ignore one.
             if let Some(pattern) = schema.get("pattern") {
-                if pattern != "^[0-9a-f]{32}$"
-                    || text.len() != 32
+                let width = match pattern.as_str() {
+                    Some("^[0-9a-f]{32}$") => 32,
+                    Some("^[0-9a-f]{64}$") => 64,
+                    _ => return false,
+                };
+                if text.len() != width
                     || !text
                         .bytes()
                         .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))

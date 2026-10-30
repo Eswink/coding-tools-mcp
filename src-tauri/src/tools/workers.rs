@@ -40,9 +40,9 @@ pub(crate) const DRAIN_BUDGET: Duration = Duration::from_secs(10);
 const DRAIN_BACKOFF_MS: &[u64] = &[50, 100, 200, 400, 800, 1600];
 const DRAIN_BACKOFF_CAP_MS: u64 = 2000;
 
-/// Tools that accept `worker_id` in C2 (v4 §2.3). `change_summary` and
-/// `list_exec_tasks` are deferred to C2b/C8: they read main-task harness state
-/// or the shared async task list and would misreport a worker.
+/// The 22 tools that accept `worker_id` (v4 §2.3/§3.1). C2b adds
+/// `change_summary` (a worker-scoped summary, never main-task harness state)
+/// and `list_exec_tasks` (filtered to the worker's tagged jobs).
 pub(crate) const WORKER_TOOLS: &[&str] = &[
     "git_status",
     "git_diff",
@@ -64,6 +64,8 @@ pub(crate) const WORKER_TOOLS: &[&str] = &[
     "exec_command",
     "exec_health_check",
     "start_exec_task",
+    "change_summary",
+    "list_exec_tasks",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -509,6 +511,11 @@ impl WorkerStore {
     pub(crate) fn generation(&self) -> u64 {
         self.generation
     }
+    /// Test hook (C2-b): whether this main root's singleton is registered.
+    #[cfg(test)]
+    pub(crate) fn registered_for_test(host: &HostRoots) -> bool {
+        registry().unwrap().contains_key(&namespace(host))
+    }
     /// Test hook: drop the process singleton (simulates a restart).
     #[cfg(test)]
     pub(crate) fn evict_for_test(host: &HostRoots) {
@@ -796,6 +803,10 @@ pub(crate) fn complete_spawn(
             _ => return Err(state_error()),
         }
     }
+    #[cfg(test)]
+    if spawn_hooks::take(spawn_hooks::INSIDE_COMPLETE) {
+        return Err(unavailable());
+    }
     // Lock order: store mutex is released before the native lifecycle lock is taken.
     let slot = pending().remove(id.as_str());
     let built = match slot {
@@ -818,6 +829,86 @@ pub(crate) fn complete_spawn(
             }
         })
     })?
+}
+
+/// A1 C2b (C1-c): spawn then complete_spawn with a Drop guard, so the reserved
+/// slot is consumed or released on EVERY path: success, failure, early return
+/// and unwinding. A PENDING reservation never outlives the call that made it.
+pub(crate) fn spawn_and_complete(
+    ctx: &ToolContext,
+    request_id: &str,
+    label: &str,
+) -> Result<(WorkerRecord, bool), WorkerError> {
+    let (record, created) = spawn(ctx, request_id, label)?;
+    if record.state != WorkerState::Creating {
+        return Ok((record, created));
+    }
+    let _completion = SpawnCompletion {
+        ctx,
+        id: record.worker_id.clone(),
+    };
+    #[cfg(test)]
+    if spawn_hooks::take(spawn_hooks::BEFORE_COMPLETE) {
+        return Err(unavailable());
+    }
+    let done = complete_spawn(ctx, record.worker_id.as_str())?;
+    Ok((done, created))
+}
+/// Releases a still-PENDING slot (under the native lifecycle lock) and marks
+/// its `creating` record failed. A no-op once complete_spawn took the slot.
+struct SpawnCompletion<'a> {
+    ctx: &'a ToolContext,
+    id: WorkerId,
+}
+impl Drop for SpawnCompletion<'_> {
+    fn drop(&mut self) {
+        let Some(slot) = pending().remove(self.id.as_str()) else {
+            return;
+        };
+        match manager(self.ctx) {
+            Ok(manager) => manager.release_slot(slot),
+            Err(_) => drop(slot),
+        }
+        let Ok(owner) = WorkerOwner::from_context(self.ctx) else {
+            return;
+        };
+        if let Ok(Some(store)) = WorkerStore::open_existing(&self.ctx.host) {
+            if let Ok(mut inner) = store.lock() {
+                let _ = inner.update(&owner, &self.id, |record| {
+                    if record.state == WorkerState::Creating {
+                        record.worktree_id = None;
+                        record.state = WorkerState::Failed;
+                        record.last_activity_at = now();
+                    }
+                    Ok(())
+                });
+            }
+        }
+    }
+}
+/// Test-only early-return injection for the C1-c guard.
+#[cfg(test)]
+pub(crate) mod spawn_hooks {
+    use std::cell::Cell;
+    pub(crate) const BEFORE_COMPLETE: u8 = 1;
+    pub(crate) const INSIDE_COMPLETE: u8 = 2;
+    thread_local!(static ARMED: Cell<u8> = const { Cell::new(0) });
+    pub(crate) fn arm(point: u8) {
+        ARMED.with(|a| a.set(point));
+    }
+    pub(crate) fn take(point: u8) -> bool {
+        ARMED.with(|a| {
+            let hit = a.get() == point;
+            if hit {
+                a.set(0);
+            }
+            hit
+        })
+    }
+}
+#[cfg(test)]
+pub(crate) fn pending_for_test(worker_id: &str) -> bool {
+    pending().contains_key(worker_id)
 }
 
 pub(crate) fn status(
@@ -1019,6 +1110,10 @@ pub(crate) fn route(
     args: &Value,
     run: impl FnOnce(&ToolContext, &Value) -> Value,
 ) -> Option<Value> {
+    if name.starts_with("subagent_") {
+        // On subagent_* worker_id names the target worker, not a routing key.
+        return None;
+    }
     let raw = args.as_object()?.get("worker_id")?;
     Some(match bind(ctx, name, raw, args) {
         Ok((worker_ctx, stripped, _guard)) => run(&worker_ctx, &stripped),
@@ -1138,6 +1233,9 @@ fn busy_value(store: &WorkerStore, owner: &WorkerOwner) -> Value {
         }),
     })
 }
+
+#[path = "workers/subagent.rs"]
+pub(crate) mod subagent;
 
 #[cfg(test)]
 #[path = "workers/tests.rs"]
