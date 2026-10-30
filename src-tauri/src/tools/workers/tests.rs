@@ -975,6 +975,30 @@ fn worker_sandbox_cannot_create_config_worktree() {
     assert!(!private.join("config.worktree.lock").exists());
 }
 
+/// A1 C4-b (SPEC-A1 v5.3 §4.2, C4 deviation 3): `git commit` inside the
+/// worker sandbox is refused (the gitdirs are read-only), and HEAD and the
+/// worker's branch are unchanged. Integration is the host's job (C5).
+#[cfg(target_os = "linux")]
+#[test]
+fn worker_sandbox_refuses_git_commit() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("c4b-commit.txt"), "x\n").unwrap();
+    let before = git(&tree, &["rev-parse", "HEAD"]);
+    let script = concat!(
+        // Control: Git itself runs and can read the worktree in the sandbox.
+        "git log -1 --format=%H >/dev/null 2>&1 && printf read; ",
+        "git -c user.name=t -c user.email=t@t commit --allow-empty -qm x >/dev/null 2>&1 ",
+        "&& printf committed || printf refused; ",
+        "git -c user.name=t -c user.email=t@t commit -aqm y >/dev/null 2>&1 ",
+        "&& printf committed || printf refused"
+    );
+    let (stdout, stderr) = in_worker_sandbox(&f, &worker, script);
+    assert_eq!(stdout, "readrefusedrefused", "{stderr}");
+    assert_eq!(git(&tree, &["rev-parse", "HEAD"]), before);
+}
+
 /// A1 C4-b (SPEC-A1 v5.3 §4.2): a bound worker context limits its children
 /// (cgroup v2 `w-<worker_id>`, else the RLIMIT fallback) and reports which;
 /// the main context reports nothing. This host has no user systemd, so the
