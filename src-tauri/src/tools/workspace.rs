@@ -170,6 +170,8 @@ impl Workspace {
         self.confined_reads = true;
         self.worker_root = true;
     }
+    // Read only by the Linux Git sandbox choice (git.rs) and its tests.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub(crate) fn is_worker_root(&self) -> bool {
         self.worker_root
     }
