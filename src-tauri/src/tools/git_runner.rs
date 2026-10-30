@@ -1,7 +1,7 @@
 //! Read-only, bounded Git inspection. Repository configuration is untrusted.
 //! This module is Linux-only; the existing Windows execution path is unchanged.
 use coding_tools_local_agent::{
-    ExecSpec, ExecTermination, LinuxSandbox, ProcessManager, SandboxError,
+    ExecSpec, ExecTermination, LinuxSandbox, ProcessManager, SandboxError, SandboxErrorKind,
 };
 use std::{
     os::unix::process::ExitStatusExt,
@@ -61,12 +61,41 @@ pub(crate) fn linked_worktree_gitdirs(root: &Path) -> Option<(PathBuf, PathBuf)>
 /// in, its own gitdirs), the root falls back to `LinuxSandbox::new` (the
 /// pre-C4 root-only sandbox) instead of failing every exec and Git call with
 /// "isolation unavailable". A failure of `new` itself still propagates.
+///
+/// A1 C2-ad2 (NB-p, SPEC-A1 v5.2 §1.4.2): only that refusal
+/// (`SandboxErrorKind::InvalidRoot`) falls back; any other `for_worktree`
+/// failure (unsupported, unavailable, privileged host, ...) propagates.
 pub(crate) fn sandbox_for_root(root: &Path) -> Result<LinuxSandbox, SandboxError> {
     match linked_worktree_gitdirs(root) {
         Some((private, common)) => {
-            LinuxSandbox::for_worktree(root, private, common).or_else(|_| LinuxSandbox::new(root))
+            main_root_fallback(root, LinuxSandbox::for_worktree(root, private, common))
         }
         None => LinuxSandbox::new(root),
+    }
+}
+
+/// NB-p: the main-root fallback rule, separate so every error kind is tested.
+pub(crate) fn main_root_fallback(
+    root: &Path,
+    attempt: Result<LinuxSandbox, SandboxError>,
+) -> Result<LinuxSandbox, SandboxError> {
+    match attempt {
+        Err(error) if error.kind == SandboxErrorKind::InvalidRoot => LinuxSandbox::new(root),
+        other => other,
+    }
+}
+
+/// A1 C2-ad2 (NB-p, SPEC-A1 v5.2 §1.4.2): the sandbox of a worker context is
+/// fail-closed. A worker root must be a validated linked worktree whose
+/// gitdirs `for_worktree` pins read-only; anything else (not linked, or
+/// refused by `for_worktree` for any reason) is an error, never the
+/// root-only fallback of [`sandbox_for_root`].
+pub(crate) fn worker_sandbox_for_root(root: &Path) -> Result<LinuxSandbox, SandboxError> {
+    match linked_worktree_gitdirs(root) {
+        Some((private, common)) => LinuxSandbox::for_worktree(root, private, common),
+        None => Err(SandboxError {
+            kind: SandboxErrorKind::InvalidRoot,
+        }),
     }
 }
 

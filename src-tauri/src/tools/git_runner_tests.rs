@@ -263,3 +263,77 @@ fn a_linked_main_root_contained_in_its_gitdir_falls_back_to_the_plain_sandbox() 
         Some("Git workspace isolation unavailable")
     );
 }
+
+/// A1 C2-ad2 (NB-p, SPEC-A1 v5.2 §1.4.2): the main-root fallback is taken
+/// only for the containment refusal (`InvalidRoot`); every other refusal kind
+/// propagates unchanged instead of silently widening to the root-only sandbox.
+#[test]
+fn the_main_root_fallback_is_taken_only_for_invalid_root() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path().canonicalize().unwrap();
+    let refused = |kind| Err(SandboxError { kind });
+    assert!(
+        main_root_fallback(&root, refused(SandboxErrorKind::InvalidRoot)).is_ok(),
+        "InvalidRoot keeps the NB5 fallback"
+    );
+    for kind in [
+        SandboxErrorKind::Unsupported,
+        SandboxErrorKind::InvalidWorkingDirectory,
+        SandboxErrorKind::InvalidExecutable,
+        SandboxErrorKind::Unavailable,
+        SandboxErrorKind::PrivilegedHost,
+    ] {
+        let out = main_root_fallback(&root, refused(kind));
+        assert_eq!(
+            out.err().map(|e| e.kind),
+            Some(kind),
+            "{kind:?} must not fall back"
+        );
+    }
+}
+
+/// A1 C2-ad2 (NB-p): a worker context never falls back. The containment case
+/// that the main root tolerates (NB5) and a root that is not a validated
+/// linked worktree are both refused; a proper linked worktree is pinned.
+#[test]
+fn the_worker_sandbox_is_fail_closed_without_fallback() {
+    let fixture = tempfile::tempdir().unwrap();
+    let main = fixture.path().join("main");
+    repository(&main);
+    let nested = main.join(".git").join("nested-root");
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "--detach",
+            nested.to_str().unwrap(),
+        ],
+    );
+    assert!(linked_worktree_gitdirs(&nested).is_some());
+    assert!(sandbox_for_root(&nested).is_ok(), "main root keeps NB5");
+    assert_eq!(
+        worker_sandbox_for_root(&nested).err().map(|e| e.kind),
+        Some(SandboxErrorKind::InvalidRoot),
+        "a worker must not fall back to the root-only sandbox"
+    );
+    assert_eq!(
+        worker_sandbox_for_root(&main).err().map(|e| e.kind),
+        Some(SandboxErrorKind::InvalidRoot),
+        "a worker root that is not a linked worktree is refused"
+    );
+    let linked = fixture.path().join("linked");
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "--detach",
+            linked.to_str().unwrap(),
+        ],
+    );
+    let pinned = worker_sandbox_for_root(&linked);
+    assert!(pinned.is_ok(), "{:?}", pinned.err());
+}

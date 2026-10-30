@@ -210,7 +210,8 @@ impl ToolContext {
         #[cfg(target_os = "linux")]
         {
             // SPEC-A1 v4 §4.2 (C4): the worker's gitdirs are readable, never writable.
-            copy.linux_sandbox = Arc::new(super::git_runner::sandbox_for_root(&root));
+            // A1 C2-ad2 (NB-p): fail-closed, no root-only fallback for a worker.
+            copy.linux_sandbox = Arc::new(super::git_runner::worker_sandbox_for_root(&root));
         }
         copy.workspace = workspace;
         copy.default_cwd = Arc::new(Mutex::new(cwd));
