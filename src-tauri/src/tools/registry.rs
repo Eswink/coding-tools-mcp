@@ -339,7 +339,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
     (
         "subagent_collect",
         "Collect subagent changes",
-        "Collect a bounded worker diff summary. Not available before A1 C5: returns INTEGRATE_UNSUPPORTED.",
+        "Read the worker's diff against its base_head in bounded chunks (UTF-8, or base64 for binary patches). Sensitive, ignored and symlinked paths are withheld and listed by path only. Pass next_cursor to continue; CURSOR_STALE means the worker changed, so collect again from the start.",
         true,
         false,
         false,
@@ -680,7 +680,8 @@ fn base_input_schema(name: &str) -> Value {
             "type": "object",
             "properties": {
                 "worker_id": worker_id_schema(),
-                "max_bytes": {"type": "integer", "minimum": 256, "maximum": 4096, "default": 4096}
+                "max_bytes": {"type": "integer", "minimum": 256, "maximum": 4096, "default": 4096},
+                "cursor": {"type": "string", "minLength": 1, "maxLength": 256}
             },
             "required": ["worker_id"],
             "additionalProperties": false

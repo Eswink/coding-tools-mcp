@@ -299,9 +299,15 @@ fn subagent_tools_match_the_spec_table() {
         json!({}),
         json!({"worker_id":id,"max_bytes":255}),
         json!({"worker_id":id,"max_bytes":4097}),
+        json!({"worker_id":id,"cursor":""}),
+        json!({"worker_id":id,"cursor":7}),
+        json!({"worker_id":id,"cursor":"c".repeat(257)}),
     ] {
         assert!(collect.arguments(&bad).is_err(), "{bad}");
     }
+    assert!(collect
+        .arguments(&json!({"worker_id":id,"cursor":"djE6"}))
+        .is_ok());
     let integrate = tool("subagent_integrate").unwrap();
     assert!(integrate
         .arguments(&json!({"worker_id":id,"diff_sha256":sha,"request_id":"r"}))

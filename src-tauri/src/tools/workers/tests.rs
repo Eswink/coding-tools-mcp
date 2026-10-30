@@ -1291,8 +1291,11 @@ fn subagent_tools_manage_the_callers_workers_through_dispatch() {
     let one = subagent(&f.ctx, "subagent_status", json!({"worker_id": id}));
     assert_eq!(one["workers"][0]["worker_id"], id.as_str(), "{one}");
 
+    // A1 C5: collect is live; a clean worker has an empty diff.
+    let collected = subagent(&f.ctx, "subagent_collect", json!({"worker_id": id}));
+    assert_eq!(collected["ok"], true, "{collected}");
+    assert_eq!(collected["total_bytes"], 0, "{collected}");
     for (name, args) in [
-        ("subagent_collect", json!({"worker_id": id})),
         (
             "subagent_integrate",
             json!({"worker_id": id, "diff_sha256": "0".repeat(64), "request_id": "i1"}),
@@ -2140,3 +2143,6 @@ fn eight_legacy_trees_return_capacity_legacy_slots_until_one_is_cleaned_locally(
     let spawned = subagent(&f.ctx, "subagent_spawn", json!({"request_id": "cap-after"}));
     assert_eq!(spawned["ok"], true, "{spawned}");
 }
+
+#[path = "integrate_tests.rs"]
+mod integrate_tests;

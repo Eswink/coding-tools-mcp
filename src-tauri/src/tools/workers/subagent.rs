@@ -125,7 +125,7 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             Ok(json!({"worker": view(&record)}))
         }
         "subagent_collect" => {
-            let obj = object(args, &["worker_id", "max_bytes"], &["worker_id"])?;
+            let obj = object(args, &["worker_id", "max_bytes", "cursor"], &["worker_id"])?;
             hex(text(obj, "worker_id")?, 32)?;
             if obj
                 .get("max_bytes")
@@ -133,7 +133,12 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             {
                 return Err(invalid("max_bytes must be 256..4096."));
             }
-            Err(unsupported())
+            let max_bytes = obj
+                .get("max_bytes")
+                .and_then(Value::as_u64)
+                .map_or(super::integrate::MAX_CHUNK, |n| n as usize);
+            let id = text(obj, "worker_id")?.unwrap_or_default();
+            super::integrate::collect(ctx, id, max_bytes, text(obj, "cursor")?)
         }
         "subagent_integrate" => {
             let obj = object(

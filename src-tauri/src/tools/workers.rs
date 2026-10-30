@@ -264,6 +264,9 @@ pub(crate) struct WorkerRecord {
     /// Total writes ever logged for this worker (the last `seq`).
     #[serde(default)]
     pub(crate) ops_seq: u64,
+    /// A1 C5 (v5.2 §5 step 2): advisory main-workspace fingerprint at spawn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) main_fingerprint: Option<String>,
 }
 
 /// Per-worker operation log bound (v4 §1.4.3 "bounded").
@@ -696,6 +699,7 @@ impl WorkerStore {
             last_activity_at,
             ops: Vec::new(),
             ops_seq: 0,
+            main_fingerprint: None,
         };
         inner.apply(|doc| {
             doc.workers.push(record);
@@ -907,6 +911,7 @@ pub(crate) fn spawn(
         last_activity_at: now(),
         ops: Vec::new(),
         ops_seq: 0,
+        main_fingerprint: None,
     };
     match manager.reserve_slot() {
         Ok(slot) => {
@@ -970,6 +975,12 @@ pub(crate) fn complete_spawn(
         Some(slot) => manager.create_reserved(slot).map_err(WorkerError::from),
         None => Err(state_error()),
     };
+    // Best effort and advisory: a main workspace too large to fingerprint
+    // only loses `main_changed_since_spawn`.
+    let fingerprint = built
+        .as_ref()
+        .ok()
+        .and_then(|_| manager.main_fingerprint().ok());
     let mut inner = store.lock()?;
     inner.update(&owner, &id, |record| {
         record.last_activity_at = now();
@@ -977,6 +988,7 @@ pub(crate) fn complete_spawn(
             Ok(item) => {
                 record.base_head = Some(item.head);
                 record.state = WorkerState::Ready;
+                record.main_fingerprint = fingerprint;
                 Ok(record.clone())
             }
             Err(error) => {
@@ -1640,6 +1652,9 @@ pub(crate) mod subagent;
 
 #[path = "workers/export_policy.rs"]
 pub(crate) mod export_policy;
+
+#[path = "workers/integrate.rs"]
+pub(crate) mod integrate;
 
 /// Test hook (NB-f): runs between discard's idle check and its root guard.
 #[cfg(test)]

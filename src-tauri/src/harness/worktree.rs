@@ -734,6 +734,10 @@ mod tests;
 mod snapshot;
 pub(crate) use snapshot::SnapshotTarget;
 
+#[path = "worktree_collect.rs"]
+mod collect;
+pub(crate) use collect::{ChangeKind, FileChange, WorkerDiff};
+
 #[path = "worktree_native.rs"]
 mod native;
 
