@@ -9,8 +9,28 @@ use std::{
 };
 
 static LIFECYCLE: Mutex<()> = Mutex::new(());
-pub(super) fn lock() -> WorktreeResult<MutexGuard<'static, ()>> {
-    LIFECYCLE.lock().map_err(|_| failure("LOCK_UNAVAILABLE"))
+/// Holds the process-wide lifecycle lock. Under test it also records, per thread,
+/// that the lock is held so slot release ordering can be asserted (SPEC-A1 v4 §1.6).
+pub(super) struct LifecycleGuard(#[allow(dead_code)] MutexGuard<'static, ()>);
+#[cfg(test)]
+thread_local! {
+    static HELD: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+impl Drop for LifecycleGuard {
+    fn drop(&mut self) {
+        #[cfg(test)]
+        HELD.with(|held| held.set(false));
+    }
+}
+#[cfg(test)]
+pub(super) fn held_by_current_thread() -> bool {
+    HELD.with(std::cell::Cell::get)
+}
+pub(super) fn lock() -> WorktreeResult<LifecycleGuard> {
+    let guard = LIFECYCLE.lock().map_err(|_| failure("LOCK_UNAVAILABLE"))?;
+    #[cfg(test)]
+    HELD.with(|held| held.set(true));
+    Ok(LifecycleGuard(guard))
 }
 impl WorktreeManager {
     /// Serializes broker mutations in this host process. Not an execution drain proof.

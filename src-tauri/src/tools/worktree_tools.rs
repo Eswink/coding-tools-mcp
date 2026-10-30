@@ -64,7 +64,7 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
     .map_err(error)?;
     // A1 C1: worker-owned trees are managed only through the worker lifecycle.
     let owned = || {
-        workers::owned_worktrees(ctx, &manager).map_err(|e| WorkspaceError::Tool {
+        workers::owned_worktrees(ctx).map_err(|e| WorkspaceError::Tool {
             code: e.code(),
             message: e.message().into(),
             category: "availability",
@@ -103,6 +103,6 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
 mod tests;
 
 // A1 C1: native-internal worker core, declared here so the pinned tools/mod.rs
-// stays byte-identical. No MCP tool registers it yet (SPEC-A1 v2 §7.4).
+// stays byte-identical. No MCP tool registers it yet (SPEC-A1 v4 §7.4).
 #[path = "workers.rs"]
 pub(crate) mod workers;

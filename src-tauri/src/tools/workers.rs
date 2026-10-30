@@ -1,21 +1,25 @@
-//! A1 C1 core (SPEC-A1 v2 §1.1–§1.6, §7.4): worker identity, ownership, the durable
+//! A1 C1 core (SPEC-A1 v4 §1.1–§1.6, §7.4): worker identity, ownership, the durable
 //! encrypted WorkerStore, the worker state machine, the concurrency cap and the
 //! managed-slot reservation. C1 exposes no tool; dispatch and `for_worker` are C2.
+//!
+//! Scope (v4 §1.5): the store, the managed slots, the draining flag and the
+//! integration journal hang off the MAIN root (`ToolContext::host`), one per main
+//! root, never per chat session or epoch. Ownership is still the per-session hash.
 #![cfg_attr(not(test), allow(dead_code))]
-use crate::tools::{root_work, ToolContext};
+use crate::tools::{context::HostRoots, root_work, ToolContext};
 use crate::{
-    data::AuthDocument,
-    harness::{
-        worktree::{SlotReservation, WorktreeError, WorktreeManager},
-        Harness,
-    },
+    data::{AuthDocument, AuthDocumentReader},
+    harness::worktree::{SlotReservation, WorktreeError, WorktreeManager},
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeSet, HashMap},
     path::{Component, Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock, Weak},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex, OnceLock,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -176,7 +180,7 @@ pub(crate) struct WorkerRecord {
     pub(crate) last_activity_at: u64,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Document {
     version: u32,
@@ -188,11 +192,17 @@ struct Document {
 struct Inner {
     disk: AuthDocument,
     doc: Document,
+    /// `creating` records were reconciled against `git worktree list` (memory only).
+    states_recovered: bool,
 }
+/// One per main root for the life of the process (v4 N3): loaded and decrypted
+/// once; the document lock is held until the process exits.
 pub(crate) struct WorkerStore {
     state: Mutex<Inner>,
+    generation: u64,
 }
-static REGISTRY: OnceLock<Mutex<HashMap<PathBuf, Weak<WorkerStore>>>> = OnceLock::new();
+static REGISTRY: OnceLock<Mutex<HashMap<PathBuf, Arc<WorkerStore>>>> = OnceLock::new();
+static GENERATION: AtomicU64 = AtomicU64::new(1);
 /// Reservations outlive any one store handle; keyed by worker id.
 static PENDING: OnceLock<Mutex<HashMap<String, SlotReservation>>> = OnceLock::new();
 fn pending() -> std::sync::MutexGuard<'static, HashMap<String, SlotReservation>> {
@@ -201,181 +211,296 @@ fn pending() -> std::sync::MutexGuard<'static, HashMap<String, SlotReservation>>
         .lock()
         .unwrap_or_else(|p| p.into_inner())
 }
+fn registry(
+) -> Result<std::sync::MutexGuard<'static, HashMap<PathBuf, Arc<WorkerStore>>>, WorkerError> {
+    REGISTRY
+        .get_or_init(Default::default)
+        .lock()
+        .map_err(|_| unavailable())
+}
 
-fn namespace(harness: &Harness) -> PathBuf {
-    harness
-        .store_root()
-        .join(STORE_DIR)
-        .join(harness.workspace_id())
+/// `<main store_root>/agents-v1/<workspace_id>` (v4 §1.5); never a chat-v1 root.
+fn namespace(host: &HostRoots) -> PathBuf {
+    host.store_root.join(STORE_DIR).join(&host.workspace_id)
+}
+fn validate(doc: Document, host: &HostRoots) -> Result<Document, WorkerError> {
+    if doc.version != 1
+        || doc.workspace_id != host.workspace_id
+        || !(1..=MAX_WORKER_LIMIT).contains(&doc.limit)
+        || doc.workers.len() > MAX_RECORDS
+    {
+        return Err(unavailable());
+    }
+    Ok(doc)
 }
 
 impl WorkerStore {
-    /// One process-wide handle per namespace (the document lock is non-blocking).
+    fn insert(
+        registry: &mut HashMap<PathBuf, Arc<Self>>,
+        namespace: PathBuf,
+        disk: AuthDocument,
+        doc: Document,
+    ) -> Arc<Self> {
+        let store = Arc::new(Self {
+            state: Mutex::new(Inner {
+                disk,
+                doc,
+                states_recovered: false,
+            }),
+            generation: GENERATION.fetch_add(1, Ordering::Relaxed),
+        });
+        registry.insert(namespace, store.clone());
+        store
+    }
+    /// Opens (creating on first use) the main-root store and reconciles `creating`
+    /// records once. Never removes worktrees: that is `cleanup`, exclusive callers only.
     pub(crate) fn open(
-        harness: &Harness,
+        host: &HostRoots,
         manager: &WorktreeManager,
     ) -> Result<Arc<Self>, WorkerError> {
-        let namespace = namespace(harness);
-        let mut registry = REGISTRY
-            .get_or_init(Default::default)
-            .lock()
-            .map_err(|_| unavailable())?;
-        registry.retain(|_, value| value.strong_count() > 0);
-        if let Some(store) = registry.get(&namespace).and_then(Weak::upgrade) {
-            return Ok(store);
-        }
-        let mut disk = AuthDocument::open(&namespace).map_err(|_| unavailable())?;
-        let doc = match disk.load::<Document>().map_err(|_| unavailable())? {
-            Some(doc) => {
-                if doc.version != 1
-                    || doc.workspace_id != harness.workspace_id()
-                    || !(1..=MAX_WORKER_LIMIT).contains(&doc.limit)
-                    || doc.workers.len() > MAX_RECORDS
-                {
-                    return Err(unavailable());
+        let namespace = namespace(host);
+        let store = {
+            let mut registry = registry()?;
+            match registry.get(&namespace) {
+                Some(store) => store.clone(),
+                None => {
+                    // AuthDocument::open creates the namespace dirs (auth_document.rs:27-34)
+                    // and takes the exclusive lock with zero wait (:39).
+                    let mut disk = AuthDocument::open(&namespace).map_err(|_| unavailable())?;
+                    let doc = match disk.load::<Document>().map_err(|_| unavailable())? {
+                        Some(doc) => validate(doc, host)?,
+                        None => {
+                            let doc = Document {
+                                version: 1,
+                                workspace_id: host.workspace_id.clone(),
+                                limit: DEFAULT_WORKER_LIMIT,
+                                workers: Vec::new(),
+                            };
+                            disk.save(&doc).map_err(|_| unavailable())?;
+                            doc
+                        }
+                    };
+                    Self::insert(&mut registry, namespace, disk, doc)
                 }
-                doc
-            }
-            None => {
-                let doc = Document {
-                    version: 1,
-                    workspace_id: harness.workspace_id().to_owned(),
-                    limit: DEFAULT_WORKER_LIMIT,
-                    workers: Vec::new(),
-                };
-                disk.save(&doc).map_err(|_| unavailable())?;
-                doc
             }
         };
-        let store = Arc::new(Self {
-            state: Mutex::new(Inner { disk, doc }),
-        });
-        store.recover(manager)?;
-        registry.insert(namespace, Arc::downgrade(&store));
+        store.recover_states(manager)?;
         Ok(store)
+    }
+    /// Read-only open (v4 §3.5): never creates directories, never writes, never
+    /// recovers. An absent store is `None`; a busy lock is STORE_UNAVAILABLE.
+    pub(crate) fn open_existing(host: &HostRoots) -> Result<Option<Arc<Self>>, WorkerError> {
+        let namespace = namespace(host);
+        let mut registry = registry()?;
+        if let Some(store) = registry.get(&namespace) {
+            return Ok(Some(store.clone()));
+        }
+        match std::fs::symlink_metadata(namespace.join("auth.json")) {
+            Ok(meta) if meta.is_file() => {}
+            Ok(_) => return Err(unavailable()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(_) => return Err(unavailable()),
+        }
+        let disk = AuthDocument::open(&namespace).map_err(|_| unavailable())?;
+        let doc = AuthDocumentReader::default()
+            .load::<Document>(&disk)
+            .map_err(|_| unavailable())?
+            .ok_or_else(unavailable)?;
+        let doc = validate(doc, host)?;
+        Ok(Some(Self::insert(&mut registry, namespace, disk, doc)))
     }
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner>, WorkerError> {
         self.state.lock().map_err(|_| unavailable())
     }
-    /// Crash recovery (SPEC-A1 v2 §1.5): a `creating` record with no live reservation
-    /// becomes `ready` when its pinned worktree exists, otherwise `failed`;
-    /// `pending_cleanup` retries the clean removal.
-    fn recover(&self, manager: &WorktreeManager) -> Result<(), WorkerError> {
+    /// Crash recovery, state part (v4 §1.5): a `creating` record with no live
+    /// reservation becomes `ready` when its pinned worktree exists, otherwise `failed`.
+    /// Memory only; the next commit by any writer persists it. Runs once per process.
+    fn recover_states(&self, manager: &WorktreeManager) -> Result<(), WorkerError> {
         let mut inner = self.lock()?;
+        if inner.states_recovered {
+            return Ok(());
+        }
         let live: HashMap<String, String> = manager
             .list()?
             .into_iter()
             .map(|item| (item.id, item.head))
             .collect();
         let pending = pending();
-        let mut changed = false;
         for record in inner.doc.workers.iter_mut() {
-            match record.state {
-                WorkerState::Creating if !pending.contains_key(record.worker_id.as_str()) => {
-                    match record.worktree_id.as_ref().and_then(|id| live.get(id)) {
-                        Some(head) => {
-                            record.base_head = Some(head.clone());
-                            record.state = WorkerState::Ready;
-                        }
-                        None => {
-                            record.worktree_id = None;
-                            record.state = WorkerState::Failed;
-                        }
+            if record.state == WorkerState::Creating
+                && !pending.contains_key(record.worker_id.as_str())
+            {
+                match record.worktree_id.as_ref().and_then(|id| live.get(id)) {
+                    Some(head) => {
+                        record.base_head = Some(head.clone());
+                        record.state = WorkerState::Ready;
                     }
-                    changed = true;
-                }
-                WorkerState::PendingCleanup => {
-                    let removed = match record.worktree_id.as_deref() {
-                        Some(id) => manager.remove_clean(id).is_ok(),
-                        None => true,
-                    };
-                    if removed {
-                        record.state = WorkerState::Discarded;
-                        changed = true;
+                    None => {
+                        record.worktree_id = None;
+                        record.state = WorkerState::Failed;
                     }
                 }
-                _ => {}
             }
         }
         drop(pending);
-        if changed {
-            let Inner { disk, doc } = &mut *inner;
-            disk.save(doc).map_err(|_| unavailable())?;
-        }
+        inner.states_recovered = true;
         Ok(())
     }
-    /// Test hook: persist a `creating` record as if the process died mid-spawn.
+    #[cfg(test)]
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+    /// Test hook: drop the process singleton (simulates a restart).
+    #[cfg(test)]
+    pub(crate) fn evict_for_test(host: &HostRoots) {
+        registry().unwrap().remove(&namespace(host));
+    }
+    /// Test hook: persist an arbitrary record (e.g. as if the process died mid-spawn).
+    #[cfg(test)]
+    pub(crate) fn inject_for_test(
+        &self,
+        owner: &WorkerOwner,
+        worktree_id: Option<&str>,
+        state: WorkerState,
+        last_activity_at: u64,
+    ) -> Result<WorkerId, WorkerError> {
+        let mut inner = self.lock()?;
+        let id = WorkerId::generate();
+        let record = WorkerRecord {
+            worker_id: id.clone(),
+            worktree_id: worktree_id.map(str::to_owned),
+            workspace_id: inner.doc.workspace_id.clone(),
+            owner: owner.clone(),
+            spawn_request_id: format!("injected-{}", id.as_str()),
+            spawn_fingerprint: String::new(),
+            label: "injected".into(),
+            base_head: None,
+            state,
+            cwd: default_cwd(),
+            created_at: last_activity_at,
+            last_activity_at,
+        };
+        inner.apply(|doc| {
+            doc.workers.push(record);
+            Ok(())
+        })?;
+        Ok(id)
+    }
     #[cfg(test)]
     pub(crate) fn inject_interrupted_for_test(
         &self,
         owner: &WorkerOwner,
         worktree_id: Option<&str>,
     ) -> Result<WorkerId, WorkerError> {
-        let mut inner = self.lock()?;
-        let id = WorkerId::generate();
-        let workspace_id = inner.doc.workspace_id.clone();
-        inner.doc.workers.push(WorkerRecord {
-            worker_id: id.clone(),
-            worktree_id: worktree_id.map(str::to_owned),
-            workspace_id,
-            owner: owner.clone(),
-            spawn_request_id: format!("interrupted-{}", id.as_str()),
-            spawn_fingerprint: String::new(),
-            label: "interrupted".into(),
-            base_head: None,
-            state: WorkerState::Creating,
-            cwd: default_cwd(),
-            created_at: now(),
-            last_activity_at: now(),
-        });
-        let Inner { disk, doc } = &mut *inner;
-        disk.save(doc).map_err(|_| unavailable())?;
-        Ok(id)
+        self.inject_for_test(owner, worktree_id, WorkerState::Creating, now())
     }
 }
 impl Inner {
-    fn commit(&mut self) -> Result<(), WorkerError> {
-        self.disk.save(&self.doc).map_err(|_| unavailable())
-    }
-    fn owned_mut(
+    /// Transactional update (v4 N4): mutate a copy, persist it, then swap. Memory
+    /// never diverges from disk when the closure or the commit fails.
+    fn apply<T>(
         &mut self,
-        owner: &WorkerOwner,
-        id: &WorkerId,
-    ) -> Result<&mut WorkerRecord, WorkerError> {
+        change: impl FnOnce(&mut Document) -> Result<T, WorkerError>,
+    ) -> Result<T, WorkerError> {
+        let mut next = self.doc.clone();
+        let out = change(&mut next)?;
+        self.disk.save(&next).map_err(|_| unavailable())?;
+        self.doc = next;
+        Ok(out)
+    }
+    fn owned(&self, owner: &WorkerOwner, id: &WorkerId) -> Result<&WorkerRecord, WorkerError> {
         self.doc
             .workers
-            .iter_mut()
+            .iter()
             .find(|r| &r.worker_id == id && &r.owner == owner)
             .ok_or_else(not_owned)
     }
-    fn make_room(&mut self) -> Result<(), WorkerError> {
-        if self.doc.workers.len() < MAX_RECORDS {
-            return Ok(());
-        }
-        let oldest = self
+    fn update<T>(
+        &mut self,
+        owner: &WorkerOwner,
+        id: &WorkerId,
+        change: impl FnOnce(&mut WorkerRecord) -> Result<T, WorkerError>,
+    ) -> Result<T, WorkerError> {
+        self.owned(owner, id)?;
+        self.apply(|doc| {
+            let record = doc
+                .workers
+                .iter_mut()
+                .find(|r| &r.worker_id == id && &r.owner == owner)
+                .ok_or_else(not_owned)?;
+            change(record)
+        })
+    }
+    /// PendingCleanup retry (v4 §1.5 / N2). Exclusive callers only: it removes worktrees.
+    fn cleanup(&mut self, manager: &WorktreeManager) -> Result<(), WorkerError> {
+        let stuck: Vec<(WorkerId, Option<String>)> = self
             .doc
             .workers
             .iter()
-            .enumerate()
-            .filter(|(_, r)| !r.state.active())
-            .min_by_key(|(_, r)| r.last_activity_at)
-            .map(|(i, _)| i)
-            .ok_or_else(|| WorkerError::new("WORKER_LIMIT", "Worker record capacity reached."))?;
-        self.doc.workers.remove(oldest);
-        Ok(())
+            .filter(|r| r.state == WorkerState::PendingCleanup)
+            .map(|r| (r.worker_id.clone(), r.worktree_id.clone()))
+            .collect();
+        let mut done = Vec::new();
+        for (id, tree) in stuck {
+            let removed = match tree.as_deref() {
+                Some(tree) => manager.remove_clean(tree).is_ok(),
+                None => true,
+            };
+            if removed {
+                done.push(id);
+            }
+        }
+        if done.is_empty() {
+            return Ok(());
+        }
+        self.apply(|doc| {
+            for record in doc
+                .workers
+                .iter_mut()
+                .filter(|r| done.contains(&r.worker_id))
+            {
+                record.state = WorkerState::Discarded;
+            }
+            Ok(())
+        })
     }
 }
+fn make_room(doc: &mut Document) -> Result<(), WorkerError> {
+    if doc.workers.len() < MAX_RECORDS {
+        return Ok(());
+    }
+    let oldest = doc
+        .workers
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| !r.state.active())
+        .min_by_key(|(_, r)| r.last_activity_at)
+        .map(|(i, _)| i)
+        .ok_or_else(|| WorkerError::new("WORKER_LIMIT", "Worker record capacity reached."))?;
+    doc.workers.remove(oldest);
+    Ok(())
+}
 
+/// The main-root WorktreeManager: worker worktrees and their 8 slots are shared by
+/// every session of this main root (v4 N1), never a session's chat-v1 root.
 pub(crate) fn manager(ctx: &ToolContext) -> Result<WorktreeManager, WorkerError> {
+    let host = &ctx.host;
     Ok(WorktreeManager::new(
-        ctx.workspace.root(),
-        ctx.harness.store_root(),
-        ctx.harness.workspace_id(),
+        &host.workspace_root,
+        &host.store_root,
+        &host.workspace_id,
     )?)
+}
+/// `<main store_root>/worktrees-v1/<workspace_id>/<worktree_id>`.
+pub(crate) fn worktree_path(host: &HostRoots, worktree_id: &str) -> PathBuf {
+    host.store_root
+        .join("worktrees-v1")
+        .join(&host.workspace_id)
+        .join(worktree_id)
 }
 fn open(ctx: &ToolContext) -> Result<(WorktreeManager, Arc<WorkerStore>), WorkerError> {
     let manager = manager(ctx)?;
-    let store = WorkerStore::open(&ctx.harness, &manager)?;
+    let store = WorkerStore::open(&ctx.host, &manager)?;
     Ok((manager, store))
 }
 fn validate_request(request_id: &str, label: &str) -> Result<(), WorkerError> {
@@ -401,9 +526,10 @@ fn fingerprint(label: &str) -> String {
     format!("{:x}", digest.finalize())
 }
 
-/// Phase 1 of spawn: validate, enforce the worker cap, reserve a managed slot under the
-/// native lifecycle lock and persist a `creating` record. Returns before any Git work so
-/// an async builder can never race `worktree_create` for the slot (SPEC-A1 v2 §1.3).
+/// Phase 1 of spawn: validate, enforce the per-session worker cap, reserve a
+/// main-root managed slot under the native lifecycle lock and persist a `creating`
+/// record. Returns before any Git work so an async builder can never race
+/// `worktree_create` for the slot (SPEC-A1 v4 §1.3).
 pub(crate) fn spawn(
     ctx: &ToolContext,
     request_id: &str,
@@ -414,6 +540,7 @@ pub(crate) fn spawn(
     let _root = root_work::exclusive_context(ctx).map_err(|_| root_unavailable())?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
+    inner.cleanup(&manager)?;
     let print = fingerprint(label);
     if let Some(existing) = inner
         .doc
@@ -430,11 +557,13 @@ pub(crate) fn spawn(
             ))
         };
     }
+    // WORKER_LIMIT counts this session's active workers; the device-wide bound is
+    // the 8 shared main-root slots (CAPACITY).
     let active = inner
         .doc
         .workers
         .iter()
-        .filter(|r| r.state.active())
+        .filter(|r| r.owner == owner && r.state.active())
         .count();
     if active >= inner.doc.limit {
         return Err(WorkerError::new(
@@ -442,13 +571,11 @@ pub(crate) fn spawn(
             "Concurrent worker limit reached.",
         ));
     }
-    inner.make_room()?;
     let id = WorkerId::generate();
-    let reservation = manager.reserve_slot();
     let mut record = WorkerRecord {
         worker_id: id.clone(),
         worktree_id: None,
-        workspace_id: ctx.harness.workspace_id().to_owned(),
+        workspace_id: ctx.host.workspace_id.clone(),
         owner,
         spawn_request_id: request_id.to_owned(),
         spawn_fingerprint: print,
@@ -459,21 +586,26 @@ pub(crate) fn spawn(
         created_at: now(),
         last_activity_at: now(),
     };
-    match reservation {
+    match manager.reserve_slot() {
         Ok(slot) => {
             record.worktree_id = Some(slot.id().to_owned());
-            inner.doc.workers.push(record.clone());
-            if let Err(error) = inner.commit() {
-                inner.doc.workers.pop();
-                return Err(error);
-            }
+            let stored = record.clone();
+            // On failure the clone is discarded (make_room included) and `slot` drops here.
+            inner.apply(|doc| {
+                make_room(doc)?;
+                doc.workers.push(stored);
+                Ok(())
+            })?;
             pending().insert(id.as_str().to_owned(), slot);
             Ok((record, true))
         }
         Err(error) => {
             record.state = WorkerState::Failed;
-            inner.doc.workers.push(record);
-            inner.commit()?;
+            inner.apply(|doc| {
+                make_room(doc)?;
+                doc.workers.push(record);
+                Ok(())
+            })?;
             Err(error.into())
         }
     }
@@ -490,7 +622,8 @@ pub(crate) fn complete_spawn(
     let (manager, store) = open(ctx)?;
     {
         let mut inner = store.lock()?;
-        let record = inner.owned_mut(&owner, &id)?;
+        inner.cleanup(&manager)?;
+        let record = inner.owned(&owner, &id)?;
         match record.state {
             WorkerState::Creating => {}
             WorkerState::Ready => return Ok(record.clone()),
@@ -504,23 +637,21 @@ pub(crate) fn complete_spawn(
         None => Err(state_error()),
     };
     let mut inner = store.lock()?;
-    let record = inner.owned_mut(&owner, &id)?;
-    let result = match built {
-        Ok(item) => {
-            record.base_head = Some(item.head);
-            record.state = WorkerState::Ready;
-            record.last_activity_at = now();
-            Ok(record.clone())
-        }
-        Err(error) => {
-            record.worktree_id = None;
-            record.state = WorkerState::Failed;
-            record.last_activity_at = now();
-            Err(error)
-        }
-    };
-    inner.commit()?;
-    result
+    inner.update(&owner, &id, |record| {
+        record.last_activity_at = now();
+        Ok(match built {
+            Ok(item) => {
+                record.base_head = Some(item.head);
+                record.state = WorkerState::Ready;
+                Ok(record.clone())
+            }
+            Err(error) => {
+                record.worktree_id = None;
+                record.state = WorkerState::Failed;
+                Err(error)
+            }
+        })
+    })?
 }
 
 pub(crate) fn status(
@@ -549,18 +680,17 @@ pub(crate) fn cancel(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord,
     let owner = WorkerOwner::from_context(ctx)?;
     let (_, store) = open(ctx)?;
     let mut inner = store.lock()?;
-    let record = inner.owned_mut(&owner, &id)?;
+    let record = inner.owned(&owner, &id)?;
     match record.state {
-        WorkerState::Ready => {
-            record.state = WorkerState::Cancelled;
-            record.last_activity_at = now();
-        }
+        WorkerState::Ready => {}
         WorkerState::Cancelled => return Ok(record.clone()),
         _ => return Err(state_error()),
     }
-    let out = record.clone();
-    inner.commit()?;
-    Ok(out)
+    inner.update(&owner, &id, |record| {
+        record.state = WorkerState::Cancelled;
+        record.last_activity_at = now();
+        Ok(record.clone())
+    })
 }
 
 /// Removes the worker's worktree only when clean. DIRTY passes through unchanged;
@@ -571,7 +701,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
     let _root = root_work::exclusive_context(ctx).map_err(|_| root_unavailable())?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
-    let record = inner.owned_mut(&owner, &id)?;
+    inner.cleanup(&manager)?;
+    let record = inner.owned(&owner, &id)?;
     match record.state {
         WorkerState::Discarded => return Ok(record.clone()),
         WorkerState::Creating => return Err(state_error()),
@@ -581,25 +712,21 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         Some(tree) => manager.remove_clean(tree),
         None => Ok(()),
     };
-    match removal {
-        Ok(()) => record.state = WorkerState::Discarded,
+    let next = match removal {
+        Ok(()) => WorkerState::Discarded,
         Err(error) if error.code() == "DIRTY" => return Err(error.into()),
-        Err(_) => record.state = WorkerState::PendingCleanup,
-    }
-    record.last_activity_at = now();
-    let out = record.clone();
-    inner.commit()?;
-    Ok(out)
+        Err(_) => WorkerState::PendingCleanup,
+    };
+    inner.update(&owner, &id, |record| {
+        record.state = next;
+        record.last_activity_at = now();
+        Ok(record.clone())
+    })
 }
 
-/// Stores a worker-relative cwd; it must name an existing directory inside the worktree.
-pub(crate) fn set_cwd(
-    ctx: &ToolContext,
-    worker_id: &str,
-    cwd: &str,
-) -> Result<WorkerRecord, WorkerError> {
-    let id = WorkerId::parse(worker_id)?;
-    let owner = WorkerOwner::from_context(ctx)?;
+/// Validates a worker-relative cwd: an existing directory inside `root`. Returns
+/// the normalized `a/b` form (`.` for the root).
+pub(crate) fn normalize_cwd(root: &Path, cwd: &str) -> Result<String, WorkerError> {
     let relative = Path::new(cwd);
     if cwd.is_empty()
         || cwd.len() > MAX_CWD_BYTES
@@ -613,32 +740,11 @@ pub(crate) fn set_cwd(
             "cwd must be a relative path inside the worker worktree.",
         ));
     }
-    let (manager, store) = open(ctx)?;
-    let mut inner = store.lock()?;
-    let record = inner.owned_mut(&owner, &id)?;
-    if record.state != WorkerState::Ready {
-        return Err(state_error());
-    }
-    let tree = record.worktree_id.clone().ok_or_else(state_error)?;
-    let base = manager
-        .list()?
-        .into_iter()
-        .find(|item| item.id == tree)
-        .ok_or_else(state_error)?;
-    let root = ctx
-        .harness
-        .store_root()
-        .join("worktrees-v1")
-        .join(ctx.harness.workspace_id())
-        .join(&base.id)
-        .canonicalize()
-        .map_err(|_| invalid("cwd must exist inside the worker worktree."))?;
-    let target = root
-        .join(relative)
-        .canonicalize()
-        .map_err(|_| invalid("cwd must exist inside the worker worktree."))?;
+    let outside = || invalid("cwd must exist inside the worker worktree.");
+    let root = root.canonicalize().map_err(|_| outside())?;
+    let target = root.join(relative).canonicalize().map_err(|_| outside())?;
     if !target.starts_with(&root) || !target.is_dir() {
-        return Err(invalid("cwd must exist inside the worker worktree."));
+        return Err(outside());
     }
     let normal: Vec<_> = relative
         .components()
@@ -647,15 +753,42 @@ pub(crate) fn set_cwd(
             _ => None,
         })
         .collect();
-    record.cwd = if normal.is_empty() {
+    Ok(if normal.is_empty() {
         default_cwd()
     } else {
         normal.join("/")
-    };
-    record.last_activity_at = now();
-    let out = record.clone();
-    inner.commit()?;
-    Ok(out)
+    })
+}
+
+/// Stores a worker-relative cwd; it must name an existing directory inside the worktree.
+pub(crate) fn set_cwd(
+    ctx: &ToolContext,
+    worker_id: &str,
+    cwd: &str,
+) -> Result<WorkerRecord, WorkerError> {
+    let id = WorkerId::parse(worker_id)?;
+    let owner = WorkerOwner::from_context(ctx)?;
+    if cwd.is_empty() || cwd.len() > MAX_CWD_BYTES || cwd.chars().any(char::is_control) {
+        return Err(invalid(
+            "cwd must be a relative path inside the worker worktree.",
+        ));
+    }
+    let (manager, store) = open(ctx)?;
+    let mut inner = store.lock()?;
+    let record = inner.owned(&owner, &id)?;
+    if record.state != WorkerState::Ready {
+        return Err(state_error());
+    }
+    let tree = record.worktree_id.clone().ok_or_else(state_error)?;
+    if !manager.list()?.into_iter().any(|item| item.id == tree) {
+        return Err(state_error());
+    }
+    let normal = normalize_cwd(&worktree_path(&ctx.host, &tree), cwd)?;
+    inner.update(&owner, &id, |record| {
+        record.cwd = normal;
+        record.last_activity_at = now();
+        Ok(record.clone())
+    })
 }
 
 /// Native-owner setting only; remote callers can never raise the cap.
@@ -668,20 +801,18 @@ pub(crate) fn configure_limit(ctx: &ToolContext, limit: usize) -> Result<(), Wor
     }
     let (_, store) = open(ctx)?;
     let mut inner = store.lock()?;
-    inner.doc.limit = limit;
-    inner.commit()
+    inner.apply(|doc| {
+        doc.limit = limit;
+        Ok(())
+    })
 }
 
-/// Worktree ids held by any non-discarded worker in this workspace; `worktree_*`
-/// tools never list or remove these. Absent namespace means none (no store is created).
-pub(crate) fn owned_worktrees(
-    ctx: &ToolContext,
-    manager: &WorktreeManager,
-) -> Result<BTreeSet<String>, WorkerError> {
-    if std::fs::symlink_metadata(namespace(&ctx.harness)).is_err() {
+/// Worktree ids held by any non-discarded worker of this main root; `worktree_*`
+/// tools never list or remove these. Read-only: an absent store means none.
+pub(crate) fn owned_worktrees(ctx: &ToolContext) -> Result<BTreeSet<String>, WorkerError> {
+    let Some(store) = WorkerStore::open_existing(&ctx.host)? else {
         return Ok(BTreeSet::new());
-    }
-    let store = WorkerStore::open(&ctx.harness, manager)?;
+    };
     let inner = store.lock()?;
     Ok(inner
         .doc

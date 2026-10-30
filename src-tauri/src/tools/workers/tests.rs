@@ -1,5 +1,6 @@
-//! A1 C1 (narrowed, SPEC-A1 v2 §7.4): worker identity, ownership, durable store,
-//! state machine, concurrency cap, slot reservation and stored cwd.
+//! A1 C1 (narrowed, SPEC-A1 v4 §7.4): worker identity, ownership, durable store,
+//! state machine, concurrency cap, slot reservation and stored cwd. All worker
+//! state hangs off the main root (v4 §1.5), never a chat session root.
 use super::*;
 use crate::auth::{chat::RemoteRequest, principal::VerifiedPrincipal};
 use crate::tools::{call_tool, root_work};
@@ -474,7 +475,7 @@ fn records_persist_encrypted_across_reopen_and_interrupted_spawns_recover() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "persist-label");
     let mgr = manager(&f.ctx).unwrap();
-    let store = WorkerStore::open(&f.ctx.harness, &mgr).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
     // Crash before the worktree was built: recovers to failed and frees the id.
     let lost = store
         .inject_interrupted_for_test(&WorkerOwner::local(), Some(WorkerId::generate().as_str()))
@@ -486,6 +487,8 @@ fn records_persist_encrypted_across_reopen_and_interrupted_spawns_recover() {
         .inject_interrupted_for_test(&WorkerOwner::local(), Some(&built_id))
         .unwrap();
     drop(store);
+    // The store is a process singleton (v4 N3); evicting it simulates a restart.
+    WorkerStore::evict_for_test(&f.ctx.host);
     let namespace = f
         .ctx
         .harness
@@ -540,4 +543,187 @@ fn c1_exposes_no_worker_surface_through_public_tools() {
         &json!({"path":"fixture.txt","worker_id":worker.worker_id.as_str()}),
     );
     assert_eq!(result["content"], "original\n", "{result}");
+}
+
+/// A real `ChatDomains::scoped()` session context (per-session harness root).
+fn session(ctx: &ToolContext, name: &str) -> ToolContext {
+    let outer = remote(ctx, name);
+    let req = outer.remote_request.clone().unwrap();
+    let domain = ctx.chat_domains.scoped(&outer, &req).unwrap();
+    assert!(domain.chat_scoped);
+    assert_ne!(domain.harness.store_root(), ctx.harness.store_root());
+    domain
+}
+
+#[test]
+fn slots_and_store_hang_off_the_main_root_across_real_chat_sessions() {
+    let f = Fixture::new();
+    let a = session(&f.ctx, "conversation-a");
+    let b = session(&f.ctx, "conversation-b");
+    for n in 0..4 {
+        spawn_ok(&a, &format!("a{n}"), "w");
+    }
+    for n in 0..4 {
+        reserve_ok(&b, &format!("b{n}"), "w");
+    }
+    // Per-session WORKER_LIMIT is still 4 ...
+    let err = scoped(&a, |c| spawn(c, "a4", "w")).unwrap_err();
+    assert_eq!(err.code(), "WORKER_LIMIT");
+    // ... and the two sessions together already fill the device's 8 slots.
+    let err = scoped(&f.ctx, |c| spawn(c, "local", "w")).unwrap_err();
+    assert_eq!(err.code(), "CAPACITY");
+    let created = call_tool(&f.ctx, "worktree_create", &json!({}));
+    assert_eq!(created["error"]["code"], "CAPACITY", "{created}");
+    let main = f
+        .ctx
+        .harness
+        .store_root()
+        .join("agents-v1")
+        .join(f.ctx.harness.workspace_id());
+    assert!(main.join("auth.json").is_file());
+    for domain in [&a, &b] {
+        assert!(!domain.harness.store_root().join("agents-v1").exists());
+        assert!(!domain.harness.store_root().join("worktrees-v1").exists());
+        assert_eq!(status(domain, None).unwrap().len(), 4);
+    }
+    // Ownership is still per session: neither sees the other's workers.
+    let a_ids: Vec<_> = status(&a, None)
+        .unwrap()
+        .into_iter()
+        .map(|r| r.worker_id)
+        .collect();
+    assert!(status(&b, None)
+        .unwrap()
+        .iter()
+        .all(|r| !a_ids.contains(&r.worker_id)));
+}
+
+#[test]
+fn the_store_is_one_process_singleton_per_main_root() {
+    let f = Fixture::new();
+    spawn_ok(&f.ctx, "req", "w");
+    let mgr = manager(&f.ctx).unwrap();
+    let first = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let generation = first.generation();
+    drop(first);
+    status(&f.ctx, None).unwrap();
+    let chat = session(&f.ctx, "conversation-a");
+    status(&chat, None).unwrap();
+    let again = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    assert_eq!(
+        again.generation(),
+        generation,
+        "no reload / re-decrypt per call"
+    );
+    drop(again);
+    WorkerStore::evict_for_test(&f.ctx.host);
+    let reloaded = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    assert_ne!(reloaded.generation(), generation);
+}
+
+#[test]
+fn pending_cleanup_is_only_retried_by_exclusive_callers() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "keep", "w");
+    let built = call_tool(&f.ctx, "worktree_create", &json!({}));
+    let tree = built["worktree"]["id"].as_str().unwrap().to_owned();
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let stuck = store
+        .inject_for_test(
+            &WorkerOwner::local(),
+            Some(&tree),
+            WorkerState::PendingCleanup,
+            now(),
+        )
+        .unwrap();
+    drop(store);
+    WorkerStore::evict_for_test(&f.ctx.host);
+    let path = f
+        .ctx
+        .host
+        .store_root
+        .join("worktrees-v1")
+        .join(&f.ctx.host.workspace_id)
+        .join(&tree);
+    // Non-exclusive callers never remove worktrees during recovery.
+    status(&f.ctx, None).unwrap();
+    cancel(&f.ctx, worker.worker_id.as_str()).unwrap();
+    set_cwd(&f.ctx, worker.worker_id.as_str(), ".").unwrap_err();
+    configure_limit(&f.ctx, 4).unwrap();
+    assert!(path.exists());
+    assert_eq!(
+        status(&f.ctx, Some(stuck.as_str())).unwrap()[0].state,
+        WorkerState::PendingCleanup
+    );
+    // An exclusive caller retries the clean removal.
+    spawn_ok(&f.ctx, "next", "w");
+    assert!(!path.exists());
+    assert_eq!(
+        status(&f.ctx, Some(stuck.as_str())).unwrap()[0].state,
+        WorkerState::Discarded
+    );
+}
+
+#[test]
+fn an_early_create_reserved_failure_releases_the_slot_under_the_native_lock() {
+    let f = Fixture::new();
+    let mgr = manager(&f.ctx).unwrap();
+    let slot = mgr.reserve_slot().unwrap();
+    let _ = SlotReservation::take_last_release_locked_for_test();
+    let target = f
+        .ctx
+        .host
+        .store_root
+        .join("worktrees-v1")
+        .join(&f.ctx.host.workspace_id)
+        .join(slot.id());
+    fs::create_dir_all(&target).unwrap();
+    assert!(mgr.create_reserved(slot).is_err());
+    assert_eq!(
+        SlotReservation::take_last_release_locked_for_test(),
+        Some(true)
+    );
+    fs::remove_dir(&target).unwrap();
+    for n in 0..8 {
+        let created = call_tool(&f.ctx, "worktree_create", &json!({}));
+        assert_eq!(
+            created["ok"], true,
+            "slot {n} must be free again: {created}"
+        );
+    }
+}
+
+#[test]
+fn a_failed_commit_rolls_back_make_room_and_releases_the_reservation() {
+    let f = Fixture::new();
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let oldest = store
+        .inject_for_test(&WorkerOwner::local(), None, WorkerState::Failed, 1)
+        .unwrap();
+    for n in 0..63 {
+        store
+            .inject_for_test(&WorkerOwner::local(), None, WorkerState::Failed, 10 + n)
+            .unwrap();
+    }
+    drop(store);
+    let namespace = f
+        .ctx
+        .host
+        .store_root
+        .join("agents-v1")
+        .join(&f.ctx.host.workspace_id);
+    fs::remove_file(namespace.join("auth.json")).unwrap();
+    let err = scoped(&f.ctx, |c| spawn(c, "req", "w")).unwrap_err();
+    assert_eq!(err.code(), "STORE_UNAVAILABLE");
+    let records = status(&f.ctx, None).unwrap();
+    assert_eq!(records.len(), 64, "make_room must not leak into memory");
+    assert!(records.iter().any(|r| r.worker_id == oldest));
+    assert!(records.iter().all(|r| r.spawn_request_id != "req"));
+    // The reservation was released: all eight slots are still available.
+    for n in 0..8 {
+        let created = call_tool(&f.ctx, "worktree_create", &json!({}));
+        assert_eq!(created["ok"], true, "slot {n}: {created}");
+    }
 }

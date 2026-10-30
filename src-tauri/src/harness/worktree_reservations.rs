@@ -1,4 +1,5 @@
-//! In-process slot reservations for not-yet-built worker worktrees (SPEC-A1 v2 §1.3/§1.6).
+//! In-process slot reservations for not-yet-built worker worktrees (SPEC-A1 v4 §1.3/§1.6).
+//! A reservation must be dropped while the native lifecycle lock is still held.
 //! Counted against MAX_MANAGED_WORKTREES while the native lifecycle lock is held.
 use std::{
     collections::BTreeMap,
@@ -42,8 +43,21 @@ impl SlotReservation {
         &self.root
     }
 }
+#[cfg(test)]
+thread_local! {
+    static LAST_DROP_LOCKED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+impl SlotReservation {
+    /// Test hook: whether this thread's most recent release ran under the native lock.
+    #[cfg(test)]
+    pub(crate) fn take_last_release_locked_for_test() -> Option<bool> {
+        LAST_DROP_LOCKED.with(std::cell::Cell::take)
+    }
+}
 impl Drop for SlotReservation {
     fn drop(&mut self) {
+        #[cfg(test)]
+        LAST_DROP_LOCKED.with(|last| last.set(Some(super::native::held_by_current_thread())));
         with(|map| {
             if let Some(ids) = map.get_mut(&self.root) {
                 ids.retain(|value| value != &self.id);

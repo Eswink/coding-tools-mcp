@@ -147,9 +147,16 @@ impl WorktreeManager {
         let (id, _) = self.allocate()?;
         Ok(reservations::take(&self.managed_root, id))
     }
-    /// Builds the worktree for a reservation; the slot is released in-lock either way.
+    /// Builds the worktree for a reservation. The slot is released while the native
+    /// lifecycle lock is still held on every path, early returns included (SPEC-A1 v4 N4).
     pub(crate) fn create_reserved(&self, slot: SlotReservation) -> WorktreeResult<ManagedWorktree> {
-        let _guard = native::lock()?;
+        let guard = native::lock()?;
+        let result = self.build_reserved(&slot);
+        drop(slot);
+        drop(guard);
+        result
+    }
+    fn build_reserved(&self, slot: &SlotReservation) -> WorktreeResult<ManagedWorktree> {
         if slot.root() != self.managed_root.as_path() || !valid_id(slot.id()) {
             return Err(boundary_error());
         }
@@ -161,9 +168,7 @@ impl WorktreeManager {
         if target.exists() || target.is_symlink() {
             return Err(boundary_error());
         }
-        let result = self.add_locked(id, target);
-        drop(slot);
-        result
+        self.add_locked(id, target)
     }
     fn add_locked(&self, id: String, target: PathBuf) -> WorktreeResult<ManagedWorktree> {
         let args = vec![
