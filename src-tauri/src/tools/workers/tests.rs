@@ -1517,6 +1517,7 @@ fn c2b_records_without_an_ops_log_still_load_and_gain_an_empty_one() {
 // ---------------------------------------------------------------------------
 /// A stopped command retires its root-work chain asynchronously; until then the
 /// root guard answers NATIVE_ROOT_UNAVAILABLE (retryable by the caller).
+#[cfg(unix)]
 fn discard_when_root_settles(ctx: &ToolContext, id: &str) -> Value {
     for _ in 0..100 {
         let out = subagent(ctx, "subagent_discard", json!({"worker_id": id}));
@@ -1633,12 +1634,21 @@ fn concurrent_duplicate_spawns_with_one_request_id_end_failed_without_a_leak() {
         assert_ne!(*released, Some(false), "slot freed outside the lock: {out}");
         assert_ne!(out["worker"]["state"], "ready", "{out}");
     }
+    // Whichever thread held the reservation released it inside the lifecycle
+    // lock: the build path (LOCK_UNAVAILABLE) or, when a racing duplicate held
+    // the root guard (NATIVE_ROOT_UNAVAILABLE), the spawn completion guard.
     assert!(
-        results
-            .iter()
-            .any(|(out, _)| code(out) == "LOCK_UNAVAILABLE"),
-        "no thread built the slot: {results:?}"
+        results.iter().any(|(_, released)| *released == Some(true)),
+        "no thread released the slot: {results:?}"
     );
+    for (out, _) in &results {
+        if out["ok"] == false {
+            assert!(
+                ["LOCK_UNAVAILABLE", "NATIVE_ROOT_UNAVAILABLE"].contains(&code(out)),
+                "{out}"
+            );
+        }
+    }
     let records = status(&f.ctx, None).unwrap();
     assert_eq!(records.len(), 1, "{records:?}");
     assert_eq!(records[0].state, WorkerState::Failed);
