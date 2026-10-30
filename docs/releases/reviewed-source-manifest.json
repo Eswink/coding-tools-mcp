@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-rc080-depth (admission chain dd5b5739) DEPTH_LIMIT 64->128, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c2ad2 NB-p worker fail-closed + NB-l LOCKED + NB-r REFS_LIMIT + NB-c2 preview warnings + NB-d2 approval binds ids + NB-f2 FlightGuard window test, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4520,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c3ce3550b0a071096d4b11e29e644eeb06e15284",
-        "sha256": "30539bfc263bf24455b684476e0532466223b89fa0aeb5b4cdb131593b605a1c"
+        "blob_sha": "cc4a6264bd6f06a7fb11ebb49b0892ad867ee137",
+        "sha256": "5218b106e1cdfdfab131b4eb7b2ab5569882f2746867b3c3abbaa61159641119"
       }
     },
     {
@@ -8872,8 +8872,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ac010fdd90e441dc348d01066de64a80f912343d",
-        "sha256": "affead84d0f7cd3f4a0cc8ff92af539e74602d958854dfeb9b59b789d2939fe5"
+        "blob_sha": "6cbfb26ef2f141d635738a438004417730b890ff",
+        "sha256": "e926c79524cec187a144571313f929738ffdbc927f38e24eda885795ae7741f0"
       }
     },
     {
@@ -8882,8 +8882,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b89d92b7e575c1c2c425cb423e8fe646a0556a91",
-        "sha256": "fd668649c5291f66f2180abee686ee921cacc1789ca37172573678e568fb130f"
+        "blob_sha": "58ca7cd57053f6088911fa5f6855b790fb1c8ba5",
+        "sha256": "6a8c9d0a77a1dcbe60fb9a998a6da7b75abace8696ea443183a86e3a1867bfc7"
       }
     },
     {
@@ -9376,8 +9376,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d70de649721b4ef3f6842aba760089aec407df0c",
-        "sha256": "7336afddf5e4106a32d5be9fb3f3c8f2499af7f05f83694c3053916bd844485a"
+        "blob_sha": "4a7b496d1ada3c7dec10e45018b02c6a227b1b1a",
+        "sha256": "48679728f8423fa1a1e1552154239b6ec07be180ca3509b6dcbdddbdf4dc7928"
       }
     },
     {
@@ -9386,8 +9386,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e71dba1b73b321c73489a8d15d372bb087eef2f7",
-        "sha256": "0ff434eb694d5648f5a32eefced6d3cba2cefd184e806d7a51ca8a68c8e411bb"
+        "blob_sha": "539e26524c604eea9f98b2b8f76b048c778086cc",
+        "sha256": "135dfa6b001b92416575cd31eee5f08dfc7ae419ba8198b79e878350e98e30bf"
       }
     },
     {
@@ -9396,8 +9396,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a6cb8eed2f4888c72786ecb5f34002791f191a8e",
-        "sha256": "dd1e51c7e7cf0171bbd26a63bb9f8df867d2437c20e2a57e6804634311f4533b"
+        "blob_sha": "46077e70090685ff76253ee9a87e21a35d2ecd09",
+        "sha256": "ed6d70db83293dd416d81826174b74893ee433078204da8a5a1d7f68c978890d"
       }
     },
     {
@@ -9988,8 +9988,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "c6cbbee46b224afc37149494b4b9b78ef82971e4",
-        "sha256": "3929c6c34ec77a29d2001d781240d5e41254b682a4b230061991e1ee6b4c7196"
+        "blob_sha": "dd6ce070b618a4de5b9a80e1ee7b3cb465af3901",
+        "sha256": "2fb6a0701a883baf046b59d9ba84fdcfb6c00184d37fecc186991767cfd2096c"
       }
     },
     {
@@ -10078,8 +10078,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7c477ab5daa17c34958d5da230a29579d478cb49",
-        "sha256": "bb05d48c4afe88fb74e0342c4e0061748cf0e1173fe5c2dee40ef2b21e0cfa62"
+        "blob_sha": "903e733d5f771d2a840557da9026cd0ff211e5d0",
+        "sha256": "64fa83b26002165f23cc0e059ad8461a0546144ed9d292e370f43a177dc70604"
       }
     },
     {
@@ -10088,8 +10088,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a34f7852abd3dd5a43d6d59c24b3309ee808c5c5",
-        "sha256": "b679d03d66561a003d528536b1bf6dbee50e7a49ccde6746a92183b01036aac7"
+        "blob_sha": "39b10d90e2c35088b8ad441950eb5b58bc202ff5",
+        "sha256": "2a8a90eea77cd6fe89e7fa0e7d7bff2565983b49f9e6611bb639508b6cc07731"
       }
     },
     {
@@ -10484,8 +10484,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ec33b0a42f15ec38f1b1125218bc2142569d6dd0",
-        "sha256": "402f728f74bb022d2afd84d715b40f7b04e9d8257ac0bfc017928e4d3d31764f"
+        "blob_sha": "1158d021913c81357a2718c12673cb84d4078af0",
+        "sha256": "10a9a99b96d6bf5be3cdc92b5c45c29133c55be4d3256559bbaf8f911cf6a96c"
       }
     },
     {
