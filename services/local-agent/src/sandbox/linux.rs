@@ -224,6 +224,7 @@ pub(super) fn prepare(
     executable: &Path,
     cwd: &Path,
     read_only: bool,
+    umask: Option<u32>,
 ) -> Result<PreparedSandbox, SandboxError> {
     require_unprivileged()?;
     // ABI1/ABI2 (e.g. the Ubuntu 22.04 GA kernel) fail closed: pre-existing baseline.
@@ -297,6 +298,7 @@ pub(super) fn prepare(
         ruleset,
         cwd,
         filter: filter::program(),
+        umask,
     })
 }
 
@@ -304,6 +306,7 @@ pub(crate) struct PreparedSandbox {
     ruleset: OwnedFd,
     cwd: File,
     filter: Vec<libc::sock_filter>,
+    umask: Option<u32>,
 }
 
 impl PreparedSandbox {
@@ -313,6 +316,10 @@ impl PreparedSandbox {
             len: self.filter.len() as u16,
             filter: self.filter.as_ptr() as *mut libc::sock_filter,
         };
+        // A1 C4-b: umask(2) cannot fail and is async-signal-safe.
+        if let Some(mask) = self.umask {
+            unsafe { libc::umask(mask as libc::mode_t) };
+        }
         let ok = unsafe {
             libc::fchdir(self.cwd.as_raw_fd()) == 0
                 && libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == 0

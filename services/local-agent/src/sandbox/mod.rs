@@ -44,6 +44,9 @@ impl fmt::Display for SandboxError {
 
 impl Error for SandboxError {}
 
+/// SPEC-A1 v5.3 §4.2 (C4-b): the worker child's file-creation mask.
+pub(crate) const WORKER_UMASK: u32 = 0o077;
+
 struct Root {
     path: PathBuf,
     file: File,
@@ -60,6 +63,10 @@ pub struct LinuxSandbox {
     /// Linked-worktree metadata (`[private, common]`), read-only. See `for_worktree`.
     gitdirs: Option<Arc<[Root; 2]>>,
     read_only: bool,
+    /// SPEC-A1 v5.3 §4.2 (C4-b): file-creation mask installed in the child.
+    /// `for_worktree` (worker exec and worker Git) uses 0o077; `new` keeps the
+    /// inherited mask.
+    umask: Option<u32>,
 }
 
 impl LinuxSandbox {
@@ -70,6 +77,7 @@ impl LinuxSandbox {
                 root: Arc::new(linux::pin_root(workspace_root.as_ref())?),
                 gitdirs: None,
                 read_only: false,
+                umask: None,
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -88,6 +96,11 @@ impl LinuxSandbox {
     /// create, remove or execute, and `read_only` cannot widen that. Git inside
     /// the sandbox can therefore inspect the worktree (`status`, `diff`, `log`)
     /// but `git commit`, `add` or index refreshes fail closed.
+    ///
+    /// A1 C4-b (SPEC-A1 v5.3 §4.2): the child also runs with umask 077, so a
+    /// file it creates is private to the desktop user (today only inside the
+    /// worktree; it takes effect on Git metadata only if workers are ever
+    /// allowed to write it).
     ///
     /// The caller (a trusted host) resolves the gitdirs; this constructor only
     /// pins and validates their shape: the private gitdir must be a direct child
@@ -109,6 +122,7 @@ impl LinuxSandbox {
                 root: Arc::new(root),
                 gitdirs: Some(Arc::new(gitdirs)),
                 read_only: false,
+                umask: Some(WORKER_UMASK),
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -140,6 +154,7 @@ impl LinuxSandbox {
                 executable,
                 cwd,
                 self.read_only,
+                self.umask,
             )
         }
         #[cfg(not(target_arch = "x86_64"))]

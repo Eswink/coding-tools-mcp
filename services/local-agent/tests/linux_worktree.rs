@@ -166,3 +166,38 @@ async fn a_plain_root_policy_still_cannot_read_the_gitdirs() {
         ]
     );
 }
+
+/// A1 C4-b (SPEC-A1 v5.3 §4.2): a worker child (`for_worktree`) runs with umask
+/// 077, so what it creates is owner-only; a plain root policy keeps the
+/// inherited mask.
+#[tokio::test]
+async fn for_worktree_children_run_with_umask_077() {
+    use std::os::unix::fs::PermissionsExt;
+    let layout = Layout::new();
+    const SCRIPT: &str = r#"
+umask
+echo x > "$NAME" && mkdir "$NAME.d" && echo created
+"#;
+    let worker = probe(&layout, layout.policy(), &SCRIPT.replace("$NAME", "w")).await;
+    assert_eq!(worker, ["0077", "created"]);
+    let mode = |name: &str| {
+        fs::metadata(layout.root.join(name))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777
+    };
+    assert_eq!([mode("w"), mode("w.d")], [0o600, 0o700]);
+
+    // Read, not set: umask(2) is process-wide and tests run concurrently.
+    let status = fs::read_to_string("/proc/self/status").unwrap();
+    let inherited = status
+        .lines()
+        .find_map(|line| line.strip_prefix("Umask:"))
+        .unwrap()
+        .trim()
+        .to_owned();
+    let plain = LinuxSandbox::new(&layout.root).unwrap();
+    let root = probe(&layout, plain, &SCRIPT.replace("$NAME", "p")).await;
+    assert_eq!(root, [inherited, "created".into()]);
+}
