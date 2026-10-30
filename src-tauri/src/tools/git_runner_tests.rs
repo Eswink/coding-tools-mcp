@@ -125,7 +125,8 @@ fn inspection_rejects_mutating_git_commands_before_spawn() {
         fixture.path(),
         fixture.path(),
         &["init"],
-        Duration::from_secs(1)
+        Duration::from_secs(1),
+        GitRoot::Main
     )
     .is_err());
     assert!(!fixture.path().join(".git").exists());
@@ -139,6 +140,7 @@ async fn inspection_can_be_called_inside_an_async_host_without_nested_runtime() 
         fixture.path(),
         &["rev-parse", "HEAD"],
         Duration::from_secs(2),
+        GitRoot::Main,
     )
     .unwrap();
     assert!(output.status.success());
@@ -257,6 +259,7 @@ fn a_linked_main_root_contained_in_its_gitdir_falls_back_to_the_plain_sandbox() 
         &nested,
         &["rev-parse", "HEAD"],
         Duration::from_secs(5),
+        GitRoot::Main,
     );
     assert_ne!(
         out.as_ref().err().copied(),
@@ -336,4 +339,47 @@ fn the_worker_sandbox_is_fail_closed_without_fallback() {
     );
     let pinned = worker_sandbox_for_root(&linked);
     assert!(pinned.is_ok(), "{:?}", pinned.err());
+}
+
+/// A1 C5 (NB-g, SPEC-A1 v5.3 §1.4.2): Git inspection of a worker root uses the
+/// fail-closed worker sandbox. The NB5 containment root the main root tolerates
+/// is refused for a worker, at `run` and through `git_status`, with no
+/// root-only fallback; the same root as a main root still runs.
+#[test]
+fn git_inspection_of_a_worker_root_is_fail_closed() {
+    let fixture = tempfile::tempdir().unwrap();
+    let main = fixture.path().join("main");
+    repository(&main);
+    let nested = main.join(".git").join("nested-root");
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "--detach",
+            nested.to_str().unwrap(),
+        ],
+    );
+    assert!(git_sandbox(&nested, GitRoot::Main).is_ok());
+    assert_eq!(
+        git_sandbox(&nested, GitRoot::Worker).err().map(|e| e.kind),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    let timeout = Duration::from_secs(10);
+    assert_eq!(
+        run(&nested, &nested, &["status"], timeout, GitRoot::Worker).err(),
+        Some("Git workspace isolation unavailable"),
+        "a worker root must not fall back to the root-only sandbox"
+    );
+    let mut worker = crate::tools::Workspace::new(nested.clone()).unwrap();
+    worker.mark_worker_root();
+    assert!(worker.is_worker_root());
+    assert!(
+        crate::tools::git::git_status(&worker, &json!({})).is_err(),
+        "git_status on a refused worker root fails closed"
+    );
+    let main_view = crate::tools::Workspace::new(nested).unwrap();
+    assert!(!main_view.is_worker_root());
+    assert!(crate::tools::git::git_status(&main_view, &json!({})).is_ok());
 }

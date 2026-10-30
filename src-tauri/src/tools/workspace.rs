@@ -143,6 +143,8 @@ pub type WorkspaceResult<T> = Result<T, WorkspaceError>;
 pub struct Workspace {
     root: PathBuf,
     confined_reads: bool,
+    /// A1 C5 (NB-g): the root is a worker worktree; Git inspection is fail-closed.
+    worker_root: bool,
 }
 
 impl Workspace {
@@ -158,10 +160,19 @@ impl Workspace {
         Ok(Self {
             root,
             confined_reads: false,
+            worker_root: false,
         })
     }
 
     /// Native-only managed workspace restriction. There is no IPC/model toggle.
+    /// A1 C5 (NB-g): mark a worker worktree root (implies confined reads).
+    pub(crate) fn mark_worker_root(&mut self) {
+        self.confined_reads = true;
+        self.worker_root = true;
+    }
+    pub(crate) fn is_worker_root(&self) -> bool {
+        self.worker_root
+    }
     pub(crate) fn confine_reads(&mut self) {
         self.confined_reads = true;
     }

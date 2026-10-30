@@ -272,7 +272,7 @@ impl NativeToolHost {
             })?;
         let mut space =
             super::Workspace::new(worktree_path(host, &tree)).map_err(|_| "WORKER_NOT_OWNED")?;
-        space.confine_reads();
+        space.mark_worker_root();
         Ok(space)
     }
 

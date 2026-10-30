@@ -568,7 +568,15 @@ fn should_skip(path: &Path, root: &Path) -> bool {
 fn git_value(root: &Path, args: &[&str]) -> Option<String> {
     #[cfg(target_os = "linux")]
     let output =
-        crate::tools::git_runner::run(root, root, args, std::time::Duration::from_secs(5)).ok()?;
+        // Harness roots are main roots (a worker never reads harness state).
+        crate::tools::git_runner::run(
+            root,
+            root,
+            args,
+            std::time::Duration::from_secs(5),
+            crate::tools::git_runner::GitRoot::Main,
+        )
+        .ok()?;
     #[cfg(not(target_os = "linux"))]
     let output = {
         let mut cmd = Command::new("git");

@@ -99,6 +99,23 @@ pub(crate) fn worker_sandbox_for_root(root: &Path) -> Result<LinuxSandbox, Sandb
     }
 }
 
+/// A1 C5 (NB-g, SPEC-A1 v5.3 §1.4.2): which sandbox rule a Git inspection
+/// root gets. A main root keeps the NB5/NB-p `sandbox_for_root` fallback; a
+/// worker root is fail-closed (`worker_sandbox_for_root`), never root-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GitRoot {
+    Main,
+    Worker,
+}
+
+/// NB-g: the sandbox `run` uses for `root` under `kind`.
+pub(crate) fn git_sandbox(root: &Path, kind: GitRoot) -> Result<LinuxSandbox, SandboxError> {
+    match kind {
+        GitRoot::Main => sandbox_for_root(root),
+        GitRoot::Worker => worker_sandbox_for_root(root),
+    }
+}
+
 /// All callers provide a host-owned workspace root. A resolved subdirectory is
 /// only a cwd, never a replacement authority root.
 pub(crate) fn run(
@@ -106,6 +123,7 @@ pub(crate) fn run(
     cwd: &Path,
     args: &[&str],
     timeout: Duration,
+    kind: GitRoot,
 ) -> Result<Output, &'static str> {
     if !matches!(
         args.first().copied(),
@@ -113,7 +131,7 @@ pub(crate) fn run(
     ) {
         return Err("Git inspection only accepts read-only commands");
     }
-    let policy = sandbox_for_root(root)
+    let policy = git_sandbox(root, kind)
         .map_err(|_| "Git workspace isolation unavailable")?
         .read_only();
     let root = std::fs::canonicalize(root).map_err(|_| "Git workspace unavailable")?;

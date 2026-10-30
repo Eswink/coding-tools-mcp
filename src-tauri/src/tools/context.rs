@@ -200,7 +200,7 @@ impl ToolContext {
     ) -> Result<Self, String> {
         let mut workspace =
             Workspace::new(binding.worktree_root.clone()).map_err(|e| e.message())?;
-        workspace.confine_reads();
+        workspace.mark_worker_root();
         let root = workspace.root().to_path_buf();
         // A1 C2-d (SPEC-A1 v5 §1.4.4): re-canonicalized after the join; anything
         // that is not an existing directory inside the root falls back to the root.

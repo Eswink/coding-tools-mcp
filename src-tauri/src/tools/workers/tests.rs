@@ -888,6 +888,10 @@ fn worker_context_sandbox_reads_but_cannot_write_its_gitdirs() {
         &json!({}),
     )
     .unwrap();
+    // A1 C5 (NB-g): the bound workspace is a worker root, so Git inspection
+    // through `git_runner::run` takes the fail-closed worker sandbox.
+    assert!(worker_ctx.workspace.is_worker_root());
+    assert!(!f.ctx.workspace.is_worker_root());
     let policy = worker_ctx.linux_sandbox.as_ref().clone().unwrap();
     let script = concat!(
         "p=$(sed 's/^gitdir: //' .git); ",
