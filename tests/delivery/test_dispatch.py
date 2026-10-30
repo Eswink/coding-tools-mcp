@@ -3,6 +3,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -140,21 +141,54 @@ class DispatchTests(unittest.TestCase):
         with self.assertRaises(m.InvalidManifest):
             m.validate(d)
 
+    @staticmethod
+    def git_fixture(root):
+        subprocess.run(["git", "init", "-q", root], check=True)
+        f = root / "services/test/f.rs"; f.parent.mkdir(parents=True); f.write_bytes(b"verified source\n")
+        subprocess.run(["git", "-C", root, "add", "."], check=True)
+        subprocess.run(["git", "-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"], check=True)
+        sha = m.git(root, "rev-parse", "HEAD").decode().strip()
+        evidence = {"revision": sha, "run_id": 1, "files": {"services/test/f.rs": hashlib.sha256(f.read_bytes()).hexdigest()}}
+        return f, evidence
+
+    @staticmethod
+    def alias_of(root):
+        alias = root.parent / (root.name + "-alias")
+        try:
+            os.symlink(root, alias, target_is_directory=True)
+        except (OSError, NotImplementedError) as error:
+            raise unittest.SkipTest(f"directory symlinks unavailable: {error}")
+        return alias
+
     def test_actual_git_source_and_tamper(self):
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
-            subprocess.run(["git", "init", "-q", root], check=True)
-            f = root / "services/test/f.rs"; f.parent.mkdir(parents=True); f.write_bytes(b"verified source\n")
-            subprocess.run(["git", "-C", root, "add", "."], check=True)
-            subprocess.run(["git", "-C", root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture"], check=True)
-            sha = m.git(root, "rev-parse", "HEAD").decode().strip()
-            evidence = {"revision": sha, "run_id": 1, "files": {"services/test/f.rs": hashlib.sha256(f.read_bytes()).hexdigest()}}
-            self.assertTrue(m.verify_sources(root, evidence))
-            f.write_bytes(b"changed source\n")
-            self.assertFalse(m.verify_sources(root, evidence))
-            evidence["files"]["services/test/f.rs"] = hashlib.sha256(f.read_bytes()).hexdigest()
-            self.assertFalse(m.verify_sources(root, evidence))
+            f, evidence = self.git_fixture(root)
+            alias = self.alias_of(root)
+            try:
+                self.assertTrue(m.verify_sources(root, evidence))
+                self.assertTrue(m.verify_sources(alias, evidence))
+                f.write_bytes(b"changed source\n")
+                self.assertFalse(m.verify_sources(root, evidence))
+                self.assertFalse(m.verify_sources(alias, evidence))
+                evidence["files"]["services/test/f.rs"] = hashlib.sha256(f.read_bytes()).hexdigest()
+                self.assertFalse(m.verify_sources(root, evidence))
+                self.assertFalse(m.verify_sources(alias, evidence))
+            finally:
+                alias.unlink()
 
+    def test_non_canonical_alias_root_verifies_like_real_root(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            _, evidence = self.git_fixture(root)
+            alias = self.alias_of(root)
+            try:
+                self.assertNotEqual(str(alias), str(alias.resolve()))
+                self.assertTrue(m.verify_sources(root, evidence))
+                self.assertTrue(m.verify_sources(alias, evidence))
+                self.assertTrue(m.verify_sources(str(alias), evidence))
+            finally:
+                alias.unlink()
 
 if __name__ == "__main__":
     unittest.main()

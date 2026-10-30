@@ -25,7 +25,7 @@ impl LinuxSandbox {
         // paths. These values are chosen locally, never supplied by the model.
         command
             .env_clear()
-            .env("PATH", "/usr/bin:/bin")
+            .env("PATH", crate::SANDBOX_CHILD_PATH)
             .env("HOME", &self.root.path)
             .env("TMPDIR", &self.root.path)
             .env("LANG", "C.UTF-8")

@@ -41,6 +41,12 @@ pub use trace::{
     TraceSnapshot, TraceToolError, VerificationEvidence, VerificationRecord,
 };
 
+/// The only executable search path a sandboxed child receives. Hosts must
+/// resolve bare program names for such a child against this same path, never
+/// the desktop PATH: interpreters outside the Landlock runtime directories can
+/// be started but cannot load their own libraries.
+pub const SANDBOX_CHILD_PATH: &str = "/usr/bin:/bin";
+
 #[cfg(target_os = "linux")]
 pub use sandbox::{LinuxSandbox, SandboxError, SandboxErrorKind};
 

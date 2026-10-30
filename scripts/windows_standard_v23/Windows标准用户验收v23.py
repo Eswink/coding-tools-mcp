@@ -44,8 +44,9 @@ import source_manifest_v23 as inventory  # noqa: E402
 
 FIXTURE_MARKER = '.standard-account-fixture-v23'
 BOOTSTRAP = '标准宿主引导v28.py'
-# Evidence file name is a consumer contract (exclusive_release.py windows_account).
-EVIDENCE = '标准用户隔离结果v22.json'
+# Evidence file name is a consumer contract (exclusive_release.py
+# STANDARD_USER_EVIDENCE: v23 preferred, legacy v22 name still accepted).
+EVIDENCE = '标准用户隔离结果v23.json'
 
 CONTEXT = ('GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'GITHUB_REPOSITORY', 'GITHUB_SHA', 'GITHUB_RUN_ID')
 NAME = re.compile(r'ctmcpv23_[0-9a-f]{10}')

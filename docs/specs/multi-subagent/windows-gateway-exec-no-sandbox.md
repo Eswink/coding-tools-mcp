@@ -27,6 +27,12 @@ Unchanged on every platform:
   separately approved in `trusted` or `dangerous` mode and are subject only to
   the command policy of the selected permission mode (allowlist, `confirm=true`
   for dangerous-looking commands, network rule);
+  `confirm=true` is an argument **supplied by the caller** (the primary agent
+  issuing the gateway request), **not a local user confirmation**: the desktop
+  shows no prompt and waits for no user action. It only records that the
+  caller explicitly asked for a dangerous-looking command
+  (`DANGEROUS_OPERATION_REQUIRES_CONFIRMATION` otherwise), see
+  `validate_command_for_workspace` in `src-tauri/src/tools/policy.rs`;
 - audit logging;
 - every non-exec tool, and the local (non-gateway) execution path.
 

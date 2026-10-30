@@ -168,8 +168,38 @@ class RepositoryContract(unittest.TestCase):
             v23.owned_account('ctmcpv23_0123456789', sid, 'coding-tools-native-v22:x', ('ctmcpv23_0123456789', sid, 'coding-tools-native-v22:x'))
 
     def test_evidence_name_matches_release_consumer(self):
-        consumer = (SCRIPTS / 'exclusive_release.py').read_text(encoding='utf-8')
-        self.assertIn(f"folder / '{v23.EVIDENCE}'", consumer)
+        import exclusive_release as release
+        self.assertEqual(v23.EVIDENCE, '标准用户隔离结果v23.json')
+        self.assertEqual(release.STANDARD_USER_EVIDENCE, (v23.EVIDENCE, '标准用户隔离结果v22.json'))
+
+    def test_release_consumer_prefers_v23_and_accepts_legacy_v22(self):
+        import exclusive_release_tests as fixtures
+        release = fixtures.release
+        legacy = '标准用户隔离结果v22.json'
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            evidence, checkout = root / 'evidence', root / 'checkout'
+            fixtures.fixture(evidence, checkout)
+            folder = evidence / 'exclusive-windows-package'
+            args = dict(source=fixtures.SOURCE, tree=fixtures.TREE, version=fixtures.VERSION,
+                        run_id=fixtures.RUN, ref=release.REF)
+            def compose(name):
+                return release.compose(evidence, root / name, checkout, **args)
+            self.assertEqual(release.standard_user_evidence(folder), folder / legacy)
+            compose('legacy-only')
+            good = json.loads((folder / legacy).read_text(encoding='utf-8'))
+            (folder / legacy).rename(folder / v23.EVIDENCE)
+            self.assertEqual(release.standard_user_evidence(folder), folder / v23.EVIDENCE)
+            compose('v23-only')
+            # Both present: the v23 document is the one verified.
+            bad = json.loads(json.dumps(good)); bad['actual_logon']['token']['elevated'] = True
+            (folder / legacy).write_text(json.dumps(good), encoding='utf-8')
+            (folder / v23.EVIDENCE).write_text(json.dumps(bad), encoding='utf-8')
+            with self.assertRaises(Exception):
+                compose('v23-preferred-bad')
+            (folder / v23.EVIDENCE).write_text(json.dumps(good), encoding='utf-8')
+            (folder / legacy).write_text(json.dumps(bad), encoding='utf-8')
+            compose('v23-preferred-good')
 
     def test_cli_check_passes(self):
         env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'}

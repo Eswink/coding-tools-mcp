@@ -73,16 +73,18 @@ jobs:
           git rev-parse HEAD > evidence/source-commit.txt
           git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
           rustc --version > evidence/toolchain.txt
+          python tools/delivery/workflow_test_targets.py
           cargo fmt --check --manifest-path services/cloud-gateway/Cargo.toml
           cargo fmt --check --manifest-path services/cloud-agent/Cargo.toml
           cargo clippy --locked --manifest-path services/cloud-agent/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/agent-clippy.txt
           cargo test --locked --manifest-path services/cloud-agent/Cargo.toml 2>&1 | tee evidence/agent-full.txt
-          grep -F '88 passed; 0 failed; 0 ignored' evidence/agent-full.txt
+          python tools/delivery/cargo_test_floor.py evidence/agent-full.txt --min 127
           cargo rustc --locked --manifest-path services/cloud-agent/Cargo.toml --lib -- -D warnings
           cargo clippy --locked --manifest-path services/cloud-gateway/Cargo.toml --all-targets -- -D warnings 2>&1 | tee evidence/clippy.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib execution::tests 2>&1 | tee evidence/execution-unit.txt
-          grep -F '13 passed; 0 failed; 0 ignored' evidence/execution-unit.txt
-          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_cli 2>&1 | tee evidence/portable.txt
+          python tools/delivery/cargo_test_floor.py evidence/execution-unit.txt --min 13
+          cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --lib --test service_contracts --test enrollment_contracts 2>&1 | tee evidence/portable.txt
+          python tools/delivery/cargo_test_floor.py evidence/portable.txt --min 77
           cargo rustc --locked --manifest-path services/cloud-gateway/Cargo.toml --lib -- -D warnings
           python -m unittest discover -s tests/delivery 2>&1 | tee evidence/delivery-python.txt
           node --test tests/delivery/*.test.mjs 2>&1 | tee evidence/delivery-js.txt
@@ -151,11 +153,11 @@ jobs:
           git rev-parse HEAD > evidence/source-commit.txt
           git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test admission_linearization 2>&1 | tee evidence/linearization.txt
-          grep -F '3 passed; 0 failed; 0 ignored' evidence/linearization.txt
+          python3 tools/delivery/cargo_test_floor.py evidence/linearization.txt --min 3
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test execution_postgres 2>&1 | tee evidence/execution-postgres.txt
-          grep -F '13 passed; 0 failed; 0 ignored' evidence/execution-postgres.txt
+          python3 tools/delivery/cargo_test_floor.py evidence/execution-postgres.txt --min 13
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml --test managed_agent_wss -- --test-threads=1 2>&1 | tee evidence/managed-agent-wss.txt
-          grep -F '5 passed; 0 failed; 0 ignored' evidence/managed-agent-wss.txt
+          python3 tools/delivery/cargo_test_floor.py evidence/managed-agent-wss.txt --min 5
           cargo test --locked --manifest-path services/cloud-gateway/Cargo.toml 2>&1 | tee evidence/full-gateway.txt
           sudo apt-get update -qq
           sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
@@ -163,7 +165,7 @@ jobs:
           cargo build --locked --manifest-path services/cloud-gateway/Cargo.toml --example native_desktop_fixture
           export CTM_NATIVE_GATEWAY_FIXTURE_BIN="$GITHUB_WORKSPACE/services/cloud-gateway/target/debug/examples/native_desktop_fixture"
           cargo test --locked --manifest-path src-tauri/Cargo.toml --features cloud-agent-integration-tests --lib tools::cloud_host::live::wss_tests -- --nocapture --test-threads=1 2>&1 | tee evidence/native-wss.txt
-          grep -F '9 passed; 0 failed; 0 ignored' evidence/native-wss.txt
+          python3 tools/delivery/cargo_test_floor.py evidence/native-wss.txt --min 16
           git diff --exit-code HEAD --
       - name: Preserve real database evidence
         if: always()
