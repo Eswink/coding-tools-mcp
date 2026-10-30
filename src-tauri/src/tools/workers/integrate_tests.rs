@@ -490,6 +490,9 @@ fn integrate_writes_main_only_after_the_native_confirm_and_never_stages() {
         mode.set_mode(mode.mode() | 0o111);
         fs::set_permissions(&script, mode).unwrap();
     }
+    // The tool.sh chmod above is unix-only: Windows has no executable bit
+    // (mainfs::exec_bit), so its diff holds 3 files instead of 4.
+    let files = if cfg!(unix) { 4 } else { 3 };
     let sha = sha_of(&f.ctx, id);
 
     let out = integrate(&f.ctx, id, &sha, "i1");
@@ -554,7 +557,7 @@ fn integrate_writes_main_only_after_the_native_confirm_and_never_stages() {
     let done = confirm(&f.ctx, &iid);
     assert_eq!(done["state"], "integrated", "{done}");
     assert_eq!(done["staged"], false, "{done}");
-    assert_eq!(done["files"], 4, "{done}");
+    assert_eq!(done["files"], files, "{done}");
     assert_eq!(
         fs::read_to_string(root.join("fixture.txt")).unwrap(),
         "worker\n"
@@ -593,7 +596,7 @@ fn integrate_writes_main_only_after_the_native_confirm_and_never_stages() {
     assert_eq!(journal.state, JournalState::Committed);
     assert_eq!(journal.integration_id.as_deref(), Some(iid.as_str()));
     assert_eq!(journal.head_at_commit.as_deref(), Some(head.as_str()));
-    assert_eq!(journal.entries.len(), 4);
+    assert_eq!(journal.entries.len(), files);
     let deep = journal
         .entries
         .iter()
