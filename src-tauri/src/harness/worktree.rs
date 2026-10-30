@@ -147,6 +147,13 @@ impl WorktreeManager {
         let (id, _) = self.allocate()?;
         Ok(reservations::take(&self.managed_root, id))
     }
+    /// Releases an unused reservation while the native lifecycle lock is held, so
+    /// the slot never frees outside the lock a concurrent create counts under (C1-a).
+    pub(crate) fn release_slot(&self, slot: SlotReservation) {
+        let guard = native::lock();
+        drop(slot);
+        drop(guard);
+    }
     /// Builds the worktree for a reservation. The slot is released while the native
     /// lifecycle lock is still held on every path, early returns included (SPEC-A1 v4 N4).
     pub(crate) fn create_reserved(&self, slot: SlotReservation) -> WorktreeResult<ManagedWorktree> {

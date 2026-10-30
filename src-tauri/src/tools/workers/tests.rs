@@ -717,8 +717,15 @@ fn a_failed_commit_rolls_back_make_room_and_releases_the_reservation() {
         .join("agents-v1")
         .join(&f.ctx.host.workspace_id);
     fs::remove_file(namespace.join("auth.json")).unwrap();
+    let _ = SlotReservation::take_last_release_locked_for_test();
     let err = scoped(&f.ctx, |c| spawn(c, "req", "w")).unwrap_err();
     assert_eq!(err.code(), "STORE_UNAVAILABLE");
+    // C1-a: the reservation is dropped while the native lifecycle lock is held,
+    // before that lock is released (never after, where create could race it).
+    assert_eq!(
+        SlotReservation::take_last_release_locked_for_test(),
+        Some(true)
+    );
     let records = status(&f.ctx, None).unwrap();
     assert_eq!(records.len(), 64, "make_room must not leak into memory");
     assert!(records.iter().any(|r| r.worker_id == oldest));

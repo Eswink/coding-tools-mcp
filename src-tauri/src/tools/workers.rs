@@ -752,12 +752,16 @@ pub(crate) fn spawn(
         Ok(slot) => {
             record.worktree_id = Some(slot.id().to_owned());
             let stored = record.clone();
-            // On failure the clone is discarded (make_room included) and `slot` drops here.
-            inner.apply(|doc| {
+            // On failure the clone is discarded (make_room included) and the slot is
+            // released under the native lifecycle lock before returning (C1-a).
+            if let Err(error) = inner.apply(|doc| {
                 make_room(doc)?;
                 doc.workers.push(stored);
                 Ok(())
-            })?;
+            }) {
+                manager.release_slot(slot);
+                return Err(error);
+            }
             pending().insert(id.as_str().to_owned(), slot);
             Ok((record, true))
         }
