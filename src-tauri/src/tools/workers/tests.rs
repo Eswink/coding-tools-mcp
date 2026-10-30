@@ -924,6 +924,57 @@ fn worker_context_sandbox_reads_but_cannot_write_its_gitdirs() {
     assert!(tree.join("c4-inside").exists());
 }
 
+/// Runs `script` with `/bin/sh` in the bound worker's sandbox, cwd = its tree.
+#[cfg(target_os = "linux")]
+fn in_worker_sandbox(f: &Fixture, worker: &WorkerRecord, script: &str) -> (String, String) {
+    use coding_tools_local_agent::{ExecSpec, ProcessManager};
+    let tree = worker_tree(&f.ctx, worker);
+    let (worker_ctx, _, _guard, _) = bind(
+        &f.ctx,
+        "exec_command",
+        &json!(worker.worker_id.as_str()),
+        &json!({}),
+    )
+    .unwrap();
+    let policy = worker_ctx.linux_sandbox.as_ref().clone().unwrap();
+    let spec = ExecSpec::new(
+        vec!["/bin/sh".into(), "-c".into(), script.into()],
+        tree.canonicalize().unwrap(),
+    )
+    .unwrap()
+    .with_env("PATH", "/usr/bin:/bin")
+    .unwrap()
+    .with_sandbox(policy);
+    let output = tauri::async_runtime::block_on(ProcessManager::default().run(spec)).unwrap();
+    (
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+/// A1 C4-b (SPEC-A1 v5.3 §4.2, C4 deviation 2): a worker cannot give itself a
+/// per-worktree Git config: `config.worktree` in its private gitdir can be
+/// neither created directly nor through `git config --worktree`.
+#[cfg(target_os = "linux")]
+#[test]
+fn worker_sandbox_cannot_create_config_worktree() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    let link = fs::read_to_string(tree.join(".git")).unwrap();
+    let private = std::path::PathBuf::from(link.trim_end().strip_prefix("gitdir: ").unwrap());
+    let script = concat!(
+        "p=$(sed 's/^gitdir: //' .git); ",
+        "(set -C; echo x > \"$p/config.worktree\") 2>/dev/null && printf Y || printf N; ",
+        "git -c extensions.worktreeConfig=true config --worktree a.b c 2>/dev/null ",
+        "&& printf Y || printf N"
+    );
+    let (stdout, stderr) = in_worker_sandbox(&f, &worker, script);
+    assert_eq!(stdout, "NN", "{stderr}");
+    assert!(!private.join("config.worktree").exists());
+    assert!(!private.join("config.worktree.lock").exists());
+}
+
 /// A1 C4-b (SPEC-A1 v5.3 §4.2): a bound worker context limits its children
 /// (cgroup v2 `w-<worker_id>`, else the RLIMIT fallback) and reports which;
 /// the main context reports nothing. This host has no user systemd, so the
