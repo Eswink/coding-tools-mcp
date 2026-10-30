@@ -824,3 +824,301 @@ fn a_new_integrate_marks_the_committed_one_superseded() {
     assert_eq!(journal.integration_id.as_deref(), Some(second_id.as_str()));
     assert_eq!(journal.state, JournalState::Committed);
 }
+
+// ---- C5-5: §5.1.1 per-file table and crash recovery (NB-c) ----
+
+use recovery::{classify, Action};
+
+fn entry(path: &str, pre: Option<(&[u8], bool)>, post: Option<(&[u8], bool)>) -> JournalEntry {
+    JournalEntry::from_change(&FileChange {
+        path: path.into(),
+        kind: ChangeKind::Modified,
+        pre: pre.map(|(b, e)| (b.to_vec(), e)),
+        post: post.map(|(b, e)| (b.to_vec(), e)),
+    })
+}
+/// (row, crash recovery column, rollback request column) of one entry.
+fn row_of(root: &Path, e: &JournalEntry) -> (u8, Action, bool) {
+    let v = classify(root, e);
+    (v.row, v.crash, v.rollback)
+}
+fn set_journal(ctx: &ToolContext, change: impl FnOnce(JournalDoc) -> JournalDoc) {
+    let (_, store) = open(ctx).unwrap();
+    let mut inner = store.lock().unwrap();
+    let journal = integration::journal_rw(&mut inner, &ctx.host).unwrap();
+    let next = change(journal.doc().clone());
+    journal.write(next).unwrap();
+}
+fn crashed(ctx: &ToolContext, state: JournalState, entries: Vec<JournalEntry>) {
+    set_journal(ctx, |doc| JournalDoc {
+        state,
+        integration_id: Some("b".repeat(32)),
+        entries,
+        ..doc.idle()
+    });
+}
+fn recover(ctx: &ToolContext) -> Value {
+    as_value(scoped(ctx, integration::recover))
+}
+fn rows(out: &Value) -> Vec<u64> {
+    out["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["row"].as_u64().unwrap())
+        .collect()
+}
+
+#[test]
+fn every_row_of_the_5_1_1_table_has_both_columns() {
+    use Action::{Attention, Keep, Restore};
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let (a, b, c): (&[u8], &[u8], &[u8]) = (b"pre\n", b"post\n", b"other\n");
+    let p = "d/f.txt";
+    let set = |body: Option<&[u8]>| {
+        let _ = fs::remove_dir_all(root.join("d"));
+        let _ = fs::remove_file(root.join("d"));
+        if let Some(body) = body {
+            write(root, p, body);
+        }
+    };
+    let modify = entry(p, Some((a, false)), Some((b, false)));
+    let delete = entry(p, Some((a, false)), None);
+    let add = entry(p, None, Some((b, false)));
+    // Rows 1-4: modified.
+    set(Some(b));
+    assert_eq!(row_of(root, &modify), (1, Restore, true));
+    set(Some(a));
+    assert_eq!(row_of(root, &modify), (2, Keep, false));
+    set(Some(c));
+    assert_eq!(row_of(root, &modify), (3, Attention, false));
+    set(None);
+    assert_eq!(row_of(root, &modify), (4, Attention, false));
+    // Rows 5-7: deleted. Row 5 rebuilds missing parents but never through a
+    // file (or, on unix, a symlink) parent.
+    set(None);
+    assert_eq!(row_of(root, &delete), (5, Restore, true));
+    fs::write(root.join("d"), "a file\n").unwrap();
+    assert_eq!(row_of(root, &delete), (5, Attention, false));
+    set(Some(a));
+    assert_eq!(row_of(root, &delete), (6, Keep, false));
+    set(Some(c));
+    assert_eq!(row_of(root, &delete), (7, Attention, false));
+    // Rows 8-10: added.
+    set(Some(b));
+    assert_eq!(row_of(root, &add), (8, Restore, true));
+    set(None);
+    assert_eq!(row_of(root, &add), (9, Keep, false));
+    set(Some(c));
+    assert_eq!(row_of(root, &add), (10, Attention, false));
+    // Row 11: neither image (corrupt), whatever main holds.
+    for body in [None, Some(a)] {
+        set(body);
+        assert_eq!(row_of(root, &entry(p, None, None)), (11, Attention, false));
+    }
+    // Row 12: a directory at the path, for every kind of entry.
+    set(None);
+    fs::create_dir_all(root.join(p)).unwrap();
+    for e in [&modify, &add, &delete] {
+        assert_eq!(row_of(root, e), (12, Attention, false), "{e:?}");
+    }
+    // pre == post: nothing to write, no conflict.
+    set(Some(a));
+    let same = entry(p, Some((a, false)), Some((a, false)));
+    assert_eq!(row_of(root, &same), (1, Keep, true));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+        set(None);
+        let outside = tempfile::tempdir().unwrap();
+        symlink(outside.path(), root.join("d")).unwrap();
+        assert_eq!(row_of(root, &delete), (5, Attention, false));
+        fs::remove_file(root.join("d")).unwrap();
+        fs::create_dir(root.join("d")).unwrap();
+        symlink(outside.path().join("x"), root.join(p)).unwrap();
+        assert_eq!(row_of(root, &add), (12, Attention, false));
+        // Only the executable bit differs: the mode decides the row.
+        set(Some(a));
+        let chmod = entry(p, Some((a, false)), Some((a, true)));
+        assert_eq!(row_of(root, &chmod), (2, Keep, false));
+        assert!(outside.path().read_dir().unwrap().next().is_none());
+    }
+}
+
+#[test]
+fn recovery_rebuilds_a_deleted_file_with_its_parents_mode_and_bytes() {
+    let f = Fixture::new();
+    let root = f.root.path();
+    // Crash in `prepared` after the delete ran and the emptied parents went.
+    crashed(
+        &f.ctx,
+        JournalState::Prepared,
+        vec![entry("deep/dir/old.sh", Some((b"#!/bin/sh\n", true)), None)],
+    );
+    assert!(!root.join("deep").exists());
+    let out = recover(&f.ctx);
+    assert_eq!(out["state"], "recovered", "{out}");
+    assert_eq!(out["from"], "prepared", "{out}");
+    assert_eq!(rows(&out), [5]);
+    assert_eq!(out["files_restored"], 1, "{out}");
+    let file = root.join("deep/dir/old.sh");
+    assert_eq!(fs::read(&file).unwrap(), b"#!/bin/sh\n");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(&file).unwrap().permissions().mode();
+        assert_ne!(mode & 0o111, 0, "{mode:o}");
+    }
+    let journal = journal_of(&f.ctx);
+    assert_eq!(journal.state, JournalState::None);
+    assert!(journal.entries.is_empty());
+    // Nothing left to recover.
+    assert_eq!(recover(&f.ctx)["state"], "none");
+}
+
+#[test]
+fn recovery_of_a_mixed_1_2_9_8_state_restores_pre_and_keeps_foreign_dirs() {
+    let f = Fixture::new();
+    let root = f.root.path();
+    let mut added = entry("x/y/new.txt", None, Some((b"new\n", false)));
+    added.created_dirs = vec!["x".into(), "x/y".into()];
+    crashed(
+        &f.ctx,
+        JournalState::Prepared,
+        vec![
+            entry("m1.txt", Some((b"a\n", false)), Some((b"b\n", false))),
+            entry("m2.txt", Some((b"a\n", false)), Some((b"b\n", false))),
+            entry("n.txt", None, Some((b"n\n", false))),
+            added,
+        ],
+    );
+    write(root, "m1.txt", b"b\n");
+    write(root, "m2.txt", b"a\n");
+    write(root, "x/y/new.txt", b"new\n");
+    write(root, "x/owner.txt", b"mine\n");
+    let out = recover(&f.ctx);
+    assert_eq!(out["state"], "recovered", "{out}");
+    assert_eq!(rows(&out), [1, 2, 9, 8]);
+    assert_eq!(out["files_restored"], 2, "{out}");
+    assert_eq!(out["dirs_kept"], json!(["x"]), "{out}");
+    assert_eq!(fs::read(root.join("m1.txt")).unwrap(), b"a\n");
+    assert_eq!(fs::read(root.join("m2.txt")).unwrap(), b"a\n");
+    assert!(!root.join("n.txt").exists());
+    assert!(!root.join("x/y").exists());
+    assert_eq!(fs::read(root.join("x/owner.txt")).unwrap(), b"mine\n");
+    assert_eq!(journal_of(&f.ctx).state, JournalState::None);
+}
+
+#[test]
+fn any_row_3_leaves_every_file_untouched_and_needs_attention() {
+    let f = Fixture::new();
+    let root = f.root.path();
+    crashed(
+        &f.ctx,
+        JournalState::RollingBack,
+        vec![
+            entry("m1.txt", Some((b"a\n", false)), Some((b"b\n", false))),
+            entry("m2.txt", Some((b"a\n", false)), Some((b"b\n", false))),
+            entry("gone.txt", Some((b"g\n", false)), None),
+        ],
+    );
+    write(root, "m1.txt", b"b\n");
+    write(root, "m2.txt", b"owner\n");
+    let out = recover(&f.ctx);
+    assert_eq!(out["state"], "needs_attention", "{out}");
+    assert_eq!(out["files_restored"], 0, "{out}");
+    assert_eq!(rows(&out), [1, 3, 5]);
+    assert_eq!(fs::read(root.join("m1.txt")).unwrap(), b"b\n");
+    assert_eq!(fs::read(root.join("m2.txt")).unwrap(), b"owner\n");
+    assert!(!root.join("gone.txt").exists());
+    let journal = journal_of(&f.ctx);
+    assert_eq!(journal.state, JournalState::NeedsAttention);
+    assert_eq!(journal.entries.len(), 3);
+    // Sticky: a later scan does not retry or reset it.
+    let again = recover(&f.ctx);
+    assert_eq!(
+        again,
+        json!({"state": "none", "journal": "needs_attention"})
+    );
+}
+
+#[test]
+fn an_interrupted_rollback_completes_and_an_interrupted_integrate_fails() {
+    let f = rich();
+    let root = f.root.path();
+    let worker = spawn_ok(&f.ctx, "c1", "w");
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("fixture.txt"), "worker\n").unwrap();
+    write(&tree, "a/b/new.txt", b"new\n");
+    let sha = sha_of(&f.ctx, id);
+    let out = integrate(&f.ctx, id, &sha, "i1");
+    let iid = out["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &iid)["state"], "integrated");
+    // Crash halfway through a rollback: fixture.txt is back, new.txt is not.
+    set_journal(&f.ctx, |doc| JournalDoc {
+        state: JournalState::RollingBack,
+        ..doc
+    });
+    fs::write(root.join("fixture.txt"), "original\n").unwrap();
+    let out = recover(&f.ctx);
+    assert_eq!(out["state"], "recovered", "{out}");
+    assert_eq!(out["from"], "rolling_back", "{out}");
+    assert_eq!(rows(&out), [8, 2]);
+    assert!(!root.join("a").exists());
+    assert_eq!(git(root, &["status", "--porcelain"]), "");
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Ready);
+    assert_eq!(
+        record.integrations.last().unwrap().state.label(),
+        "rolled_back"
+    );
+    assert_eq!(
+        ops(&record).last().map(String::as_str),
+        Some("rollback_committed")
+    );
+
+    // A pending request meets a journal left `prepared` by a crash: apply
+    // recovers first and asks for a fresh confirm; the crashed one is failed.
+    let out = integrate(&f.ctx, id, &sha, "i2");
+    let second = out["integration_id"].as_str().unwrap().to_owned();
+    let card = scoped(&f.ctx, |c| integration::prepare(c, &second)).unwrap();
+    set_journal(&f.ctx, |doc| JournalDoc {
+        state: JournalState::Prepared,
+        integration_id: Some(second.clone()),
+        entries: vec![entry(
+            "fixture.txt",
+            Some((b"original\n", false)),
+            Some((b"half\n", false)),
+        )],
+        ..doc.idle()
+    });
+    fs::write(root.join("fixture.txt"), "half\n").unwrap();
+    let approval = OwnerApproval::for_test(integration::INTEGRATE_SCOPE, &card.digest);
+    let busy = as_value(scoped(&f.ctx, |c| integration::apply(c, &card, &approval)));
+    assert_eq!(code(&busy), "INTEGRATE_BUSY", "{busy}");
+    assert_eq!(busy["error"]["details"]["reason"], "recovered", "{busy}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+    assert_eq!(journal_of(&f.ctx).state, JournalState::None);
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Ready);
+    assert_eq!(record.integrations.last().unwrap().state.label(), "failed");
+    // The rolled-back first integration is not touched by this recovery.
+    let first = record
+        .integrations
+        .iter()
+        .find(|i| i.integration_id == iid)
+        .unwrap();
+    assert_eq!(first.state.label(), "rolled_back");
+    let third = integrate(&f.ctx, id, &sha, "i3");
+    let done = confirm(&f.ctx, third["integration_id"].as_str().unwrap());
+    assert_eq!(done["state"], "integrated", "{done}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "worker\n"
+    );
+}

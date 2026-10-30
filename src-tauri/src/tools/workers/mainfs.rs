@@ -127,6 +127,21 @@ pub(crate) fn current(root: &Path, rel: &str) -> Current {
     }
 }
 
+/// The bytes and executable bit of a regular file at `rel` (parents real),
+/// used as the undo image of a recovery or rollback step.
+pub(crate) fn read(root: &Path, rel: &str) -> Option<(Vec<u8>, bool)> {
+    if !safe_path(rel) || parents(root, rel) != Parents::Ready {
+        return None;
+    }
+    let path = join(root, rel);
+    let meta = fs::symlink_metadata(&path).ok().filter(regular)?;
+    if meta.len() > MAX_FILE {
+        return None;
+    }
+    let bytes = fs::read(&path).ok()?;
+    Some((bytes, exec_bit(&meta)))
+}
+
 /// `current` equals the wanted image (`None` = absent). Windows ignores the
 /// executable bit (§5.1 mode row: `mode_ignored`).
 pub(crate) fn same(current: &Current, want: Option<(&str, bool)>) -> bool {

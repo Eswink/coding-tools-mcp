@@ -1694,6 +1694,8 @@ pub(crate) mod integration;
 pub(crate) mod journal;
 #[path = "workers/mainfs.rs"]
 pub(crate) mod mainfs;
+#[path = "workers/recovery.rs"]
+pub(crate) mod recovery;
 
 /// Test hook (NB-f): runs between discard's idle check and its root guard.
 #[cfg(test)]

@@ -9,8 +9,10 @@ use super::{
     integrate::{files_value, worker_diff_of},
     journal::{check_size, sha_hex, Journal, JournalDoc, JournalEntry, JournalState},
     mainfs::{self, Current, Parents, Step},
-    now, open, state_error, Document, Inner, WorkerError, WorkerId, WorkerOp, WorkerOwner,
-    WorkerRecord, WorkerState, DRAIN_BUDGET, MAX_OPS,
+    now, open,
+    recovery::{self, Action},
+    state_error, Document, Inner, WorkerError, WorkerId, WorkerOp, WorkerOwner, WorkerRecord,
+    WorkerState, DRAIN_BUDGET, MAX_OPS,
 };
 use crate::commands::native_owner::OwnerApproval;
 use crate::harness::worktree::{FileChange, WorkerDiff, WorktreeManager};
@@ -578,6 +580,7 @@ fn finish(
         let tool = match state {
             IntegrationState::Committed => "integrate_committed",
             IntegrationState::Rejected => "integrate_rejected",
+            IntegrationState::RolledBack => "rollback_committed",
             _ => "integrate_failed",
         };
         audit(record, tool, error, files);
@@ -600,6 +603,11 @@ pub(crate) fn apply(
     let drain = drain_for_integrate(ctx, DRAIN_BUDGET).map_err(|v| busy_from(&v))?;
     let (manager, store) = open(ctx)?;
     let root = manager.repository_root().to_path_buf();
+    // §5.1.1: an interrupted integrate/rollback is recovered before anything
+    // is compared; the main workspace moved, so the owner confirms again.
+    if let Some(recovered) = recover_locked(&mut *store.lock()?, &ctx.host, &root)? {
+        return Err(busy().with_details(json!({"reason": "recovered", "recovery": recovered})));
+    }
     let id = confirmation.integration_id.as_str();
     let record = pending_record(&mut *store.lock()?, id)?;
     let diff = fresh_diff(&manager, &record, &confirmation.diff_sha256)?;
@@ -790,4 +798,114 @@ pub(crate) fn reject(ctx: &ToolContext, integration_id: &str) -> Result<Value, W
         None,
     )?;
     Ok(json!({"integration_id": integration_id, "state": "rejected"}))
+}
+
+/// §5.1.1 crash recovery of a `prepared` or `rolling_back` journal. The caller
+/// holds the drain + exclusive guard and the store lock. Every entry is
+/// classified before anything is written: any «其他» row turns the journal
+/// `needs_attention` with the files untouched; otherwise one transaction writes
+/// the pre-images back and the journal returns to `none`. `None` when the
+/// journal needed no recovery.
+pub(super) fn recover_locked(
+    inner: &mut Inner,
+    host: &HostRoots,
+    root: &Path,
+) -> Result<Option<Value>, WorkerError> {
+    let journal = journal_rw(inner, host)?;
+    let doc = journal.doc().clone();
+    let from = match doc.state {
+        JournalState::Prepared => "prepared",
+        JournalState::RollingBack => "rolling_back",
+        _ => return Ok(None),
+    };
+    let verdicts: Vec<_> = doc
+        .entries
+        .iter()
+        .map(|entry| recovery::classify(root, entry))
+        .collect();
+    let rows: Vec<Value> = doc
+        .entries
+        .iter()
+        .zip(&verdicts)
+        .take(MAX_LISTED)
+        .map(|(e, v)| json!({"path": e.path, "row": v.row}))
+        .collect();
+    let steps = if verdicts.iter().any(|v| v.crash == Action::Attention) {
+        None
+    } else {
+        recovery::restore_steps(root, &doc.entries, &verdicts)
+    };
+    let attention = |journal: &mut Journal| {
+        journal.write(JournalDoc {
+            state: JournalState::NeedsAttention,
+            ..doc.clone()
+        })
+    };
+    let Some(steps) = steps else {
+        attention(journal)?;
+        return Ok(Some(json!({
+            "state": "needs_attention",
+            "from": from,
+            "files_restored": 0,
+            "rows": rows,
+        })));
+    };
+    match mainfs::transact(root, &steps) {
+        Err(failed) => {
+            // Undone: the journal still describes the files; retried later.
+            if !failed.restored {
+                attention(journal)?;
+            }
+            Err(
+                integrate_error("INTEGRATE_FAILED", "Recovering the main workspace failed.")
+                    .with_details(json!({"path": failed.path, "restored": failed.restored})),
+            )
+        }
+        Ok(dirs_kept) => {
+            journal.write(doc.idle())?;
+            if let Some(id) = doc.integration_id.as_deref() {
+                let (state, error) = if from == "prepared" {
+                    (IntegrationState::Failed, Some("INTEGRATE_FAILED"))
+                } else {
+                    (IntegrationState::RolledBack, None)
+                };
+                // Only the integration the journal was written for, while it
+                // is still in the state that wrote it; best effort otherwise.
+                let open = locate(&inner.doc, id).is_some_and(|(w, i)| {
+                    let current = inner.doc.workers[w].integrations[i].state;
+                    match from {
+                        "prepared" => current == IntegrationState::Pending,
+                        _ => matches!(
+                            current,
+                            IntegrationState::Committed | IntegrationState::RollbackPending
+                        ),
+                    }
+                });
+                if open {
+                    let _ = finish(inner, id, state, error, None);
+                }
+            }
+            Ok(Some(json!({
+                "state": "recovered",
+                "from": from,
+                "files_restored": steps.len(),
+                "dirs_kept": dirs_kept,
+                "rows": rows,
+            })))
+        }
+    }
+}
+
+/// Native, at startup (§5.1.1 «启动时扫描主根下的 journal»): recovers an
+/// interrupted integrate or rollback under the drain + exclusive guard.
+pub(crate) fn recover(ctx: &ToolContext) -> Result<Value, WorkerError> {
+    let drain = drain_for_integrate(ctx, DRAIN_BUDGET).map_err(|v| busy_from(&v))?;
+    let (manager, store) = open(ctx)?;
+    let root = manager.repository_root().to_path_buf();
+    let mut inner = store.lock()?;
+    let out = recover_locked(&mut inner, &ctx.host, &root)?;
+    let state = journal_rw(&mut inner, &ctx.host)?.doc().state;
+    drop(inner);
+    drop(drain);
+    Ok(out.unwrap_or_else(|| json!({"state": "none", "journal": state})))
 }
