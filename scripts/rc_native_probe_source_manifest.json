@@ -1,5 +1,5 @@
 {
- "entries": 1937,
+ "entries": 1940,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "2b38f31eecbbac594b1ee408e5b1fc00d3e7b447",
-   "bytes": 417179,
+   "blob": "d0fbb0e964b928ad12c2866ce05a86b088a833ba",
+   "bytes": 417704,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "9947deb494de7263279a5e3218b7f5abad07ef6d813703c66d495349f5380ffe"
+   "sha256": "7f893dfa79d72faea3de626d06638e01f25e0dc6f9a8e101f838439309cc4017"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -10398,11 +10398,11 @@
    "sha256": "3bd50cfe5cc1080e65909268e8c94c41409ae3d320ec1e2b7d6947b2325fcfb5"
   },
   {
-   "blob": "26c82edb459834dc9e4296946dd94eae3fcec962",
-   "bytes": 16018,
+   "blob": "79311371bec5ef2ff0145b5447683f964d8e2c6c",
+   "bytes": 17980,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree.rs",
-   "sha256": "7ebbf6b50d82fd71a3f70221a7069aeb5c965330ebf26680d83b764a4034697e"
+   "sha256": "aea84c30f49370e3649d9e45cd1cafacf0be9166382c17c25c7345400a10238d"
   },
   {
    "blob": "84949e366d58721ab058070efeff71f21c313da0",
@@ -10431,6 +10431,13 @@
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree_objects.rs",
    "sha256": "34de3b7d316e3d0c829a0f4c9c8187f9d5e33d99c5999898ea60c528014288f1"
+  },
+  {
+   "blob": "5438803a01d52d8e65e655b815a749452f9e61f8",
+   "bytes": 1610,
+   "mode": "100644",
+   "path": "src-tauri/src/harness/worktree_reservations.rs",
+   "sha256": "498516edf7c14cbf13fb0af1c19cdfb437d44315cfae515dbc77e91a47228bc5"
   },
   {
    "blob": "c44bb2c6a202e34c54c9e09e84e5452f097029b4",
@@ -11182,6 +11189,20 @@
    "sha256": "88f3281578ad21ac756ed43e6f237606137fff78aa491df2fece32a642b098fc"
   },
   {
+   "blob": "c34c0e62a13516ceff157254a45bb3822170174d",
+   "bytes": 23244,
+   "mode": "100644",
+   "path": "src-tauri/src/tools/workers.rs",
+   "sha256": "69178d894fce9213f20ca03f4018a79c4a3a59c77919595b188e907445dda79e"
+  },
+  {
+   "blob": "52572bfe520631fd1641def5b907b75e1c0e5abd",
+   "bytes": 19883,
+   "mode": "100644",
+   "path": "src-tauri/src/tools/workers/tests.rs",
+   "sha256": "479416b27d6a81d1ac6643c5357c78bef2743f2a49bc8b6609e0678bf8571b76"
+  },
+  {
    "blob": "2e29620397856fb81b4c1f13230ae3a7b894028d",
    "bytes": 15613,
    "mode": "100644",
@@ -11189,11 +11210,11 @@
    "sha256": "e0702cae94ffec3e683ecca440153474d282ef8a18d97c27e9acbd09601a217f"
   },
   {
-   "blob": "fecf528ac409bd2c9e02f210bc4c6c5a2f3cc32b",
-   "bytes": 2660,
+   "blob": "d42c0cff5036715217c63a0a3d5d2152433be7d3",
+   "bytes": 3716,
    "mode": "100644",
    "path": "src-tauri/src/tools/worktree_tools.rs",
-   "sha256": "916da9d6707b90fbf614bf7e2c1ede3c446a207892c7bd57ba228727a0007dfb"
+   "sha256": "0a494fa3413c6ca7bed35c6299fba74ace1bfc55257123555191848958149428"
   },
   {
    "blob": "0b19605c5953b6bbbbec0bcd08755c23a66d4f33",
