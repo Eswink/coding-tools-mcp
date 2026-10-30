@@ -363,7 +363,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
     (
         "subagent_rollback",
         "Roll back an integration",
-        "Reverse one integration by integration_id. Not available before A1 C5: returns INTEGRATE_UNSUPPORTED.",
+        "Request that the most recent integration (integration_id from subagent_integrate) be reversed. Only the latest committed integration while main HEAD and branch are unchanged can be rolled back; otherwise ROLLBACK_EXPIRED with a reason. Waits for the device owner's native confirmation; files are restored unstaged.",
         false,
         true,
         false,
