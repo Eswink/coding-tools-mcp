@@ -115,13 +115,30 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             let id = text(obj, "worker_id")?;
             let records = status(ctx, id)?;
             // NB-a: the rollback window is evaluated read-only here.
-            let windows = super::integration::rollback_views(ctx, &records)?;
+            // C5-nit (Grok review of 209bcfea, item 3): an unreadable journal
+            // (e.g. corrupt) does not hide the workers; only each integration's
+            // `rollback` carries the error.
+            let windows = super::integration::rollback_views(ctx, &records);
             let mut workers: Vec<Value> = records.iter().map(view).collect();
             for worker in &mut workers {
                 let integration = &mut worker["integration"];
+                if integration.is_null() {
+                    continue;
+                }
                 let id = integration["integration_id"].as_str().unwrap_or_default();
-                if let Some((_, window)) = windows.iter().find(|(i, _)| i == id) {
-                    integration["rollback"] = window.clone();
+                match &windows {
+                    Ok(windows) => {
+                        if let Some((_, window)) = windows.iter().find(|(i, _)| i == id) {
+                            integration["rollback"] = window.clone();
+                        }
+                    }
+                    Err(error) => {
+                        integration["rollback"] = json!({
+                            "available": false,
+                            "reason": "journal_unavailable",
+                            "error": {"code": error.code(), "message": error.message()},
+                        });
+                    }
                 }
             }
             Ok(json!({"workers": workers}))

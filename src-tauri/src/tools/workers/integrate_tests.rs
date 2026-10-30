@@ -794,6 +794,72 @@ fn reject_and_expiry_restore_the_prior_state() {
     assert_eq!(late.unwrap_err().code(), "WORKER_STATE");
 }
 
+/// C5-nit (Grok review of 209bcfea, item 2): an integrate that fails the
+/// journal size check at confirm must not mark the previous committed
+/// integration `superseded`. The request-time check (`supported`) sees only
+/// the pre-images (512 KiB → ~683 KiB base64); the prepared document also
+/// carries the NB-c `created_dirs` of four deep new trees and exceeds 1 MiB.
+#[test]
+fn a_failed_size_check_leaves_the_previous_integration_unsuperseded() {
+    let f = Fixture::new();
+    let root = f.root.path();
+    fs::write(
+        root.join("big.bin"),
+        vec![b'a'; MAX_PREIMAGE_TOTAL as usize],
+    )
+    .unwrap();
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "big"]);
+    let a = spawn_ok(&f.ctx, "c1", "a");
+    let b = spawn_ok(&f.ctx, "c2", "b");
+    write(&worker_tree(&f.ctx, &a), "a.txt", b"a\n");
+    let first = integrate(
+        &f.ctx,
+        a.worker_id.as_str(),
+        &sha_of(&f.ctx, a.worker_id.as_str()),
+        "x",
+    );
+    let first_id = first["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &first_id)["state"], "integrated");
+    let tree = worker_tree(&f.ctx, &b);
+    fs::write(tree.join("big.bin"), b"small\n").unwrap();
+    // Four new 90-level trees of 30-byte names (libgit2 walks at most 100
+    // levels): ~2.8 KB paths, ~500 KB of created_dirs.
+    let level = format!("{}/", "d".repeat(30));
+    for top in 0..4 {
+        let path = format!("t{top}/{}f.txt", level.repeat(89));
+        write(&tree, &path, b"deep\n");
+    }
+    let second = integrate(
+        &f.ctx,
+        b.worker_id.as_str(),
+        &sha_of(&f.ctx, b.worker_id.as_str()),
+        "y",
+    );
+    let second_id = second["integration_id"]
+        .as_str()
+        .expect(&second.to_string())
+        .to_owned();
+    let failed = confirm(&f.ctx, &second_id);
+    assert_eq!(code(&failed), "INTEGRATE_UNSUPPORTED", "{failed}");
+    assert_eq!(
+        failed["error"]["details"]["reason"], "preimage_too_large",
+        "{failed}"
+    );
+    let old = record_of(&f.ctx, a.worker_id.as_str());
+    let old = old.integrations.last().unwrap();
+    assert_eq!(old.state, IntegrationState::Committed);
+    assert_eq!(old.closed_reason, None);
+    let journal = journal_of(&f.ctx);
+    assert_eq!(journal.integration_id.as_deref(), Some(first_id.as_str()));
+    assert_eq!(journal.state, JournalState::Committed);
+    assert!(!root.join("t0").exists());
+    assert_eq!(
+        fs::read(root.join("big.bin")).unwrap().len(),
+        MAX_PREIMAGE_TOTAL as usize
+    );
+}
+
 #[test]
 fn a_new_integrate_marks_the_committed_one_superseded() {
     // NB-b: the journal only ever holds the latest integration.
@@ -1340,6 +1406,50 @@ fn head_moved_is_reported_read_only_and_recorded_on_the_read_write_path() {
     git(root, &["reset", "-q", "--hard", "HEAD~1"]);
     let again = rollback(&f.ctx, &iid, "r2");
     assert_eq!(reason(&again), "head_moved", "{again}");
+}
+
+/// C5-nit (Grok review of 209bcfea, item 3): a corrupt journal does not turn
+/// `subagent_status` into STORE_UNAVAILABLE. Every worker is still listed with
+/// its state; only the integration's `rollback` carries the error, and the
+/// corrupt file is left untouched (fail closed, no rebuild from a read).
+#[test]
+fn a_corrupt_journal_keeps_subagent_status_and_reports_only_the_rollback_error() {
+    let f = Fixture::new();
+    let a = spawn_ok(&f.ctx, "c1", "a");
+    let idle = spawn_ok(&f.ctx, "c2", "b");
+    write(&worker_tree(&f.ctx, &a), "a.txt", b"a\n");
+    let first = integrate(
+        &f.ctx,
+        a.worker_id.as_str(),
+        &sha_of(&f.ctx, a.worker_id.as_str()),
+        "x",
+    );
+    let iid = first["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &iid)["state"], "integrated");
+    let file = namespace(&f.ctx.host).join("integration-journal/auth.json");
+    fs::write(&file, "corrupt").unwrap();
+    let out = subagent(&f.ctx, "subagent_status", json!({}));
+    assert!(out.get("error").is_none(), "{out}");
+    let workers = out["workers"].as_array().unwrap();
+    assert_eq!(workers.len(), 2, "{out}");
+    let find = |id: &WorkerId| {
+        workers
+            .iter()
+            .find(|w| w["worker_id"] == id.as_str())
+            .unwrap()
+            .clone()
+    };
+    let worker = find(&a.worker_id);
+    assert_eq!(worker["state"], "integrated", "{worker}");
+    assert_eq!(worker["integration"]["integration_id"], iid.as_str());
+    let rollback = &worker["integration"]["rollback"];
+    assert_eq!(rollback["available"], false, "{rollback}");
+    assert_eq!(rollback["reason"], "journal_unavailable", "{rollback}");
+    assert_eq!(rollback["error"]["code"], "STORE_UNAVAILABLE", "{rollback}");
+    let other = find(&idle.worker_id);
+    assert_eq!(other["state"], "ready", "{other}");
+    assert!(other["integration"].is_null(), "{other}");
+    assert_eq!(fs::read_to_string(&file).unwrap(), "corrupt");
 }
 
 /// The read-only window of a worker's last integration, as another session sees it.

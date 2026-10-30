@@ -659,7 +659,6 @@ pub(crate) fn apply(
         }
         journal.doc().integration_id.clone()
     };
-    mark_superseded(&mut inner, previous.as_deref());
     let (entries, steps) = plan(&root, &diff.changes)?;
     let journal = journal_rw(&mut inner, &ctx.host)?;
     let base = journal.doc().idle();
@@ -673,6 +672,11 @@ pub(crate) fn apply(
     };
     check_size(&diff.changes, &prepared)?;
     journal.write(prepared.clone())?;
+    // C5-nit (Grok review of 209bcfea, item 2): only once this integration owns
+    // the journal is the previous one `superseded`; a plan/size/write failure
+    // above leaves it `committed` and unclosed.
+    mark_superseded(&mut inner, previous.as_deref());
+    let journal = journal_rw(&mut inner, &ctx.host)?;
     if let Err(failed) = mainfs::transact(&root, &steps) {
         let detail = json!({"path": failed.path, "restored": failed.restored});
         if failed.restored {

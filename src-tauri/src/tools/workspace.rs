@@ -164,7 +164,6 @@ impl Workspace {
         })
     }
 
-    /// Native-only managed workspace restriction. There is no IPC/model toggle.
     /// A1 C5 (NB-g): mark a worker worktree root (implies confined reads).
     pub(crate) fn mark_worker_root(&mut self) {
         self.confined_reads = true;
@@ -175,6 +174,7 @@ impl Workspace {
     pub(crate) fn is_worker_root(&self) -> bool {
         self.worker_root
     }
+    /// Native-only managed workspace restriction. There is no IPC/model toggle.
     pub(crate) fn confine_reads(&mut self) {
         self.confined_reads = true;
     }
