@@ -572,3 +572,93 @@ fn legacy_chat_root_worktrees_count_against_the_main_slots_and_are_never_moved()
     sorted.sort_by(|a, b| a.id.cmp(&b.id));
     assert_eq!(legacy.list().unwrap(), sorted);
 }
+
+/// SPEC-A1 v4 §4.2 (C4): managed roots are private to the owner.
+#[cfg(unix)]
+#[test]
+fn managed_roots_are_created_0700_and_group_writable_roots_are_rejected() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = TestRepo::new();
+    let worktrees = fixture.harness.path().join("worktrees-v1");
+    let managed = worktrees.join(WORKSPACE_ID);
+    let modes =
+        [&worktrees, &managed].map(|path| fs::metadata(path).unwrap().permissions().mode() & 0o777);
+    assert_eq!(modes, [0o700, 0o700]);
+    // Reopening an existing owner-only root keeps working.
+    assert_eq!(
+        WorktreeManager::new(fixture.repo.path(), fixture.harness.path(), WORKSPACE_ID)
+            .err()
+            .map(|error| error.code),
+        None
+    );
+    for (path, mode) in [(&managed, 0o770), (&managed, 0o702), (&worktrees, 0o720)] {
+        fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+        assert_eq!(
+            WorktreeManager::new(fixture.repo.path(), fixture.harness.path(), WORKSPACE_ID)
+                .err()
+                .map(|error| error.code),
+            Some("BOUNDARY_VIOLATION"),
+            "{mode:o}"
+        );
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+}
+
+/// A1 C4 (N1): only real `chat-v1/<64 hex>/worktrees-v1` roots count towards
+/// the legacy scan limit; past it roots are skipped (warned), never CAPACITY.
+#[test]
+fn legacy_scan_counts_only_real_hex_roots_and_skips_past_the_limit() {
+    let fixture = TestRepo::new();
+    let chat = fixture.harness.path().join("chat-v1");
+    let mut legacy_ids = Vec::new();
+    for key in ["ab".repeat(32), "cd".repeat(32), "ef".repeat(32)] {
+        let root = chat.join(&key);
+        fs::create_dir_all(&root).unwrap();
+        let manager = WorktreeManager::new(fixture.repo.path(), &root, WORKSPACE_ID).unwrap();
+        legacy_ids.push(manager.create_detached().unwrap().id);
+    }
+    legacy_ids.sort();
+    // 300 each of: hex-named files, non-hex dirs with worktrees-v1, hex dirs without it.
+    for n in 0..300 {
+        fs::write(chat.join(format!("{n:064x}")), "file").unwrap();
+        fs::create_dir_all(chat.join(format!("not-hex-{n}")).join("worktrees-v1")).unwrap();
+        fs::create_dir_all(chat.join(format!("{:064x}", n + 1000))).unwrap();
+    }
+    LEGACY_GIT_RUNS.with(|runs| runs.set(0));
+    let scan = fixture.manager.legacy_scan().map(|(items, skipped)| {
+        (
+            items.into_iter().map(|item| item.id).collect::<Vec<_>>(),
+            skipped,
+        )
+    });
+    assert_eq!(scan.map_err(|e| e.code()), Ok((legacy_ids.clone(), 0)));
+    assert_eq!(
+        LEGACY_GIT_RUNS.with(|runs| runs.get()),
+        1,
+        "one git run per scan"
+    );
+
+    // 300 real hex roots sorting before the three trees push them past the limit.
+    for n in 0..300 {
+        fs::create_dir_all(chat.join(format!("{:064x}", n + 2000)).join("worktrees-v1")).unwrap();
+    }
+    LEGACY_GIT_RUNS.with(|runs| runs.set(0));
+    let scan = fixture
+        .manager
+        .legacy_scan()
+        .map(|(items, skipped)| (items.len(), skipped));
+    assert_eq!(scan.map_err(|e| e.code()), Ok((0, 303 - 256)));
+    assert!(LEGACY_GIT_RUNS.with(|runs| runs.get()) <= 1);
+    assert_eq!(
+        fixture
+            .manager
+            .list_with_legacy()
+            .map(|items| items.len())
+            .map_err(|e| e.code()),
+        Ok(0)
+    );
+    let created = fixture.manager.create_detached().map(|item| item.legacy);
+    assert_eq!(created.map_err(|e| e.code()), Ok(false));
+    let slot = fixture.manager.reserve_slot().map(|_| ());
+    assert_eq!(slot.map_err(|e| e.code()), Ok(()));
+}

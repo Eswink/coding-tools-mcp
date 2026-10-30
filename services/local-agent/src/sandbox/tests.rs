@@ -86,3 +86,134 @@ fn a_policy_object_does_not_override_forbidden_execution_authority() {
         ExecutionAuthorization::Forbidden
     );
 }
+
+/// `[root, common, private]` laid out like a linked Git worktree.
+fn worktree_layout(dir: &Directory) -> (PathBuf, PathBuf, PathBuf) {
+    let root = dir.0.join("tree");
+    let common = dir.0.join("repo").join(".git");
+    let private = common.join("worktrees").join("w1");
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::create_dir_all(&private).unwrap();
+    (root, common, private)
+}
+
+fn kind(result: Result<LinuxSandbox, SandboxError>) -> Option<SandboxErrorKind> {
+    result.err().map(|error| error.kind)
+}
+
+#[test]
+fn simulated_landlock_abi1_fails_closed_for_every_policy_shape() {
+    // SPEC-A1 v4 §4.2: the Ubuntu 22.04 GA kernel reports Landlock ABI1. That
+    // rejection is a pre-existing baseline, and `for_worktree` must not relax it.
+    let dir = Directory::new();
+    let (root, common, private) = worktree_layout(&dir);
+    let policies = [
+        LinuxSandbox::new(&root).unwrap(),
+        LinuxSandbox::new(&root).unwrap().read_only(),
+        LinuxSandbox::for_worktree(&root, &private, &common).unwrap(),
+        LinuxSandbox::for_worktree(&root, &private, &common)
+            .unwrap()
+            .read_only(),
+    ];
+    for abi in [1, 2] {
+        linux::SIMULATED_ABI.with(|value| value.set(Some(abi)));
+        for policy in &policies {
+            let outcome = policy.prepare(Path::new("/bin/sh"), &root);
+            assert_eq!(
+                outcome.err().map(|error| error.kind),
+                Some(SandboxErrorKind::Unavailable),
+                "ABI{abi} must fail closed"
+            );
+        }
+    }
+    linux::SIMULATED_ABI.with(|value| value.set(Some(3)));
+    for policy in &policies {
+        assert_eq!(
+            policy
+                .prepare(Path::new("/bin/sh"), &root)
+                .err()
+                .map(|error| error.kind),
+            None
+        );
+    }
+    linux::SIMULATED_ABI.with(|value| value.set(None));
+}
+
+#[test]
+fn for_worktree_only_accepts_a_private_gitdir_directly_under_common_worktrees() {
+    let dir = Directory::new();
+    let (root, common, private) = worktree_layout(&dir);
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(&root, &private, &common)),
+        None
+    );
+    // Private gitdir not under `<common>/worktrees/`.
+    let stray = dir.0.join("stray");
+    std::fs::create_dir(&stray).unwrap();
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(&root, &stray, &common)),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    // Nested deeper than a direct child.
+    let nested = private.join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(&root, &nested, &common)),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    // The common gitdir itself, or `<common>/worktrees`, is not a private gitdir.
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(&root, &common, &common)),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(
+            &root,
+            common.join("worktrees"),
+            &common
+        )),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    // A gitdir may not contain the workspace root: that would widen reads above it.
+    let outer = dir.0.join("outer");
+    let inner_root = outer.join("worktrees").join("w2");
+    std::fs::create_dir_all(&inner_root).unwrap();
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(
+            &inner_root,
+            outer.join("worktrees").join("w2"),
+            &outer
+        )),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    // Nor may the root contain a gitdir.
+    let inside_common = root.join(".git");
+    std::fs::create_dir_all(inside_common.join("worktrees").join("w3")).unwrap();
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(
+            &root,
+            inside_common.join("worktrees").join("w3"),
+            &inside_common
+        )),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    // Missing paths and system roots are rejected exactly like `new`.
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(
+            &root,
+            common.join("worktrees").join("missing"),
+            &common
+        )),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    assert_eq!(
+        kind(LinuxSandbox::for_worktree(
+            &root,
+            "/usr/worktrees/x",
+            "/usr"
+        )),
+        Some(SandboxErrorKind::InvalidRoot)
+    );
+    let policy = LinuxSandbox::for_worktree(&root, &private, &common).unwrap();
+    assert!(!format!("{policy:?}").contains(dir.0.to_str().unwrap()));
+}

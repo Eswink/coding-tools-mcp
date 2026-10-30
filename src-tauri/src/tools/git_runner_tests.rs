@@ -144,3 +144,78 @@ async fn inspection_can_be_called_inside_an_async_host_without_nested_runtime() 
     assert!(output.status.success());
     assert_eq!(String::from_utf8(output.stdout).unwrap().trim().len(), 40);
 }
+
+/// `(main repository, linked worktree)` created by the real `git worktree add`.
+fn linked_worktree(fixture: &Path) -> (std::path::PathBuf, std::path::PathBuf) {
+    let main = fixture.join("main");
+    repository(&main);
+    let linked = fixture.join("linked");
+    git(
+        &main,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "--detach",
+            linked.to_str().unwrap(),
+        ],
+    );
+    fs::write(linked.join("input.txt"), "linked change\n").unwrap();
+    (main, linked)
+}
+
+#[test]
+fn linked_worktree_git_status_reads_its_gitdirs_under_landlock() {
+    // SPEC-A1 v4 §4.2 (C4): previously `is_repo:false` (known gap C2-3).
+    let fixture = tempfile::tempdir().unwrap();
+    let (main, linked) = linked_worktree(fixture.path());
+    let common = fs::canonicalize(main.join(".git")).unwrap();
+    assert_eq!(
+        linked_worktree_gitdirs(&linked),
+        Some((common.join("worktrees").join("linked"), common.clone()))
+    );
+    let harness = tempfile::tempdir().unwrap();
+    let ctx = ToolContext::for_test(linked.clone(), harness.path().into()).unwrap();
+    let status = call_tool(&ctx, "git_status", &json!({}));
+    assert_eq!(status["is_repo"], true, "{status}");
+    assert!(status.to_string().contains("input.txt"), "{status}");
+    let diff = call_tool(&ctx, "git_diff", &json!({}));
+    assert!(diff.to_string().contains("linked change"), "{diff}");
+    // Inspection still never writes Git metadata.
+    assert!(!common.join("worktrees/linked/index.lock").exists());
+    assert!(!common.join("index.lock").exists());
+}
+
+#[test]
+fn forged_worktree_links_never_widen_the_git_sandbox() {
+    let fixture = tempfile::tempdir().unwrap();
+    let (main, linked) = linked_worktree(fixture.path());
+    fs::write(main.join("private.txt"), "SYNTHETIC_PRIVATE_CONTENT").unwrap();
+    git(&main, &["add", "private.txt"]);
+    git(&main, &["commit", "-qm", "private-fixture"]);
+    let private = fs::canonicalize(main.join(".git/worktrees/linked")).unwrap();
+    let harness = tempfile::tempdir().unwrap();
+    // A different root pointing at another worktree's real metadata: the
+    // back-pointer names `linked/.git`, not this root.
+    let forged = fixture.path().join("forged");
+    fs::create_dir(&forged).unwrap();
+    fs::write(
+        forged.join(".git"),
+        format!("gitdir: {}\n", private.display()),
+    )
+    .unwrap();
+    assert_eq!(linked_worktree_gitdirs(&forged), None);
+    let ctx = ToolContext::for_test(forged.clone(), harness.path().into()).unwrap();
+    let result = call_tool(&ctx, "git_show", &json!({}));
+    assert_ne!(result["is_repo"], true, "{result}");
+    assert!(!result.to_string().contains("SYNTHETIC_PRIVATE_CONTENT"));
+    // A symlinked `.git` is never followed.
+    let symlinked = fixture.path().join("symlinked");
+    fs::create_dir(&symlinked).unwrap();
+    std::os::unix::fs::symlink(linked.join(".git"), symlinked.join(".git")).unwrap();
+    assert_eq!(linked_worktree_gitdirs(&symlinked), None);
+    // A plain checkout and a `commondir` that does not own the private gitdir.
+    assert_eq!(linked_worktree_gitdirs(&main), None);
+    fs::write(private.join("commondir"), "../../..\n").unwrap();
+    assert_eq!(linked_worktree_gitdirs(&linked), None);
+}

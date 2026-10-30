@@ -813,16 +813,12 @@ fn worker_id_reroutes_file_git_and_patch_tools_into_the_worker_worktree() {
 
     let status = call_tool(&f.ctx, "git_status", &with_worker(id, json!({})));
     assert_eq!(status["ok"], true, "{status}");
-    // Known C2 gap (SPEC-A1 v4 §4.2, closed by C4 `LinuxSandbox::for_worktree`):
-    // the Linux git runner's Landlock root is the worktree, so the linked
-    // worktree's gitdir under the main `.git/worktrees/` is unreadable. The
-    // call is still routed into the worker worktree, never the main root.
+    // SPEC-A1 v4 §4.2 (C4, closes known gap C2-3): on Linux the worker's git
+    // runner uses `LinuxSandbox::for_worktree`, so the linked worktree's gitdir
+    // under the main `.git/worktrees/` is readable and status is the worker's.
+    // Other platforms keep their pre-C4 assertion unchanged.
     #[cfg(target_os = "linux")]
-    {
-        assert_eq!(status["is_repo"], false, "{status}");
-        assert!(status.to_string().contains(".git/worktrees/"), "{status}");
-    }
-    #[cfg(not(target_os = "linux"))]
+    assert_eq!(status["is_repo"], true, "{status}");
     assert!(status.to_string().contains("fixture.txt"), "{status}");
     let main_status = call_tool(&f.ctx, "git_status", &json!({}));
     assert!(
@@ -871,6 +867,56 @@ fn worker_exec_runs_with_the_worker_worktree_as_its_root_and_cwd() {
         "{out} / {}",
         tree.display()
     );
+}
+
+/// SPEC-A1 v4 §4.2 (C4): the worker context's Linux sandbox (used for remote,
+/// kernel-isolated worker exec) is `LinuxSandbox::for_worktree`. Its private and
+/// common gitdirs are readable, neither gains any write right, and the worktree
+/// itself stays writable. Exercised directly on the bound context's policy.
+#[cfg(target_os = "linux")]
+#[test]
+fn worker_context_sandbox_reads_but_cannot_write_its_gitdirs() {
+    use coding_tools_local_agent::{ExecSpec, ProcessManager};
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    let (worker_ctx, _, _guard) = bind(
+        &f.ctx,
+        "exec_command",
+        &json!(worker.worker_id.as_str()),
+        &json!({}),
+    )
+    .unwrap();
+    let policy = worker_ctx.linux_sandbox.as_ref().clone().unwrap();
+    let script = concat!(
+        "p=$(sed 's/^gitdir: //' .git); ",
+        "head -c 1 \"$p/HEAD\" >/dev/null 2>&1 && printf Y || printf N; ",
+        "head -c 1 \"$p/../../HEAD\" >/dev/null 2>&1 && printf Y || printf N; ",
+        "(set -C; echo x > \"$p/c4-probe\") 2>/dev/null && printf Y || printf N; ",
+        "(set -C; echo x > \"$p/../../c4-probe\") 2>/dev/null && printf Y || printf N; ",
+        "(set -C; echo x > c4-inside) 2>/dev/null && printf Y || printf N"
+    );
+    let spec = ExecSpec::new(
+        vec!["/bin/sh".into(), "-c".into(), script.into()],
+        tree.canonicalize().unwrap(),
+    )
+    .unwrap()
+    .with_env("PATH", "/usr/bin:/bin")
+    .unwrap()
+    .with_sandbox(policy);
+    let output = tauri::async_runtime::block_on(ProcessManager::default().run(spec)).unwrap();
+    // private read, common read, private create, common create, root create.
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        "YYNNY",
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let link = fs::read_to_string(tree.join(".git")).unwrap();
+    let private = std::path::Path::new(link.trim_end().strip_prefix("gitdir: ").unwrap());
+    assert!(!private.join("c4-probe").exists());
+    assert!(!f.root.path().join(".git").join("c4-probe").exists());
+    assert!(tree.join("c4-inside").exists());
 }
 
 #[test]

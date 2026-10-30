@@ -6,10 +6,18 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use uuid::Uuid;
 
-use super::worktree_git::{git_path_arg, run_git};
+use super::worktree_git::{git_path_arg, list_registered_under, run_git};
 
 const MAX_MANAGED_WORKTREES: usize = 8;
 const OPAQUE_ID_LEN: usize = 32;
+/// A1 C4 (N1): legacy chat-v1 conversation roots scanned per listing.
+const LEGACY_ROOT_LIMIT: usize = 256;
+
+#[cfg(test)]
+thread_local! {
+    /// Test seam (A1 C4 N1): `git worktree list` runs made by legacy scans.
+    static LEGACY_GIT_RUNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ManagedWorktree {
@@ -294,67 +302,77 @@ impl WorktreeManager {
     /// per-session roots worktree tools used before C1-b. Read-only: nothing is
     /// moved. Links, other workspaces and non-detached entries are ignored.
     fn legacy_list(&self) -> WorktreeResult<Vec<ManagedWorktree>> {
+        let (legacy, skipped) = self.legacy_scan()?;
+        if skipped > 0 {
+            // A1 C4 (N1): never fail create/spawn/list over too many legacy roots.
+            eprintln!(
+                "warning: {skipped} legacy chat-v1 conversation roots beyond {LEGACY_ROOT_LIMIT} were skipped"
+            );
+        }
+        Ok(legacy)
+    }
+    /// A1 C4 (N1): only real `chat-v1/<64 hex>` directories that hold a real
+    /// `worktrees-v1` directory are counted; files and other names are skipped.
+    /// Beyond [`LEGACY_ROOT_LIMIT`] such roots (by name) the rest are skipped and
+    /// reported, never an error. `git worktree list` runs once, filtered by parent.
+    fn legacy_scan(&self) -> WorktreeResult<(Vec<ManagedWorktree>, usize)> {
         let real_dir = |path: &Path| {
             fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !is_link_or_reparse(&m))
         };
         let base = self.harness_root.join("chat-v1");
         if !real_dir(&base) || base.canonicalize().ok().as_deref() != Some(base.as_path()) {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), 0));
         }
         let hex = |s: &str| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit());
+        let mut names = Vec::new();
+        for entry in fs::read_dir(&base).map_err(|_| io_failure())? {
+            let Ok(entry) = entry else { continue };
+            let Some(name) = entry
+                .file_name()
+                .to_str()
+                .filter(|name| hex(name))
+                .map(str::to_owned)
+            else {
+                continue;
+            };
+            let path = base.join(&name);
+            if real_dir(&path) && real_dir(&path.join("worktrees-v1")) {
+                names.push(name);
+            }
+        }
+        names.sort();
+        let skipped = names.len().saturating_sub(LEGACY_ROOT_LIMIT);
+        names.truncate(LEGACY_ROOT_LIMIT);
+        let roots: Vec<PathBuf> = names
+            .iter()
+            .map(|name| {
+                base.join(name)
+                    .join("worktrees-v1")
+                    .join(&self.workspace_id)
+            })
+            .filter(|root| {
+                real_dir(root) && root.canonicalize().ok().as_deref() == Some(root.as_path())
+            })
+            .collect();
+        if roots.is_empty() {
+            return Ok((Vec::new(), skipped));
+        }
+        #[cfg(test)]
+        LEGACY_GIT_RUNS.with(|runs| runs.set(runs.get() + 1));
         let mut legacy = Vec::new();
-        for (count, entry) in fs::read_dir(&base).map_err(|_| io_failure())?.enumerate() {
-            if count >= 256 {
-                return Err(error("CAPACITY", "Too many legacy conversation roots."));
-            }
-            let entry = entry.map_err(|_| io_failure())?;
-            if !entry.file_name().to_str().is_some_and(hex) {
-                continue;
-            }
-            let kind = entry.path().join("worktrees-v1");
-            let root = kind.join(&self.workspace_id);
-            if !(real_dir(&entry.path()) && real_dir(&kind) && real_dir(&root))
-                || root.canonicalize().ok().as_deref() != Some(root.as_path())
-            {
-                continue;
-            }
-            let output = run_git(
-                &self.repository_root,
-                &[
-                    OsString::from("worktree"),
-                    OsString::from("list"),
-                    OsString::from("--porcelain"),
-                    OsString::from("-z"),
-                ],
-                &self.repository_root,
-                Some(&root),
-            )?;
-            if !output.success {
-                return Err(git_failed());
-            }
-            for item in parse_registry(&output.stdout)? {
-                if item.path.parent() != Some(root.as_path()) || !item.detached {
-                    continue;
-                }
-                let Some(id) = item.path.file_name().and_then(|v| v.to_str()) else {
-                    continue;
-                };
-                let Some(head) = item.head.as_deref().filter(|head| valid_head(head)) else {
-                    continue;
-                };
-                if valid_id(id) {
-                    legacy.push(ManagedWorktree {
-                        id: id.to_owned(),
-                        display_path: format!("legacy/{id}"),
-                        head: head.to_owned(),
-                        detached: true,
-                        legacy: true,
-                    });
-                }
+        for (_, id, head) in list_registered_under(&self.repository_root, &roots)? {
+            if valid_id(&id) && valid_head(&head) {
+                legacy.push(ManagedWorktree {
+                    display_path: format!("legacy/{id}"),
+                    id,
+                    head,
+                    detached: true,
+                    legacy: true,
+                });
             }
         }
         legacy.sort_by(|left, right| left.id.cmp(&right.id));
-        Ok(legacy)
+        Ok((legacy, skipped))
     }
     pub fn remove_clean(&self, id: &str) -> WorktreeResult<()> {
         let _guard = native::lock()?;
@@ -569,13 +587,32 @@ fn canonical_directory(path: &Path, message: &'static str) -> WorktreeResult<Pat
     Ok(path)
 }
 
+/// SPEC-A1 v4 §4.2 (C4): on unix the managed roots are created 0700, and an
+/// existing one must be owned by the effective uid with no group/other write
+/// bit. Other platforms keep their pre-C4 behavior unchanged.
 fn ensure_owned_directory(path: &Path) -> WorktreeResult<()> {
     if path.exists() || path.is_symlink() {
         let metadata = fs::symlink_metadata(path).map_err(|_| io_failure())?;
         if is_link_or_reparse(&metadata) || !metadata.is_dir() {
             return Err(boundary_error());
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o022 != 0 {
+                return Err(boundary_error());
+            }
+        }
     } else {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            fs::DirBuilder::new()
+                .mode(0o700)
+                .create(path)
+                .map_err(|_| io_failure())?;
+        }
+        #[cfg(not(unix))]
         fs::create_dir(path).map_err(|_| io_failure())?;
     }
     Ok(())

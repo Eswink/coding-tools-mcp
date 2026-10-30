@@ -210,7 +210,8 @@ impl ToolContext {
         let mut copy = self.background_snapshot();
         #[cfg(target_os = "linux")]
         {
-            copy.linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
+            // SPEC-A1 v4 §4.2 (C4): the worker's gitdirs are readable, never writable.
+            copy.linux_sandbox = Arc::new(super::git_runner::sandbox_for_root(&root));
         }
         copy.workspace = workspace;
         copy.default_cwd = Arc::new(Mutex::new(cwd));

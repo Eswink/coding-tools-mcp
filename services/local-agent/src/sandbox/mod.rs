@@ -57,6 +57,8 @@ struct Root {
 #[derive(Clone)]
 pub struct LinuxSandbox {
     root: Arc<Root>,
+    /// Linked-worktree metadata (`[private, common]`), read-only. See `for_worktree`.
+    gitdirs: Option<Arc<[Root; 2]>>,
     read_only: bool,
 }
 
@@ -66,12 +68,52 @@ impl LinuxSandbox {
         {
             Ok(Self {
                 root: Arc::new(linux::pin_root(workspace_root.as_ref())?),
+                gitdirs: None,
                 read_only: false,
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
         {
             let _ = workspace_root;
+            Err(SandboxError {
+                kind: SandboxErrorKind::Unsupported,
+            })
+        }
+    }
+
+    /// SPEC-A1 v4 §4.2 (C4): a linked Git worktree whose metadata lives outside
+    /// the workspace root. The worktree root keeps exactly the rights `new`
+    /// grants. The private gitdir (`<common>/worktrees/<id>`) and the common
+    /// gitdir are added with read-file/read-dir only: never write, truncate,
+    /// create, remove or execute, and `read_only` cannot widen that. Git inside
+    /// the sandbox can therefore inspect the worktree (`status`, `diff`, `log`)
+    /// but `git commit`, `add` or index refreshes fail closed.
+    ///
+    /// The caller (a trusted host) resolves the gitdirs; this constructor only
+    /// pins and validates their shape: the private gitdir must be a direct child
+    /// of `<common>/worktrees`, and neither gitdir may contain or be contained
+    /// by the workspace root.
+    pub fn for_worktree(
+        workspace_root: impl AsRef<std::path::Path>,
+        private_gitdir: impl AsRef<std::path::Path>,
+        common_gitdir: impl AsRef<std::path::Path>,
+    ) -> Result<Self, SandboxError> {
+        #[cfg(target_arch = "x86_64")]
+        {
+            let (root, gitdirs) = linux::pin_worktree(
+                workspace_root.as_ref(),
+                private_gitdir.as_ref(),
+                common_gitdir.as_ref(),
+            )?;
+            Ok(Self {
+                root: Arc::new(root),
+                gitdirs: Some(Arc::new(gitdirs)),
+                read_only: false,
+            })
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            let _ = (workspace_root, private_gitdir, common_gitdir);
             Err(SandboxError {
                 kind: SandboxErrorKind::Unsupported,
             })
@@ -92,11 +134,17 @@ impl LinuxSandbox {
     ) -> Result<PreparedSandbox, SandboxError> {
         #[cfg(target_arch = "x86_64")]
         {
-            linux::prepare(&self.root, executable, cwd, self.read_only)
+            linux::prepare(
+                &self.root,
+                self.gitdirs.as_deref(),
+                executable,
+                cwd,
+                self.read_only,
+            )
         }
         #[cfg(not(target_arch = "x86_64"))]
         {
-            let _ = (executable, cwd, &self.root);
+            let _ = (executable, cwd, &self.root, &self.gitdirs);
             Err(SandboxError {
                 kind: SandboxErrorKind::Unsupported,
             })

@@ -59,6 +59,17 @@ fn registration(source: &Source, managed: &Path, id: &str) -> WorktreeResult<(Pa
     Ok((target, metadata))
 }
 fn registered(source: &Source, managed: &Path) -> WorktreeResult<Vec<(String, PathBuf, PathBuf)>> {
+    Ok(registered_in(source, &[managed])?
+        .into_iter()
+        .map(|(_, id, target, metadata)| (id, target, metadata))
+        .collect())
+}
+/// One pass over `.git/worktrees`, keeping entries whose back-pointer names a
+/// tree directly under one of `roots` (A1 C4 N1: one listing, filtered by parent).
+fn registered_in(
+    source: &Source,
+    roots: &[&Path],
+) -> WorktreeResult<Vec<(usize, String, PathBuf, PathBuf)>> {
     let parent = source.git.join("worktrees");
     if fs::symlink_metadata(&parent).is_err() {
         return Ok(Vec::new());
@@ -88,12 +99,44 @@ fn registered(source: &Source, managed: &Path) -> WorktreeResult<Vec<(String, Pa
         let pointer = std::str::from_utf8(&pointer)
             .map_err(|_| failure("PARSE_FAILED"))?
             .trim_end_matches(['\r', '\n']);
-        let expected = git_path_arg(&managed.join(&id).join(".git"));
-        if Path::new(pointer) != Path::new(&expected) {
+        let Some(index) = roots.iter().position(|root| {
+            Path::new(pointer) == Path::new(&git_path_arg(&root.join(&id).join(".git")))
+        }) else {
             continue;
+        };
+        let (target, metadata) = registration(source, roots[index], &id)?;
+        result.push((index, id, target, metadata));
+    }
+    Ok(result)
+}
+/// A1 C4 (N1): the registered detached trees directly under any of `roots`, as
+/// `(root index, id, head)`, from a single registry pass. Every root is pinned.
+pub(super) fn list_registered_under(
+    authority: &Path,
+    roots: &[PathBuf],
+) -> WorktreeResult<Vec<(usize, String, String)>> {
+    let source = objects::open_source(authority)?;
+    let mut pins = vec![
+        (source.root.clone(), identity(&source.root)?),
+        (source.git.clone(), identity(&source.git)?),
+        (
+            source.git.join("objects"),
+            identity(&source.git.join("objects"))?,
+        ),
+    ];
+    for root in roots {
+        pins.push((root.clone(), identity(root)?));
+    }
+    let borrowed: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
+    let mut result = Vec::new();
+    for (index, id, _, metadata) in registered_in(&source, &borrowed)? {
+        let head = objects::oid(&read_file(&metadata.join("HEAD"), 128)?)?;
+        result.push((index, id, head.to_string()));
+    }
+    for (path, expected) in pins {
+        if identity(&path)? != expected {
+            return Err(failure("BOUNDARY_VIOLATION"));
         }
-        let (target, metadata) = registration(source, managed, &id)?;
-        result.push((id, target, metadata));
     }
     Ok(result)
 }
