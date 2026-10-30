@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c3 worker ops log + steering fixes, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c3 worker ops log + steering fixes + deflake, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4520,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7da8e027ba411f755e06e1d26fdb9f266b803091",
-        "sha256": "3e0041315d072c894a0c5cb836c2a15e99008aaede998918c3d7ee7b17b90a5e"
+        "blob_sha": "5623bf0b9e9ad5b5163a850215ea3800c169134c",
+        "sha256": "410fd158a40a7f0078d2e0cb54350b2e117c6e8ae16f056a2c78ded4e7dbebcb"
       }
     },
     {
@@ -10434,8 +10434,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7d4e6fa4a27c688b5dc6953fb086aa57828b4568",
-        "sha256": "64b96ef5db962941aecf00826467d713177667f2d9fa3033a2affc9a36057f21"
+        "blob_sha": "e416cdcc0d78cece9933457bf6daafecf9cf963b",
+        "sha256": "0d777006ca4ca979c84f55ea5db1d09a8bd5cddae97a5d21f0ceb01541aaefa4"
       }
     },
     {
