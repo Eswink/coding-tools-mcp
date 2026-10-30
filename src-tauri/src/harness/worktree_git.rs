@@ -441,8 +441,9 @@ pub(super) fn head_reachable_from_refs(authority: &Path, head: &str) -> Worktree
 
 /// A1 C2-ad (N2 crash recovery, v5 §1.7 / §4.1): the tree `root/id` is
 /// already gone; drop only its own `.git/worktrees/<id>` registration, and only
-/// when that registration's back-pointer names exactly that tree. Never a
-/// global prune. Returns whether a registration was removed.
+/// when that registration's back-pointer names exactly that tree and it is not
+/// locked (`LOCKED`, NB-l). Never a global prune. Returns whether a
+/// registration was removed.
 pub(super) fn prune_missing_registration(
     authority: &Path,
     root: &Path,
@@ -465,6 +466,11 @@ pub(super) fn prune_missing_registration(
         return Ok(false);
     }
     objects::checked_path(&source.git, &metadata)?;
+    // A1 C2-ad2 (NB-l, SPEC-A1 v5.2 §1.7): a locked registration (`git worktree
+    // lock`, e.g. a tree on removable media) is never pruned, even if missing.
+    if fs::symlink_metadata(metadata.join("locked")).is_ok() {
+        return Err(failure("LOCKED"));
+    }
     validate_tree(&metadata, 64, 8 * 1024 * 1024)?;
     let gitdir = read_file(&metadata.join("gitdir"), 8192)?;
     if !matches_git_link(&gitdir, "", &target.join(".git")) {

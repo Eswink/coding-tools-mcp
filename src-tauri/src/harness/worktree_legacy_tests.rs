@@ -289,6 +289,45 @@ fn eight_legacy_trees_fill_the_slots_with_legacy_slots_and_one_cleanup_frees_one
     );
 }
 
+/// A1 C2-ad2 (NB-l, SPEC-A1 v5.2 §1.7): crash recovery never prunes a locked
+/// registration (`.git/worktrees/<id>/locked`) even when its tree is gone; the
+/// entry becomes `failed` with `LOCKED` and the registration stays.
+#[test]
+fn recovery_never_prunes_a_locked_registration() {
+    let f = Fixture::new();
+    let (locked, locked_path) = f.legacy(&"ab".repeat(32));
+    let (plain, plain_path) = f.legacy(&"cd".repeat(32));
+    let (candidates, digest) = f.preview();
+    let mut journal = f.journal();
+    for id in [&locked, &plain] {
+        let c = candidates.iter().find(|c| &c.id == id).unwrap();
+        journal
+            .record(c, &digest, LegacyState::Planned, None)
+            .unwrap();
+    }
+    drop(journal);
+    fs::remove_dir_all(&locked_path).unwrap();
+    fs::remove_dir_all(&plain_path).unwrap();
+    fs::write(
+        f.registration(&locked).join("locked"),
+        "on removable media\n",
+    )
+    .unwrap();
+    let _ = f.preview();
+    assert_eq!(
+        f.journal().states(),
+        vec![
+            (locked.clone(), LegacyState::Failed, Some("LOCKED".into())),
+            (plain.clone(), LegacyState::Removed, None),
+        ]
+    );
+    assert!(f.registration(&locked).join("locked").is_file());
+    assert!(!f.registration(&plain).exists());
+    let direct = prune_missing_registration(f.repo.path(), locked_path.parent().unwrap(), &locked)
+        .map_err(|e| e.code());
+    assert_eq!(direct, Err("LOCKED"));
+}
+
 #[test]
 fn journal_times_are_asia_shanghai() {
     assert_eq!(beijing(0), "1970-01-01 08:00:00 +08:00");
