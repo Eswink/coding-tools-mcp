@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c3 worker ops log + steering fixes + deflake, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c4 Landlock for_worktree read-only gitdirs + 0700 managed roots + N1 legacy scan limit, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4520,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5623bf0b9e9ad5b5163a850215ea3800c169134c",
-        "sha256": "410fd158a40a7f0078d2e0cb54350b2e117c6e8ae16f056a2c78ded4e7dbebcb"
+        "blob_sha": "7e394950ec7f504f347863f6cfe69c98c71a428e",
+        "sha256": "f08ad6a5a308835f8629fc53ee278831754aabfa4ae1367716528d19696bdec0"
       }
     },
     {
@@ -7870,8 +7870,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d3006fc517c8c27091cb7191ca57f40ca89901f9",
-        "sha256": "5f49eae349b666977267f8fc3e2965b8c5d8c33eb7ef13084493a269a888bf8b"
+        "blob_sha": "502efe6949f572c36745965b4a2ef0bf11c0bd73",
+        "sha256": "34f4fd73a64c1b7a3ffb04454fc016a2744be7e6a3f97c03578b8aac6afc1948"
       }
     },
     {
@@ -7880,8 +7880,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "04b5de4d8fea7f52c5f92d640817f4083646ee40",
-        "sha256": "60c7ac31cac22815ab5d63c562e860d90a668c4dbc8d1e4857c1667ad7a277d1"
+        "blob_sha": "7ed4139e819e078016726759ec11841d99a0f48a",
+        "sha256": "5e05f8ba798b40ac7dd6e09e13f8f57ce93e2cf60f457364ba716683c6da1677"
       }
     },
     {
@@ -7890,8 +7890,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f128d01ee2ca64182e6936619ae98f6d9bf12ee8",
-        "sha256": "981e520713a88e70f2ae606be93c917c9c9082cfb90d8d279421ccd93300a483"
+        "blob_sha": "a7da9f8c266359dd63a8bbfb0e9e1a09fa2ecf1a",
+        "sha256": "39247d7a7a2bce641df9ce9ba0cfb3260a3a0f7ff7ff168fe3afcbb8d0a32a19"
       }
     },
     {
@@ -8022,6 +8022,16 @@
         "mode": "100644",
         "blob_sha": "115b5abd5e5b0b89731901e570de946e1194bfb0",
         "sha256": "eb866d5fc8d621d4d194b432cd42fb040f57310552a4e3e9ec948c633ee4a4af"
+      }
+    },
+    {
+      "path": "services/local-agent/tests/linux_worktree.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ccf01a5e096bf964f283947cc49e375b9b77a6f4",
+        "sha256": "41bedc3c6a0ffd6ddaa7c554f463c549f384f6d5b626f4fc0612be46a1e9d634"
       }
     },
     {
@@ -9326,8 +9336,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "285147eb55297257638890dce1bc5b1e75c096b2",
-        "sha256": "b9476b920605dd0405bc87571142f35168203be4d23d32b4f93583f1a96f3cb0"
+        "blob_sha": "8c7aa4ef43009e7602c553872ab1ed07bb759bec",
+        "sha256": "db576de58e845008207783d52a38140149725bae38337201ffba1e3abcab6898"
       }
     },
     {
@@ -9346,8 +9356,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "07edf0f37e41af44b5d0a1690ebcf1266f0c8368",
-        "sha256": "4c1821c55bf7ae53ed3ad9cd963d2ad7b4c3e78601d2e9cced9238b29fb44648"
+        "blob_sha": "a8567f8156a16994b0fe5a21263a69bb3dce7ded",
+        "sha256": "cde136b836cb5aabb053c0963e3ab0a31189b0c0cec434a75fd963371918e6a8"
       }
     },
     {
@@ -9406,8 +9416,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "63e7744fa2818df848e57339ecc1e34bbe4be552",
-        "sha256": "d7869a8db1d1939cb94828fdb90204d58ccff26d74c97aac9774dbb8f7a5b82f"
+        "blob_sha": "948da68d195e1f4ee8c201b565cb6cbabf727b46",
+        "sha256": "0174e84207499571858ce72014d58e755ccbe4b69d5a25134c3cc95411cfe58e"
       }
     },
     {
@@ -9938,8 +9948,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "cfc1904c724331a22ffe065989c0252c55d74b43",
-        "sha256": "967007595d540b3798556c00fcc22a23bee2201267ca114e8e2bd145099e12a9"
+        "blob_sha": "bead5b426d5616cf268cb3b2c8b15698e42c93cc",
+        "sha256": "281a9ad71b03d1780d2542964880c3231cdd73b7e90fa8c0ac3de30d69973f24"
       }
     },
     {
@@ -10028,8 +10038,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "785609d87bb8e1c0ca60d8987d36c58fcbfdfb1d",
-        "sha256": "acadd6cda966c3ac32c7c8903627ffe54612d5e3ead513dbb09d83d9fb64c816"
+        "blob_sha": "cb9b761ca6dc213db8d1068fbe8d20842f398139",
+        "sha256": "58868a4cea2def0b84d935d23d41e2455fc12ba2f11f321928bf313da8957034"
       }
     },
     {
@@ -10038,8 +10048,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "23bf223a28111006ccc8cbf09c7e663a3e55994f",
-        "sha256": "18d4309b00761510b5512af1bbb0001162ab82a48d16cdea6b52bd7e4c5ae9a8"
+        "blob_sha": "a421de244b72f97e4a9e9032ceb3ad3c7cf793bc",
+        "sha256": "5877f6042475681671de594108ac9689b39f654c21b4824933047dde16227863"
       }
     },
     {
@@ -10434,8 +10444,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e416cdcc0d78cece9933457bf6daafecf9cf963b",
-        "sha256": "0d777006ca4ca979c84f55ea5db1d09a8bd5cddae97a5d21f0ceb01541aaefa4"
+        "blob_sha": "37f17c7a5018794b339fdda9733e786646cebf4f",
+        "sha256": "c09c1fab78ac51e32c0e5c8e321c0b8ee0082876c0d7cccff299b14634cde5c2"
       }
     },
     {
