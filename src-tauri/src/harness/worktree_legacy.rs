@@ -48,7 +48,8 @@ pub(crate) enum LegacyState {
 pub(crate) struct LegacyOutcome {
     pub id: String,
     pub state: LegacyState,
-    /// `DIRTY`, `UNREACHABLE_HEAD`, or the failure code.
+    /// `DIRTY`, `UNREACHABLE_HEAD`, or the failure code (e.g. `LOCKED`, NB-l;
+    /// `REFS_LIMIT`, NB-r).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<&'static str>,
 }

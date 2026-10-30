@@ -328,6 +328,55 @@ fn recovery_never_prunes_a_locked_registration() {
     assert_eq!(direct, Err("LOCKED"));
 }
 
+/// A1 C2-ad2 (NB-r, SPEC-A1 v5.2 T17): past the ref scan bounds the answer is
+/// its own code `REFS_LIMIT`, never `UNREACHABLE_HEAD`, and nothing is removed.
+#[test]
+fn too_many_loose_refs_fail_with_refs_limit_not_unreachable() {
+    let f = Fixture::new();
+    let (id, path) = f.legacy(&"ab".repeat(32));
+    let head = git(f.repo.path(), &["rev-parse", "HEAD"]);
+    let tags = f.repo.path().join(".git/refs/tags/bulk");
+    fs::create_dir_all(&tags).unwrap();
+    for n in 0..=crate::harness::worktree_git::REF_SCAN_LIMIT {
+        fs::write(tags.join(format!("t{n}")), format!("{head}\n")).unwrap();
+    }
+    let reachable = head_reachable_from_refs(f.repo.path(), &head).map_err(|e| e.code());
+    assert_eq!(reachable, Err("REFS_LIMIT"));
+    let (_, digest) = f.preview();
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest)
+        .unwrap();
+    assert_eq!(
+        (out[0].state, out[0].code),
+        (LegacyState::Failed, Some("REFS_LIMIT"))
+    );
+    assert!(path.join("README.md").is_file() && f.registration(&id).is_dir());
+}
+
+#[test]
+fn an_oversized_packed_refs_fails_with_refs_limit_not_unreachable() {
+    let f = Fixture::new();
+    let head = git(f.repo.path(), &["rev-parse", "HEAD"]);
+    let mut packed =
+        format!("# pack-refs with: peeled fully-peeled sorted \n{head} refs/tags/keep\n");
+    let limit = crate::harness::worktree_git::PACKED_REFS_LIMIT as usize;
+    while packed.len() <= limit {
+        packed.push_str(&format!("{head} refs/tags/pad{}\n", packed.len()));
+    }
+    fs::write(f.repo.path().join(".git/packed-refs"), packed).unwrap();
+    let reachable = head_reachable_from_refs(f.repo.path(), &head).map_err(|e| e.code());
+    assert_eq!(reachable, Err("REFS_LIMIT"));
+    // At the bound exactly it is still scanned.
+    let mut exact = format!("{head} refs/tags/keep\n");
+    exact.push_str(&"#".repeat(limit - exact.len() - 1));
+    exact.push('\n');
+    assert_eq!(exact.len(), limit);
+    fs::write(f.repo.path().join(".git/packed-refs"), exact).unwrap();
+    let reachable = head_reachable_from_refs(f.repo.path(), &head).map_err(|e| e.code());
+    assert_eq!(reachable, Ok(true));
+}
+
 #[test]
 fn journal_times_are_asia_shanghai() {
     assert_eq!(beijing(0), "1970-01-01 08:00:00 +08:00");

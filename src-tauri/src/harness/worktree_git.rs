@@ -363,11 +363,20 @@ fn matches_git_link(bytes: &[u8], prefix: &str, path: &Path) -> bool {
     bytes == canonical.as_bytes() || bytes == legacy.as_bytes()
 }
 
+/// NB-r bounds of [`head_reachable_from_refs`].
+pub(super) const REF_SCAN_LIMIT: usize = 4096;
+pub(super) const PACKED_REFS_LIMIT: u64 = 1024 * 1024;
+
 /// A1 C2-ad (N2 + NB-e, SPEC-A1 v5.1 §1.7): `head` is reachable from a ref of
 /// the source repository (main `HEAD`, any loose ref under `.git/refs`, or a
 /// `packed-refs` line; annotated tags are peeled). Legacy trees are detached,
 /// so an unreachable HEAD may be the only copy of a commit and must not be
-/// removed. Any doubt (unreadable ref, missing object, bound hit) is `false`.
+/// removed. Any doubt (unreadable ref, missing object) is `false`.
+///
+/// A1 C2-ad2 (NB-r, SPEC-A1 v5.2 T17): a repository past the scan bounds
+/// (more than [`REF_SCAN_LIMIT`] loose ref entries, or a `packed-refs` larger
+/// than [`PACKED_REFS_LIMIT`]) is not reported as unreachable; it fails with
+/// its own code `REFS_LIMIT` so the owner sees why nothing was removed.
 pub(super) fn head_reachable_from_refs(authority: &Path, head: &str) -> WorktreeResult<bool> {
     let source = objects::open_source(authority)?;
     let head = objects::oid(head.as_bytes())?;
@@ -387,8 +396,8 @@ pub(super) fn head_reachable_from_refs(authority: &Path, head: &str) -> Worktree
         };
         for entry in entries.flatten() {
             seen += 1;
-            if seen > 4096 {
-                return Ok(false);
+            if seen > REF_SCAN_LIMIT {
+                return Err(failure("REFS_LIMIT"));
             }
             let path = entry.path();
             let Ok(metadata) = fs::symlink_metadata(&path) else {
@@ -407,7 +416,10 @@ pub(super) fn head_reachable_from_refs(authority: &Path, head: &str) -> Worktree
     let packed = source.git.join("packed-refs");
     if fs::symlink_metadata(&packed).is_ok() && objects::checked_path(&source.git, &packed).is_ok()
     {
-        if let Ok(bytes) = read_file(&packed, 1024 * 1024) {
+        if fs::metadata(&packed).is_ok_and(|m| m.len() > PACKED_REFS_LIMIT) {
+            return Err(failure("REFS_LIMIT"));
+        }
+        if let Ok(bytes) = read_file(&packed, PACKED_REFS_LIMIT) {
             for line in bytes.split(|byte| *byte == b'\n') {
                 let line = line.strip_prefix(b"^").unwrap_or(line);
                 if let Some(hash) = line.get(..40) {
