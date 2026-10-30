@@ -78,14 +78,90 @@ fn remote_callers_and_foreign_approvals_cannot_trigger_legacy_cleanup() {
         );
         assert!(tree.join("fixture.txt").is_file());
     }
-    // 4. The native owner approval for this digest applies it.
+    // 4. The native owner approval for this list + selection applies it.
     let out = apply_approved(
         &main,
-        &OwnerApproval::for_test(SCOPE, &digest),
+        &OwnerApproval::for_test(SCOPE, &approval_digest(&digest, &ids)),
         &ids,
         &digest,
-    )
-    .unwrap();
+    );
+    assert!(out.is_ok(), "{out:?}");
+    let out = out.unwrap();
     assert_eq!(out[0].state, crate::harness::worktree::LegacyState::Removed);
     assert!(!tree.exists());
+}
+
+/// A1 C2-ad2 (NB-d2, SPEC-A1 v5.2 §1.7): the approved digest binds the
+/// selected ids as well as the list. An approval of the bare list digest, or
+/// of another selection over the same list, removes nothing.
+#[test]
+fn an_owner_approval_binds_the_selected_ids_not_only_the_list() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    git(root.path(), &["init", "-q"]);
+    git(root.path(), &["config", "user.name", "Fixture"]);
+    git(
+        root.path(),
+        &["config", "user.email", "fixture@example.invalid"],
+    );
+    fs::write(root.path().join("fixture.txt"), "original\n").unwrap();
+    git(root.path(), &["add", "."]);
+    git(root.path(), &["commit", "-qm", "fixture"]);
+    let ctx = ToolContext::for_test(root.path().into(), state.path().into()).unwrap();
+    let ws = ctx.host.workspace_id.clone();
+    let legacy_root = ctx.host.store_root.join("chat-v1").join("ab".repeat(32));
+    fs::create_dir_all(&legacy_root).unwrap();
+    let legacy = WorktreeManager::new(root.path(), &legacy_root, &ws).unwrap();
+    let a = legacy.create_detached().unwrap().id;
+    let b = legacy.create_detached().unwrap().id;
+    let tree = |id: &str| legacy_root.join("worktrees-v1").join(&ws).join(id);
+    let main = WorktreeManager::new(root.path(), &ctx.host.store_root, &ws).unwrap();
+    let digest = preview_for(&main).unwrap()["digest"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let only_a = vec![a.clone()];
+    let both = vec![a.clone(), b.clone()];
+    assert_eq!(
+        approval_digest(&digest, &both),
+        approval_digest(&digest, &[b.clone(), a.clone()]),
+        "order-insensitive"
+    );
+    assert_ne!(
+        approval_digest(&digest, &only_a),
+        approval_digest(&digest, &both)
+    );
+    assert_ne!(approval_digest(&digest, &only_a), digest);
+    for (approved, ids) in [
+        (digest.clone(), &only_a),
+        (digest.clone(), &both),
+        (approval_digest(&digest, &only_a), &both),
+        (approval_digest(&digest, &only_a), &vec![b.clone()]),
+        (approval_digest(&digest, &both), &only_a),
+    ] {
+        assert_eq!(
+            apply_approved(
+                &main,
+                &OwnerApproval::for_test(SCOPE, &approved),
+                ids,
+                &digest
+            )
+            .map(|_| ()),
+            Err("OWNER_CONFIRMATION_REQUIRED"),
+            "{ids:?}"
+        );
+        assert!(tree(&a).is_dir() && tree(&b).is_dir(), "{ids:?}");
+    }
+    let out = apply_approved(
+        &main,
+        &OwnerApproval::for_test(SCOPE, &approval_digest(&digest, &only_a)),
+        &only_a,
+        &digest,
+    );
+    assert!(out.is_ok(), "{out:?}");
+    assert_eq!(
+        out.unwrap()[0].state,
+        crate::harness::worktree::LegacyState::Removed
+    );
+    assert!(!tree(&a).exists() && tree(&b).join("fixture.txt").is_file());
 }

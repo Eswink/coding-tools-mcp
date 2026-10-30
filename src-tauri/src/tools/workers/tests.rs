@@ -2081,8 +2081,13 @@ fn eight_legacy_trees_return_capacity_legacy_slots_until_one_is_cleaned_locally(
         .as_str()
         .unwrap()
         .to_owned();
-    let approval = OwnerApproval::for_test(legacy_cleanup::SCOPE, &digest);
-    let out = legacy_cleanup::apply_approved(&main, &approval, &ids[..1], &digest).unwrap();
+    let approval = OwnerApproval::for_test(
+        legacy_cleanup::SCOPE,
+        &legacy_cleanup::approval_digest(&digest, &ids[..1]),
+    );
+    let out = legacy_cleanup::apply_approved(&main, &approval, &ids[..1], &digest);
+    assert!(out.is_ok(), "{out:?}");
+    let out = out.unwrap();
     assert_eq!(out.len(), 1);
     let spawned = subagent(&f.ctx, "subagent_spawn", json!({"request_id": "cap-after"}));
     assert_eq!(spawned["ok"], true, "{spawned}");
