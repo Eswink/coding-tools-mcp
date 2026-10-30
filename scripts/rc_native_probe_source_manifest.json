@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "08501191d94e5e59f68111533e3bafd0374ecb4d",
-   "bytes": 415238,
+   "blob": "2b38f31eecbbac594b1ee408e5b1fc00d3e7b447",
+   "bytes": 417179,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "571e7b089c1f2e79926ddb2ae38840ba592e7fe82611af4910b29bea59f65dd1"
+   "sha256": "9947deb494de7263279a5e3218b7f5abad07ef6d813703c66d495349f5380ffe"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -5841,11 +5841,11 @@
    "sha256": "39188bd690068fc835a4afd6386b1e23ca8ae0bdba10a6ccd719ff27fbe63586"
   },
   {
-   "blob": "7f8fe82680b4f32dcb51531bd897d1748f3c21c2",
-   "bytes": 21515,
+   "blob": "bb2168dbaf6d456f2963450d91169a2535a5299e",
+   "bytes": 22223,
    "mode": "100644",
    "path": "scripts/Ubuntu\u539f\u751f\u9a8c\u6536v1.py",
-   "sha256": "50db1d813312384913a0d07cee641589e4b8714c9fc18f7b579d19def20139a2"
+   "sha256": "f14f642de91f782e70c764b66c10d9bc9323c2a48a8a0aedf2f79f039662963d"
   },
   {
    "blob": "4372e4bd29debfafdf71b07e8b3c741f920f75f8",
@@ -5876,11 +5876,11 @@
    "sha256": "d813324e443ef244223cb00ddd586c3640e763094c6cbee9dd7fc05c21485c8f"
   },
   {
-   "blob": "fb2c74ee0d19f06369186fc330ff5489c77d94db",
-   "bytes": 6372,
+   "blob": "6ee45775ab971f5ad469d3811052fabab432732d",
+   "bytes": 7089,
    "mode": "100644",
    "path": "scripts/Ubuntu\u622a\u56fe\u56de\u5f52v10.py",
-   "sha256": "5e1dee0fbb052bbda037ad9e4edf941757a7f2498054f7f63e3611f9f999eb4e"
+   "sha256": "78e0df827e61a005f040193e67d7e19a11c7b4c0f3fc22982bb984b4ccba79b7"
   },
   {
    "blob": "92cd67232cd5e87e96c4b6eb59c318224e713df8",
