@@ -1,5 +1,5 @@
 {
- "entries": 1942,
+ "entries": 1943,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "527890208b20344f145988b70a282701a59fc1d9",
-   "bytes": 418962,
+   "blob": "c4043a278e84fcdc005296340b7eefe7d1553e8c",
+   "bytes": 418972,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "c53d468c98dab8c9cfac04876614b7c903711f2b1c3a8bca5128500054d4a1c6"
+   "sha256": "ad4738291be1da611c699ffcae5485706848378aa6ddfd91d7f073f2951cbf65"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -9432,25 +9432,25 @@
    "sha256": "9f93adbd728b63b89cc3abdb318e1e576c933fab5cec1eeef5ac5f84f6e89b7e"
   },
   {
-   "blob": "d3006fc517c8c27091cb7191ca57f40ca89901f9",
-   "bytes": 8210,
+   "blob": "502efe6949f572c36745965b4a2ef0bf11c0bd73",
+   "bytes": 9893,
    "mode": "100644",
    "path": "services/local-agent/src/sandbox/linux.rs",
-   "sha256": "5f49eae349b666977267f8fc3e2965b8c5d8c33eb7ef13084493a269a888bf8b"
+   "sha256": "34f4fd73a64c1b7a3ffb04454fc016a2744be7e6a3f97c03578b8aac6afc1948"
   },
   {
-   "blob": "04b5de4d8fea7f52c5f92d640817f4083646ee40",
-   "bytes": 3752,
+   "blob": "7ed4139e819e078016726759ec11841d99a0f48a",
+   "bytes": 5735,
    "mode": "100644",
    "path": "services/local-agent/src/sandbox/mod.rs",
-   "sha256": "60c7ac31cac22815ab5d63c562e860d90a668c4dbc8d1e4857c1667ad7a277d1"
+   "sha256": "5e05f8ba798b40ac7dd6e09e13f8f57ce93e2cf60f457364ba716683c6da1677"
   },
   {
-   "blob": "f128d01ee2ca64182e6936619ae98f6d9bf12ee8",
-   "bytes": 2661,
+   "blob": "a7da9f8c266359dd63a8bbfb0e9e1a09fa2ecf1a",
+   "bytes": 7244,
    "mode": "100644",
    "path": "services/local-agent/src/sandbox/tests.rs",
-   "sha256": "981e520713a88e70f2ae606be93c917c9c9082cfb90d8d279421ccd93300a483"
+   "sha256": "39247d7a7a2bce641df9ce9ba0cfb3260a3a0f7ff7ff168fe3afcbb8d0a32a19"
   },
   {
    "blob": "2f04d4105ddd8cca8f9c6b78ab7426a264236023",
@@ -9542,6 +9542,13 @@
    "mode": "100644",
    "path": "services/local-agent/tests/linux_sandbox.rs",
    "sha256": "eb866d5fc8d621d4d194b432cd42fb040f57310552a4e3e9ec948c633ee4a4af"
+  },
+  {
+   "blob": "ccf01a5e096bf964f283947cc49e375b9b77a6f4",
+   "bytes": 5721,
+   "mode": "100644",
+   "path": "services/local-agent/tests/linux_worktree.rs",
+   "sha256": "41bedc3c6a0ffd6ddaa7c554f463c549f384f6d5b626f4fc0612be46a1e9d634"
   },
   {
    "blob": "7c98474ffed8f21934269a188aa58408d1927bc8",
@@ -10405,11 +10412,11 @@
    "sha256": "3bd50cfe5cc1080e65909268e8c94c41409ae3d320ec1e2b7d6947b2325fcfb5"
   },
   {
-   "blob": "285147eb55297257638890dce1bc5b1e75c096b2",
-   "bytes": 23246,
+   "blob": "8c7aa4ef43009e7602c553872ab1ed07bb759bec",
+   "bytes": 24690,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree.rs",
-   "sha256": "b9476b920605dd0405bc87571142f35168203be4d23d32b4f93583f1a96f3cb0"
+   "sha256": "db576de58e845008207783d52a38140149725bae38337201ffba1e3abcab6898"
   },
   {
    "blob": "84949e366d58721ab058070efeff71f21c313da0",
@@ -10419,11 +10426,11 @@
    "sha256": "4b346b2cf2dfc0b4295301a078d1a2ec40096269b3e4b3001eed48d3a9cea9e8"
   },
   {
-   "blob": "07edf0f37e41af44b5d0a1690ebcf1266f0c8368",
-   "bytes": 11801,
+   "blob": "a8567f8156a16994b0fe5a21263a69bb3dce7ded",
+   "bytes": 13452,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree_git.rs",
-   "sha256": "4c1821c55bf7ae53ed3ad9cd963d2ad7b4c3e78601d2e9cced9238b29fb44648"
+   "sha256": "cde136b836cb5aabb053c0963e3ab0a31189b0c0cec434a75fd963371918e6a8"
   },
   {
    "blob": "84840212269b54864fcb9b1be3626406afa3b58c",
@@ -10461,11 +10468,11 @@
    "sha256": "c694474d19390d734ed822a9afd6af535b339b3175f23080ea8be494b5f8e2bf"
   },
   {
-   "blob": "63e7744fa2818df848e57339ecc1e34bbe4be552",
-   "bytes": 19635,
+   "blob": "948da68d195e1f4ee8c201b565cb6cbabf727b46",
+   "bytes": 23299,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree_tests.rs",
-   "sha256": "d7869a8db1d1939cb94828fdb90204d58ccff26d74c97aac9774dbb8f7a5b82f"
+   "sha256": "0174e84207499571858ce72014d58e755ccbe4b69d5a25134c3cc95411cfe58e"
   },
   {
    "blob": "a904d851f912b53419fb996176832f97198cff9b",
@@ -10874,11 +10881,11 @@
    "sha256": "f63d5138de37463b50ee3f649b708e5159754ab3e83efec3347b1129741bf323"
   },
   {
-   "blob": "cfc1904c724331a22ffe065989c0252c55d74b43",
-   "bytes": 10251,
+   "blob": "bead5b426d5616cf268cb3b2c8b15698e42c93cc",
+   "bytes": 10332,
    "mode": "100644",
    "path": "src-tauri/src/tools/context.rs",
-   "sha256": "967007595d540b3798556c00fcc22a23bee2201267ca114e8e2bd145099e12a9"
+   "sha256": "281a9ad71b03d1780d2542964880c3231cdd73b7e90fa8c0ac3de30d69973f24"
   },
   {
    "blob": "e7466ef7a06f72411850ba78b2de20f2f335d950",
@@ -10923,18 +10930,18 @@
    "sha256": "3f8d0d3a2298e66f84fe4858e206b872415dc71ca977da5c07cd5fd570d82d31"
   },
   {
-   "blob": "785609d87bb8e1c0ca60d8987d36c58fcbfdfb1d",
-   "bytes": 4664,
+   "blob": "cb9b761ca6dc213db8d1068fbe8d20842f398139",
+   "bytes": 7069,
    "mode": "100644",
    "path": "src-tauri/src/tools/git_runner.rs",
-   "sha256": "acadd6cda966c3ac32c7c8903627ffe54612d5e3ead513dbb09d83d9fb64c816"
+   "sha256": "58868a4cea2def0b84d935d23d41e2455fc12ba2f11f321928bf313da8957034"
   },
   {
-   "blob": "23bf223a28111006ccc8cbf09c7e663a3e55994f",
-   "bytes": 5369,
+   "blob": "a421de244b72f97e4a9e9032ceb3ad3c7cf793bc",
+   "bytes": 8637,
    "mode": "100644",
    "path": "src-tauri/src/tools/git_runner_tests.rs",
-   "sha256": "18d4309b00761510b5512af1bbb0001162ab82a48d16cdea6b52bd7e4c5ae9a8"
+   "sha256": "5877f6042475681671de594108ac9689b39f654c21b4824933047dde16227863"
   },
   {
    "blob": "8596184a8e9b9d237919897f6a073afecf58713b",
@@ -11210,11 +11217,11 @@
    "sha256": "09f2b2082fe69ff130471a38e3fd221912f993ba1544d08d1461f01d485ed9d2"
   },
   {
-   "blob": "e416cdcc0d78cece9933457bf6daafecf9cf963b",
-   "bytes": 64121,
+   "blob": "37f17c7a5018794b339fdda9733e786646cebf4f",
+   "bytes": 66171,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/tests.rs",
-   "sha256": "0d777006ca4ca979c84f55ea5db1d09a8bd5cddae97a5d21f0ceb01541aaefa4"
+   "sha256": "c09c1fab78ac51e32c0e5c8e321c0b8ee0082876c0d7cccff299b14634cde5c2"
   },
   {
    "blob": "2e29620397856fb81b4c1f13230ae3a7b894028d",
