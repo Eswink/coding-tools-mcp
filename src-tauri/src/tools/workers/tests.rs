@@ -1927,6 +1927,50 @@ fn discard_rechecks_background_exec_registered_after_its_first_check() {
     assert!(!tree.exists());
 }
 
+/// A1 C2-ad2 (NB-f2, SPEC-A1 v5.2 §5.2): a routed worker call whose
+/// FlightGuard enters in the window between discard's first idle check and its
+/// root guard is seen by the re-check under the guard; discard refuses
+/// (`WORKER_BUSY`) and the tree stays. Once the guard drops, discard succeeds.
+#[cfg(unix)]
+#[test]
+fn discard_rechecks_a_flight_guard_that_entered_after_its_first_check() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    let held: std::rc::Rc<std::cell::RefCell<Option<FlightGuard>>> = Default::default();
+    {
+        let store = WorkerStore::open_existing(&f.ctx.host).unwrap().unwrap();
+        let owner = WorkerOwner::from_context(&f.ctx).unwrap();
+        let worker_id = WorkerId::parse(&id).unwrap();
+        let slot = held.clone();
+        discard_hooks::arm(move || {
+            assert!(
+                !store.in_flight(&worker_id),
+                "no call in flight before the window"
+            );
+            let guard = store.enter(&owner, &worker_id);
+            assert!(guard.is_ok(), "the routed call enters while discard waits");
+            *slot.borrow_mut() = guard.ok();
+        });
+    }
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert!(held.borrow().is_some(), "the hook ran inside the window");
+    assert_eq!(code(&out), "WORKER_BUSY", "{out}");
+    assert!(
+        tree.is_dir(),
+        "discard removed a worktree with a call in flight"
+    );
+    assert_eq!(
+        status(&f.ctx, Some(&id)).unwrap()[0].state,
+        WorkerState::Ready
+    );
+    held.borrow_mut().take(); // the routed call returns
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(!tree.exists());
+}
+
 // ---------------------------------------------------------------------------
 // A1 C2-d (SPEC-A1 v5 §1.4.4, T16): the stored worker cwd is re-canonicalized
 // on every bind; a missing / non-directory / escaping cwd resets to the root.
