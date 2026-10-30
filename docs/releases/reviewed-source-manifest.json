@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c1 (A1 C1 worker core + review fixes N1-N5) on develop/0.8.0 df806b05. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-30 by 专业打工人; digests rc_bundle/multiagent/a1/c2/A1-C2-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c2 (A1 C2 worker routing: for_worker, dispatch worker_id stripping, cloud_host prepare order) on develop/0.8.0 df806b05. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-30 by 专业打工人; digests rc_bundle/multiagent/a1/c2/A1-C2-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4520,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6c59d955bb5aa1229cbafc1fc377329652a31dba",
-        "sha256": "adf6debb402b2d8a90013b0e360a8d0d6c06653a9c3788f942d8b9e6ea4d33ae"
+        "blob_sha": "30afc4220177bf72bb3dfd66b548955ce135983b",
+        "sha256": "9529640b8935a901875a92db8b09bd7a939af436d551bdb4b72e263ec5f7650d"
       }
     },
     {
@@ -9764,8 +9764,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6c93313a0544ed78e7a4e70aaba7e8af5223ca24",
-        "sha256": "d991b283f2719a5b183d03d30fc9b04418be5a4e413cba394076e490942d61ce"
+        "blob_sha": "72912135c6b25fefe21005d21c0cd00c14011904",
+        "sha256": "eee3903e3bf9a6e3112afbe7cc489c00f1d6b68c16f4241b435f88011ffc154a"
       }
     },
     {
@@ -9914,8 +9914,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "be400cacdc57b31e725ead7543cb9bfe4afdd496",
-        "sha256": "d74a294947bda49973248922e2c565525bc7f1944a54b9c5d6570525e29a79c1"
+        "blob_sha": "ff9b288c0332a0e73fdda322563fb8be694e67ce",
+        "sha256": "0cf084f62ee57074199861b14885358366fb136c57a7c6383227107ac77339cf"
       }
     },
     {
@@ -9928,8 +9928,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "b682856a0e3ad8a910bee5cffb53d72c29a6ff81",
-        "sha256": "c146ff0382ee6f754db979f53d95c525d488fd3324459ac8f0a1dc896efc3534"
+        "blob_sha": "cfc1904c724331a22ffe065989c0252c55d74b43",
+        "sha256": "967007595d540b3798556c00fcc22a23bee2201267ca114e8e2bd145099e12a9"
       }
     },
     {
@@ -9942,8 +9942,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "4cb897399cb9d0d5f2b10ad6c1194b292cb3bc52",
-        "sha256": "8f69d3e6310fbe114dab0532041ddeb89f26ab8dc3e1070c8272845d73578f79"
+        "blob_sha": "3b27854280fe3f59512c114b6b047fd52e69da7c",
+        "sha256": "6e35713498245790e2c384498137e42d17655303f118514c725352ec4d3a1874"
       }
     },
     {
@@ -10260,8 +10260,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1b6da63dff436c7f8c6759eb3752e2e93b35ac1e",
-        "sha256": "482438b7e444fc556e202f016e2ce001c1159c7828c26fc4387e2bd04985e35f"
+        "blob_sha": "fb3c9252959337a8920e433c0280a18328ded268",
+        "sha256": "6bab458ac7c0c6253f9cb49377d4c34bf050756401c777df07a97290d2908ef0"
       }
     },
     {
@@ -10404,8 +10404,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2f96c43dcf756c00fe9a00c1fd4ff1ccb3ad31c2",
-        "sha256": "d1fc451a5ecb3e3050d0f71a6788be4faecb5a71323878d004d1c8354d5d6534"
+        "blob_sha": "4fd9abf54cd27c238bf5ce002eeb50fd317ab35c",
+        "sha256": "ad2526d14ac5c5c888ca805c6ecccdc6fd68a3c5aa8bae7c3663a63ea4ad8748"
       }
     },
     {
@@ -10414,8 +10414,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9c400f4821e4782b862dc51cca83a9b071be0a19",
-        "sha256": "98b98e6ec2aa5de9f469f1d98e5d5db318938f04280be88c658782fee7b8d38e"
+        "blob_sha": "dd866a196c7b62328d2b379f42fec26da113cea7",
+        "sha256": "68ffe91971908628919fc6669dd8e76c16920d5d47694a8507871d8831387f37"
       }
     },
     {
@@ -10574,8 +10574,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "4894604438a13d27cfa9c531adc6694d3d8a018e",
-        "sha256": "f701dbf6a184d4591c85cb36cf1364bc601632e5a1f68d36665844507dfdcba8"
+        "blob_sha": "2d8761ac8e3dd52d603d31d1d4ec2ad5c9092f0c",
+        "sha256": "41e90ff48a988be1c265fa7e1df932747a4c8843d6c8dcab1822ec04c3af2edd"
       }
     },
     {
