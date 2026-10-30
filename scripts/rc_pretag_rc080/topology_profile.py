@@ -38,7 +38,11 @@ HOOK = (b'    import rc_pretag_rc080.topology_profile as rc080\n'
         b'        return selected\n')
 MODES = (('100644', 'blob'), ('100755', 'blob'))
 PROFILE_CAP = 200
-DEPTH_LIMIT = 64
+# Required budget for a tip = first-parent distance tip -> main merge dffc3c6b (d)
+# + 1 (the merge row itself) + 13 (second parent d6a45088 is 13 first-parent steps below M)
+# + headroom; i.e. a tip is admitted iff d + 14 <= DEPTH_LIMIT. 128 leaves the C2-ad
+# line (d = 53 after this change) 61 commits; self-tests fail once headroom < 16.
+DEPTH_LIMIT = 128
 DELTA_PATHS = 600
 DELTA_LINES = 40000
 
