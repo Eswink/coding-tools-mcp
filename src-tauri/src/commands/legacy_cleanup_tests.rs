@@ -61,6 +61,7 @@ fn remote_callers_and_foreign_approvals_cannot_trigger_legacy_cleanup() {
     let preview = preview_for(&main).unwrap();
     let digest = preview["digest"].as_str().unwrap().to_owned();
     assert_eq!(preview["native_dialog_required"], true);
+    assert_eq!(preview["warnings"], json!([]));
     assert_eq!(preview["candidates"][0]["id"], id.as_str());
     assert!(preview
         .to_string()

@@ -377,6 +377,43 @@ fn an_oversized_packed_refs_fails_with_refs_limit_not_unreachable() {
     assert_eq!(reachable, Ok(true));
 }
 
+/// A1 C2-ad2 (NB-c2, SPEC-A1 v5.2 §1.7): one candidate whose path cannot be
+/// canonicalized is left out with a warning; the preview of the others stands
+/// and the skipped id cannot be selected.
+#[test]
+fn a_candidate_that_fails_to_canonicalize_is_skipped_with_a_warning() {
+    let f = Fixture::new();
+    let (bad, bad_path) = f.legacy(&"ab".repeat(32));
+    let (good, good_path) = f.legacy(&"cd".repeat(32));
+    canonicalize_hooks::fail_for(Some(&bad));
+    let preview = f.main.legacy_preview(&mut f.journal());
+    assert!(preview.is_ok(), "preview failed: {preview:?}");
+    let (candidates, warnings) = preview.unwrap();
+    assert_eq!(
+        candidates.iter().map(|c| c.id.clone()).collect::<Vec<_>>(),
+        vec![good.clone()]
+    );
+    assert_eq!(
+        warnings,
+        vec![LegacyWarning {
+            id: bad.clone(),
+            code: "CANONICALIZE_FAILED"
+        }]
+    );
+    let digest = legacy_digest(&candidates);
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&bad), &digest);
+    assert_eq!(out.map_err(|e| e.code()), Err("INVALID_ARGUMENT"));
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&good), &digest)
+        .map_err(|e| e.code());
+    canonicalize_hooks::fail_for(None);
+    assert_eq!(out.map(|o| o[0].state), Ok(LegacyState::Removed));
+    assert!(bad_path.join("README.md").is_file() && !good_path.exists());
+}
+
 #[test]
 fn journal_times_are_asia_shanghai() {
     assert_eq!(beijing(0), "1970-01-01 08:00:00 +08:00");

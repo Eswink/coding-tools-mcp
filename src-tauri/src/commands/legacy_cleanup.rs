@@ -51,13 +51,12 @@ fn code_error(code: &'static str) -> AppError {
 
 pub(crate) fn preview_for(manager: &WorktreeManager) -> Result<Value, &'static str> {
     let mut journal = LegacyJournal::open(manager).map_err(|e| e.code())?;
-    let candidates = manager
-        .legacy_candidates(&mut journal)
-        .map_err(|e| e.code())?;
+    let (candidates, warnings) = manager.legacy_preview(&mut journal).map_err(|e| e.code())?;
     Ok(json!({
         "candidates": candidates,
         "digest": legacy_digest(&candidates),
         "native_dialog_required": true,
+        "warnings": warnings,
     }))
 }
 

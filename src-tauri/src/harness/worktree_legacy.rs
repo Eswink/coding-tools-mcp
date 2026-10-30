@@ -54,6 +54,15 @@ pub(crate) struct LegacyOutcome {
     pub code: Option<&'static str>,
 }
 
+/// A1 C2-ad2 (NB-c2, SPEC-A1 v5.2 §1.7): a legacy tree left out of the
+/// preview because its path could not be canonicalized. It is never offered,
+/// so it can neither be selected nor change the confirmation digest.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub(crate) struct LegacyWarning {
+    pub id: String,
+    pub code: &'static str,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct JournalEntry {
     id: String,
@@ -196,14 +205,26 @@ impl WorktreeManager {
         &self,
         journal: &mut LegacyJournal,
     ) -> WorktreeResult<Vec<LegacyCandidate>> {
+        self.legacy_preview(journal)
+            .map(|(candidates, _)| candidates)
+    }
+
+    /// [`Self::legacy_candidates`] plus the NB-c2 warnings of trees left out.
+    pub(crate) fn legacy_preview(
+        &self,
+        journal: &mut LegacyJournal,
+    ) -> WorktreeResult<(Vec<LegacyCandidate>, Vec<LegacyWarning>)> {
         let _guard = native::lock()?;
         self.recover_legacy_journal(journal)?;
         self.legacy_candidates_locked()
     }
 
-    fn legacy_candidates_locked(&self) -> WorktreeResult<Vec<LegacyCandidate>> {
+    fn legacy_candidates_locked(
+        &self,
+    ) -> WorktreeResult<(Vec<LegacyCandidate>, Vec<LegacyWarning>)> {
         let (rooted, _) = self.legacy_scan_rooted()?;
         let mut result = Vec::new();
+        let mut warnings = Vec::new();
         for (item, root) in rooted {
             let ManagedWorktree {
                 id,
@@ -211,10 +232,20 @@ impl WorktreeManager {
                 head,
                 ..
             } = item;
-            let path = root
-                .join(&id)
-                .canonicalize()
-                .map_err(|_| super::boundary_error())?;
+            // NB-c2: one tree whose path cannot be canonicalized (vanished,
+            // unreadable component) is skipped with a warning; the rest of the
+            // preview stands. A canonical path outside its root still fails.
+            let path = match canonical_tree(&root, &id) {
+                Ok(path) => path,
+                Err(_) => {
+                    eprintln!("warning: skipped legacy worktree {id}: CANONICALIZE_FAILED");
+                    warnings.push(LegacyWarning {
+                        id,
+                        code: "CANONICALIZE_FAILED",
+                    });
+                    continue;
+                }
+            };
             if path.parent() != Some(root.as_path()) {
                 return Err(super::boundary_error());
             }
@@ -229,7 +260,7 @@ impl WorktreeManager {
                 root,
             });
         }
-        Ok(result)
+        Ok((result, warnings))
     }
 
     fn legacy_tree_clean(&self, root: &Path, path: &Path) -> WorktreeResult<bool> {
@@ -277,7 +308,7 @@ impl WorktreeManager {
     ) -> WorktreeResult<Vec<LegacyOutcome>> {
         let _guard = native::lock()?;
         self.recover_legacy_journal(journal)?;
-        let candidates = self.legacy_candidates_locked()?;
+        let (candidates, _) = self.legacy_candidates_locked()?;
         if legacy_digest(&candidates) != digest {
             return Err(error(
                 "STALE_CONFIRMATION",
@@ -384,6 +415,29 @@ impl WorktreeManager {
             journal.record(&candidate, &entry.digest, state, code)?;
         }
         Ok(())
+    }
+}
+
+fn canonical_tree(root: &Path, id: &str) -> std::io::Result<PathBuf> {
+    #[cfg(test)]
+    if canonicalize_hooks::fails(id) {
+        return Err(std::io::Error::other("injected"));
+    }
+    root.join(id).canonicalize()
+}
+
+/// Test seam (NB-c2): make `canonical_tree` fail for one id on this thread.
+#[cfg(test)]
+pub(crate) mod canonicalize_hooks {
+    use std::cell::RefCell;
+    thread_local! {
+        static FAIL: RefCell<Option<String>> = const { RefCell::new(None) };
+    }
+    pub(crate) fn fail_for(id: Option<&str>) {
+        FAIL.with(|f| *f.borrow_mut() = id.map(str::to_owned));
+    }
+    pub(super) fn fails(id: &str) -> bool {
+        FAIL.with(|f| f.borrow().as_deref() == Some(id))
     }
 }
 
