@@ -62,13 +62,35 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
         ctx.harness.workspace_id(),
     )
     .map_err(error)?;
+    // A1 C1: worker-owned trees are managed only through the worker lifecycle.
+    let owned = || {
+        workers::owned_worktrees(ctx, &manager).map_err(|e| WorkspaceError::Tool {
+            code: e.code(),
+            message: e.message().into(),
+            category: "availability",
+            retryable: false,
+        })
+    };
     let value = match name {
         "worktree_create" => json!({"worktree": manager.create_detached().map_err(error)?}),
-        "worktree_list" => json!({"worktrees": manager.list().map_err(error)?}),
+        "worktree_list" => {
+            let owned = owned()?;
+            let mut items = manager.list().map_err(error)?;
+            items.retain(|item| !owned.contains(&item.id));
+            json!({"worktrees": items})
+        }
         "worktree_remove" => {
-            manager
-                .remove_clean(id.ok_or_else(invalid)?)
-                .map_err(error)?;
+            let id = id.ok_or_else(invalid)?;
+            if owned()?.contains(id) {
+                return Err(WorkspaceError::Tool {
+                    code: "WORKER_OWNED",
+                    message: "This worktree belongs to a worker; discard the worker instead."
+                        .into(),
+                    category: "security",
+                    retryable: false,
+                });
+            }
+            manager.remove_clean(id).map_err(error)?;
             json!({"removed": true})
         }
         _ => return Err(invalid()),
@@ -79,3 +101,8 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
 #[cfg(test)]
 #[path = "worktree_tools_tests.rs"]
 mod tests;
+
+// A1 C1: native-internal worker core, declared here so the pinned tools/mod.rs
+// stays byte-identical. No MCP tool registers it yet (SPEC-A1 v2 §7.4).
+#[path = "workers.rs"]
+pub(crate) mod workers;

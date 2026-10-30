@@ -118,16 +118,54 @@ impl WorktreeManager {
     }
     pub fn create_detached(&self) -> WorktreeResult<ManagedWorktree> {
         let _guard = native::lock()?;
-        if self.list()?.len() >= MAX_MANAGED_WORKTREES {
+        // Not-yet-built worker reservations share the same eight-slot budget.
+        if self.list()?.len() + reservations::count(&self.managed_root) >= MAX_MANAGED_WORKTREES {
             return Err(error("CAPACITY", "Managed worktree capacity reached."));
         }
-        let (id, target) = (0..16)
+        let (id, target) = self.allocate()?;
+        self.add_locked(id, target)
+    }
+    fn allocate(&self) -> WorktreeResult<(String, PathBuf)> {
+        (0..16)
             .find_map(|_| {
                 let id = Uuid::new_v4().simple().to_string();
                 let target = self.managed_root.join(&id);
-                (!target.exists() && !target.is_symlink()).then_some((id, target))
+                (!target.exists()
+                    && !target.is_symlink()
+                    && !reservations::holds(&self.managed_root, &id))
+                .then_some((id, target))
             })
-            .ok_or_else(|| error("CAPACITY", "Unable to allocate managed worktree."))?;
+            .ok_or_else(|| error("CAPACITY", "Unable to allocate managed worktree."))
+    }
+    /// Reserves one of the eight managed slots under the native lifecycle lock and
+    /// pins the opaque id the later build will use. Dropping the guard frees the slot.
+    pub(crate) fn reserve_slot(&self) -> WorktreeResult<SlotReservation> {
+        let _guard = native::lock()?;
+        if self.list()?.len() + reservations::count(&self.managed_root) >= MAX_MANAGED_WORKTREES {
+            return Err(error("CAPACITY", "Managed worktree capacity reached."));
+        }
+        let (id, _) = self.allocate()?;
+        Ok(reservations::take(&self.managed_root, id))
+    }
+    /// Builds the worktree for a reservation; the slot is released in-lock either way.
+    pub(crate) fn create_reserved(&self, slot: SlotReservation) -> WorktreeResult<ManagedWorktree> {
+        let _guard = native::lock()?;
+        if slot.root() != self.managed_root.as_path() || !valid_id(slot.id()) {
+            return Err(boundary_error());
+        }
+        if self.list()?.len() + reservations::count(&self.managed_root) > MAX_MANAGED_WORKTREES {
+            return Err(error("CAPACITY", "Managed worktree capacity reached."));
+        }
+        let id = slot.id().to_owned();
+        let target = self.managed_root.join(&id);
+        if target.exists() || target.is_symlink() {
+            return Err(boundary_error());
+        }
+        let result = self.add_locked(id, target);
+        drop(slot);
+        result
+    }
+    fn add_locked(&self, id: String, target: PathBuf) -> WorktreeResult<ManagedWorktree> {
         let args = vec![
             OsString::from("worktree"),
             OsString::from("add"),
@@ -489,3 +527,7 @@ pub(crate) use snapshot::SnapshotTarget;
 
 #[path = "worktree_native.rs"]
 mod native;
+
+#[path = "worktree_reservations.rs"]
+mod reservations;
+pub(crate) use reservations::SlotReservation;
