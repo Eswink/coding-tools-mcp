@@ -239,6 +239,10 @@ pub(crate) enum WorkerState {
     Failed,
     PendingCleanup,
     Discarded,
+    /// A1 C5 (§5 step 3): an integration awaits the native confirm.
+    IntegratePending,
+    /// A1 C5 (§5 step 5): the diff was written to the main workspace.
+    Integrated,
 }
 impl WorkerState {
     fn active(self) -> bool {
@@ -277,6 +281,9 @@ pub(crate) struct WorkerRecord {
     /// A1 C5 (v5.2 §5 step 2): advisory main-workspace fingerprint at spawn.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) main_fingerprint: Option<String>,
+    /// A1 C5 (§5, §5.4): this worker's integrations, oldest first (bounded).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) integrations: Vec<integration::IntegrationRecord>,
 }
 
 /// Per-worker operation log bound (v4 §1.4.3 "bounded").
@@ -310,6 +317,9 @@ struct Inner {
     doc: Document,
     /// `creating` records were reconciled against `git worktree list` (memory only).
     states_recovered: bool,
+    /// A1 C5 (§5.3): the main root's integration journal, opened on first use
+    /// and held (with its document lock) for the life of the store.
+    journal: Option<journal::Journal>,
 }
 /// One per main root for the life of the process (v4 N3): loaded and decrypted
 /// once; the document lock is held until the process exits.
@@ -461,6 +471,7 @@ impl WorkerStore {
                 disk,
                 doc,
                 states_recovered: false,
+                journal: None,
             }),
             flight: Mutex::default(),
             generation: GENERATION.fetch_add(1, Ordering::Relaxed),
@@ -710,6 +721,7 @@ impl WorkerStore {
             ops: Vec::new(),
             ops_seq: 0,
             main_fingerprint: None,
+            integrations: Vec::new(),
         };
         inner.apply(|doc| {
             doc.workers.push(record);
@@ -922,6 +934,7 @@ pub(crate) fn spawn(
         ops: Vec::new(),
         ops_seq: 0,
         main_fingerprint: None,
+        integrations: Vec::new(),
     };
     match manager.reserve_slot() {
         Ok(slot) => {
@@ -1174,7 +1187,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
     let record = inner.owned(&owner, &id)?;
     match record.state {
         WorkerState::Discarded => return Ok(record.clone()),
-        WorkerState::Creating => return Err(state_error()),
+        // A1 C5: reject (or let expire) the pending integration first.
+        WorkerState::Creating | WorkerState::IntegratePending => return Err(state_error()),
         _ => {}
     }
     // NB-f: re-checked under the root guard. A call in flight before the guard
@@ -1674,8 +1688,12 @@ pub(crate) mod export_policy;
 
 #[path = "workers/integrate.rs"]
 pub(crate) mod integrate;
+#[path = "workers/integration.rs"]
+pub(crate) mod integration;
 #[path = "workers/journal.rs"]
 pub(crate) mod journal;
+#[path = "workers/mainfs.rs"]
+pub(crate) mod mainfs;
 
 /// Test hook (NB-f): runs between discard's idle check and its root guard.
 #[cfg(test)]

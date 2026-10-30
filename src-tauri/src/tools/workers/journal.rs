@@ -128,7 +128,7 @@ pub(crate) struct JournalDoc {
     pub(crate) entries: Vec<JournalEntry>,
 }
 impl JournalDoc {
-    fn fresh(host: &HostRoots) -> Self {
+    pub(crate) fn fresh(host: &HostRoots) -> Self {
         Self {
             version: 1,
             workspace_id: host.workspace_id.clone(),

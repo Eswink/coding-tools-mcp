@@ -281,6 +281,7 @@ fn spawn_records_an_advisory_main_fingerprint() {
 }
 
 // --- C5-3: the integration journal (§5.3) -----------------------------------
+use crate::commands::native_owner::OwnerApproval;
 use crate::harness::worktree::{ChangeKind, FileChange};
 use journal::{check_size, Journal, JournalDoc, JournalEntry, JournalState, MAX_PREIMAGE_TOTAL};
 
@@ -411,4 +412,415 @@ fn journal_epoch_is_stable_until_the_document_is_rebuilt_and_corruption_fails_cl
         "STORE_UNAVAILABLE"
     );
     assert_eq!(fs::read_to_string(&file).unwrap(), "corrupt");
+}
+
+// ---- C5-4: integrate request, pending list, native apply (§5, NB-b) ----
+
+fn integrate(ctx: &ToolContext, id: &str, sha: &str, request_id: &str) -> Value {
+    subagent(
+        ctx,
+        "subagent_integrate",
+        json!({"worker_id": id, "diff_sha256": sha, "request_id": request_id}),
+    )
+}
+fn sha_of(ctx: &ToolContext, id: &str) -> String {
+    let page = collect(ctx, id, json!({}));
+    assert_eq!(page["ok"], true, "{page}");
+    page["diff_sha256"].as_str().unwrap().to_owned()
+}
+fn record_of(ctx: &ToolContext, id: &str) -> WorkerRecord {
+    let (_, store) = open(ctx).unwrap();
+    let inner = store.lock().unwrap();
+    inner
+        .doc
+        .workers
+        .iter()
+        .find(|w| w.worker_id.as_str() == id)
+        .unwrap()
+        .clone()
+}
+fn journal_of(ctx: &ToolContext) -> JournalDoc {
+    let (_, store) = open(ctx).unwrap();
+    let mut inner = store.lock().unwrap();
+    integration::journal_rw(&mut inner, &ctx.host)
+        .unwrap()
+        .doc()
+        .clone()
+}
+fn as_value(out: Result<Value, WorkerError>) -> Value {
+    out.unwrap_or_else(|e| error_value(&e))
+}
+/// The native card: prepare, the owner approves exactly this digest, apply.
+fn confirm(ctx: &ToolContext, integration_id: &str) -> Value {
+    let card = scoped(ctx, |c| integration::prepare(c, integration_id))
+        .unwrap_or_else(|e| panic!("prepare: {e:?}"));
+    let approval = OwnerApproval::for_test(integration::INTEGRATE_SCOPE, &card.digest);
+    as_value(scoped(ctx, |c| integration::apply(c, &card, &approval)))
+}
+fn ops(record: &WorkerRecord) -> Vec<String> {
+    record.ops.iter().map(|o| o.tool.clone()).collect()
+}
+/// A main repository with a file to delete and one to make executable.
+fn rich() -> Fixture {
+    let f = Fixture::new();
+    let root = f.root.path();
+    fs::write(root.join("gone.txt"), "bye\n").unwrap();
+    fs::write(root.join("tool.sh"), "echo hi\n").unwrap();
+    git(root, &["add", "."]);
+    git(root, &["commit", "-qm", "more"]);
+    f
+}
+
+#[test]
+fn integrate_writes_main_only_after_the_native_confirm_and_never_stages() {
+    let f = rich();
+    let root = f.root.path();
+    let head = f.head();
+    let worker = spawn_ok(&f.ctx, "c1", "w");
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("fixture.txt"), "worker\n").unwrap();
+    write(&tree, "src/new/deep.rs", b"fn deep() {}\n");
+    fs::remove_file(tree.join("gone.txt")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let script = tree.join("tool.sh");
+        let mut mode = fs::metadata(&script).unwrap().permissions();
+        mode.set_mode(mode.mode() | 0o111);
+        fs::set_permissions(&script, mode).unwrap();
+    }
+    let sha = sha_of(&f.ctx, id);
+
+    let out = integrate(&f.ctx, id, &sha, "i1");
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["state"], "integrate_pending", "{out}");
+    assert_eq!(out["conflicts"], json!([]), "{out}");
+    let iid = out["integration_id"].as_str().unwrap().to_owned();
+    // The request alone writes nothing to main.
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+    assert!(root.join("gone.txt").exists());
+    assert!(!root.join("src").exists());
+    assert_eq!(record_of(&f.ctx, id).state, WorkerState::IntegratePending);
+    let status = subagent(&f.ctx, "subagent_status", json!({"worker_id": id}));
+    assert_eq!(
+        status["workers"][0]["integration"]["state"], "integrate_pending",
+        "{status}"
+    );
+    // Idempotent replay, conflicting replay, and a second request.
+    let again = integrate(&f.ctx, id, &sha, "i1");
+    assert_eq!(again["deduplicated"], true, "{again}");
+    assert_eq!(again["integration_id"], iid.as_str(), "{again}");
+    let clash = integrate(&f.ctx, id, &"0".repeat(64), "i1");
+    assert_eq!(code(&clash), "REQUEST_ID_CONFLICT", "{clash}");
+    let second = integrate(&f.ctx, id, &sha, "i2");
+    assert_eq!(code(&second), "WORKER_STATE", "{second}");
+    // Discard while pending is refused.
+    let discard = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(code(&discard), "WORKER_STATE", "{discard}");
+    // The native list sees it, with the digest the card binds.
+    let listed = integration::pending(&f.ctx).unwrap();
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0]["integration_id"], iid.as_str());
+    assert_eq!(
+        listed[0]["digest"],
+        integration::digest(&iid, &sha).as_str()
+    );
+
+    // An approval for another digest never applies.
+    let card = scoped(&f.ctx, |c| integration::prepare(c, &iid)).unwrap();
+    assert!(card.title.contains('w'), "{}", card.title);
+    assert!(
+        card.summary.to_string().contains("src/new/deep.rs"),
+        "{}",
+        card.summary
+    );
+    let wrong = OwnerApproval::for_test(integration::INTEGRATE_SCOPE, &"f".repeat(64));
+    let refused = as_value(scoped(&f.ctx, |c| integration::apply(c, &card, &wrong)));
+    assert_eq!(code(&refused), "OWNER_CONFIRMATION_REQUIRED", "{refused}");
+    let other_scope = OwnerApproval::for_test("worker_discard", &card.digest);
+    let refused = as_value(scoped(&f.ctx, |c| {
+        integration::apply(c, &card, &other_scope)
+    }));
+    assert_eq!(code(&refused), "OWNER_CONFIRMATION_REQUIRED", "{refused}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+
+    let done = confirm(&f.ctx, &iid);
+    assert_eq!(done["state"], "integrated", "{done}");
+    assert_eq!(done["staged"], false, "{done}");
+    assert_eq!(done["files"], 4, "{done}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "worker\n"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("src/new/deep.rs")).unwrap(),
+        "fn deep() {}\n"
+    );
+    assert!(!root.join("gone.txt").exists());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = fs::metadata(root.join("tool.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o111, 0o111, "{mode:o}");
+    }
+    // Nothing staged, nothing committed: the owner reviews in Git.
+    assert_eq!(f.head(), head);
+    assert_eq!(git(root, &["diff", "--cached", "--name-only"]), "");
+    let unstaged = git(root, &["status", "--porcelain"]);
+    for path in ["fixture.txt", "gone.txt", "src/"] {
+        assert!(unstaged.contains(path), "{unstaged}");
+    }
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Integrated);
+    let last = record.integrations.last().unwrap();
+    assert_eq!(last.state.label(), "integrated");
+    assert!(last.journal_epoch.is_some());
+    assert!(ops(&record).ends_with(&[
+        "integrate_requested".to_owned(),
+        "integrate_committed".to_owned()
+    ]));
+    let journal = journal_of(&f.ctx);
+    assert_eq!(journal.state, JournalState::Committed);
+    assert_eq!(journal.integration_id.as_deref(), Some(iid.as_str()));
+    assert_eq!(journal.head_at_commit.as_deref(), Some(head.as_str()));
+    assert_eq!(journal.entries.len(), 4);
+    let deep = journal
+        .entries
+        .iter()
+        .find(|e| e.path == "src/new/deep.rs")
+        .unwrap();
+    assert_eq!(deep.created_dirs, ["src", "src/new"]);
+    assert!(matches!(deep.kind(), Some(ChangeKind::Added)));
+    assert_eq!(Some(journal.journal_epoch.clone()), last.journal_epoch);
+    assert!(integration::pending(&f.ctx).unwrap().is_empty());
+}
+
+#[test]
+fn integrate_refuses_stale_empty_conflicting_and_foreign_requests() {
+    let f = rich();
+    let root = f.root.path();
+    let worker = spawn_ok(&f.ctx, "c1", "w");
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    let empty = integrate(&f.ctx, id, &sha_of(&f.ctx, id), "e");
+    assert_eq!(code(&empty), "INTEGRATE_UNSUPPORTED", "{empty}");
+    assert_eq!(empty["error"]["details"]["reason"], "empty", "{empty}");
+
+    fs::write(tree.join("fixture.txt"), "worker\n").unwrap();
+    write(&tree, "added.txt", b"new\n");
+    let sha = sha_of(&f.ctx, id);
+    write(&tree, "later.txt", b"after collect\n");
+    let stale = integrate(&f.ctx, id, &sha, "s");
+    assert_eq!(code(&stale), "INTEGRATE_STALE", "{stale}");
+    fs::remove_file(tree.join("later.txt")).unwrap();
+    assert_eq!(sha_of(&f.ctx, id), sha);
+
+    // Main moved away from the worker's base: three-way conflicts, by path.
+    fs::write(root.join("fixture.txt"), "owner edit\n").unwrap();
+    fs::write(root.join("added.txt"), "owner too\n").unwrap();
+    let clash = integrate(&f.ctx, id, &sha, "c");
+    assert_eq!(code(&clash), "INTEGRATE_CONFLICT", "{clash}");
+    assert_eq!(clash["error"]["details"]["conflicts_total"], 2, "{clash}");
+    assert_eq!(
+        clash["error"]["details"]["conflicts"],
+        json!([
+            {"path": "added.txt", "reason": "exists"},
+            {"path": "fixture.txt", "reason": "changed"}
+        ]),
+        "{clash}"
+    );
+    assert_eq!(record_of(&f.ctx, id).state, WorkerState::Ready);
+    fs::write(root.join("fixture.txt"), "original\n").unwrap();
+    fs::remove_file(root.join("added.txt")).unwrap();
+
+    // Another chat session cannot request this worker's integration.
+    let foreign = integrate(&remote(&f.ctx, "other"), id, &sha, "x");
+    assert_ne!(foreign["ok"], true, "{foreign}");
+    assert_eq!(record_of(&f.ctx, id).state, WorkerState::Ready);
+    for bad in [
+        json!({"worker_id": id, "diff_sha256": "zz", "request_id": "r"}),
+        json!({"worker_id": id, "diff_sha256": sha, "request_id": "r", "extra": 1}),
+    ] {
+        let out = subagent(&f.ctx, "subagent_integrate", bad.clone());
+        assert_eq!(code(&out), "INVALID_ARGUMENT", "{bad}: {out}");
+    }
+    let ok = integrate(&f.ctx, id, &sha, "ok");
+    assert_eq!(ok["ok"], true, "{ok}");
+}
+
+#[cfg(unix)]
+#[test]
+fn integrate_refuses_symlinks_as_unsupported() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c1", "w");
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    std::os::unix::fs::symlink("fixture.txt", tree.join("link")).unwrap();
+    let out = integrate(&f.ctx, id, &sha_of(&f.ctx, id), "l");
+    assert_eq!(code(&out), "INTEGRATE_UNSUPPORTED", "{out}");
+    assert_eq!(out["error"]["details"]["path"], "link", "{out}");
+}
+
+#[test]
+fn apply_rechecks_main_and_undoes_a_failed_write() {
+    let f = rich();
+    let root = f.root.path();
+    let worker = spawn_ok(&f.ctx, "c1", "w");
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("fixture.txt"), "worker\n").unwrap();
+    write(&tree, "a/b/new.txt", b"new\n");
+    fs::remove_file(tree.join("gone.txt")).unwrap();
+    let sha = sha_of(&f.ctx, id);
+    let out = integrate(&f.ctx, id, &sha, "i1");
+    let iid = out["integration_id"].as_str().unwrap().to_owned();
+
+    // The owner's main moves while the dialog is open: nothing is written.
+    let card = scoped(&f.ctx, |c| integration::prepare(c, &iid)).unwrap();
+    fs::write(root.join("gone.txt"), "owner edit\n").unwrap();
+    let approval = OwnerApproval::for_test(integration::INTEGRATE_SCOPE, &card.digest);
+    let moved = as_value(scoped(&f.ctx, |c| integration::apply(c, &card, &approval)));
+    assert_eq!(code(&moved), "INTEGRATE_CONFLICT", "{moved}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+    assert_eq!(record_of(&f.ctx, id).state, WorkerState::IntegratePending);
+    fs::write(root.join("gone.txt"), "bye\n").unwrap();
+
+    // The third write fails: the first two are undone, created dirs removed.
+    mainfs::hooks::fail_at(2);
+    let failed = confirm(&f.ctx, &iid);
+    assert_eq!(code(&failed), "INTEGRATE_FAILED", "{failed}");
+    assert_eq!(failed["error"]["details"]["restored"], true, "{failed}");
+    assert_eq!(
+        fs::read_to_string(root.join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+    assert_eq!(fs::read_to_string(root.join("gone.txt")).unwrap(), "bye\n");
+    assert!(!root.join("a").exists());
+    assert_eq!(git(root, &["status", "--porcelain"]), "");
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Ready);
+    assert_eq!(record.integrations.last().unwrap().state.label(), "failed");
+    assert_eq!(
+        ops(&record).last().map(String::as_str),
+        Some("integrate_failed")
+    );
+    assert_eq!(journal_of(&f.ctx).state, JournalState::None);
+    // The closed request cannot be confirmed again; a new one can.
+    let closed = scoped(&f.ctx, |c| integration::prepare(c, &iid)).map(|_| ());
+    assert_eq!(closed.unwrap_err().code(), "WORKER_STATE");
+    let retry = integrate(&f.ctx, id, &sha, "i2");
+    let done = confirm(&f.ctx, retry["integration_id"].as_str().unwrap());
+    assert_eq!(done["state"], "integrated", "{done}");
+    assert_eq!(
+        fs::read_to_string(root.join("a/b/new.txt")).unwrap(),
+        "new\n"
+    );
+}
+
+#[test]
+fn reject_and_expiry_restore_the_prior_state() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c1", "w");
+    let id = worker.worker_id.as_str();
+    let tree = worker_tree(&f.ctx, &worker);
+    fs::write(tree.join("fixture.txt"), "worker\n").unwrap();
+    let cancelled = subagent(&f.ctx, "subagent_cancel", json!({"worker_id": id}));
+    assert_eq!(cancelled["ok"], true, "{cancelled}");
+    let sha = sha_of(&f.ctx, id);
+    let out = integrate(&f.ctx, id, &sha, "i1");
+    let iid = out["integration_id"].as_str().unwrap().to_owned();
+    let rejected = scoped(&f.ctx, |c| integration::reject(c, &iid)).unwrap();
+    assert_eq!(rejected["state"], "rejected");
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Cancelled);
+    assert_eq!(
+        ops(&record).last().map(String::as_str),
+        Some("integrate_rejected")
+    );
+    assert_eq!(
+        fs::read_to_string(f.root.path().join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+
+    let out = integrate(&f.ctx, id, &sha, "i2");
+    let iid = out["integration_id"].as_str().unwrap().to_owned();
+    {
+        let (_, store) = open(&f.ctx).unwrap();
+        let mut inner = store.lock().unwrap();
+        inner
+            .apply(|doc| {
+                let w = doc
+                    .workers
+                    .iter_mut()
+                    .find(|w| w.worker_id.as_str() == id)
+                    .unwrap();
+                w.integrations.last_mut().unwrap().expires_at = 1;
+                Ok(())
+            })
+            .unwrap();
+    }
+    // Status reports the expiry read-only; the store still says pending.
+    let status = subagent(&f.ctx, "subagent_status", json!({"worker_id": id}));
+    assert_eq!(
+        status["workers"][0]["integration"]["state"], "expired",
+        "{status}"
+    );
+    assert_eq!(record_of(&f.ctx, id).state, WorkerState::IntegratePending);
+    // The native list closes it and the worker is cancelled again.
+    assert!(integration::pending(&f.ctx).unwrap().is_empty());
+    let record = record_of(&f.ctx, id);
+    assert_eq!(record.state, WorkerState::Cancelled);
+    assert_eq!(
+        ops(&record).last().map(String::as_str),
+        Some("integrate_expired")
+    );
+    let late = scoped(&f.ctx, |c| integration::prepare(c, &iid)).map(|_| ());
+    assert_eq!(late.unwrap_err().code(), "WORKER_STATE");
+}
+
+#[test]
+fn a_new_integrate_marks_the_committed_one_superseded() {
+    // NB-b: the journal only ever holds the latest integration.
+    let f = Fixture::new();
+    let root = f.root.path();
+    let a = spawn_ok(&f.ctx, "c1", "a");
+    let b = spawn_ok(&f.ctx, "c2", "b");
+    write(&worker_tree(&f.ctx, &a), "a.txt", b"a\n");
+    write(&worker_tree(&f.ctx, &b), "b.txt", b"b\n");
+    let first = integrate(
+        &f.ctx,
+        a.worker_id.as_str(),
+        &sha_of(&f.ctx, a.worker_id.as_str()),
+        "x",
+    );
+    let first_id = first["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &first_id)["state"], "integrated");
+    let second = integrate(
+        &f.ctx,
+        b.worker_id.as_str(),
+        &sha_of(&f.ctx, b.worker_id.as_str()),
+        "y",
+    );
+    let second_id = second["integration_id"].as_str().unwrap().to_owned();
+    assert_eq!(confirm(&f.ctx, &second_id)["state"], "integrated");
+    assert!(root.join("a.txt").exists() && root.join("b.txt").exists());
+    let old = record_of(&f.ctx, a.worker_id.as_str());
+    let old = old.integrations.last().unwrap();
+    assert_eq!(old.closed_reason.as_deref(), Some("superseded"));
+    let journal = journal_of(&f.ctx);
+    assert_eq!(journal.integration_id.as_deref(), Some(second_id.as_str()));
+    assert_eq!(journal.state, JournalState::Committed);
 }

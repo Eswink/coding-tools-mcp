@@ -355,7 +355,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
     (
         "subagent_integrate",
         "Integrate subagent changes",
-        "Apply a collected worker diff to the main workspace. Not available before A1 C5: returns INTEGRATE_UNSUPPORTED.",
+        "Request that a collected worker diff (diff_sha256 from subagent_collect) be applied to the main workspace. Checks staleness and conflicts, then waits for the device owner's native confirmation; the files are written unstaged and never committed.",
         false,
         true,
         false,

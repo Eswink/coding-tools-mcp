@@ -1295,18 +1295,21 @@ fn subagent_tools_manage_the_callers_workers_through_dispatch() {
     let collected = subagent(&f.ctx, "subagent_collect", json!({"worker_id": id}));
     assert_eq!(collected["ok"], true, "{collected}");
     assert_eq!(collected["total_bytes"], 0, "{collected}");
-    for (name, args) in [
+    // C5-4: integrate is live (a sha that is not the current diff is stale).
+    for (name, args, want) in [
         (
             "subagent_integrate",
             json!({"worker_id": id, "diff_sha256": "0".repeat(64), "request_id": "i1"}),
+            "INTEGRATE_STALE",
         ),
         (
             "subagent_rollback",
             json!({"integration_id": "0".repeat(32), "request_id": "b1"}),
+            "INTEGRATE_UNSUPPORTED",
         ),
     ] {
         let out = subagent(&f.ctx, name, args);
-        assert_eq!(code(&out), "INTEGRATE_UNSUPPORTED", "{name}: {out}");
+        assert_eq!(code(&out), want, "{name}: {out}");
     }
     for (name, args) in [
         ("subagent_spawn", json!({})),

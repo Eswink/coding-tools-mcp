@@ -17,7 +17,7 @@ fn invalid(message: &'static str) -> WorkerError {
 fn unsupported() -> WorkerError {
     WorkerError::new(
         "INTEGRATE_UNSUPPORTED",
-        "Collect, integrate and rollback are not available before A1 C5.",
+        "Rollback is not available before A1 C5-6.",
     )
 }
 fn state_label(state: WorkerState) -> &'static str {
@@ -28,11 +28,20 @@ fn state_label(state: WorkerState) -> &'static str {
         WorkerState::Failed => "failed",
         WorkerState::PendingCleanup => "pending_cleanup",
         WorkerState::Discarded => "discarded",
+        WorkerState::IntegratePending => "integrate_pending",
+        WorkerState::Integrated => "integrated",
     }
 }
 /// The bounded public view. Worktree ids and paths are never exposed.
 pub(crate) fn view(record: &WorkerRecord) -> Value {
+    // Read-only: an expired request shows as closed without writing the store.
+    let record = &super::integration::effective(record, super::now());
+    let integration = record
+        .integrations
+        .last()
+        .map_or(Value::Null, super::integration::view);
     json!({
+        "integration": integration,
         "worker_id": record.worker_id.as_str(),
         "label": record.label,
         "state": state_label(record.state),
@@ -148,8 +157,12 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             )?;
             hex(text(obj, "worker_id")?, 32)?;
             hex(text(obj, "diff_sha256")?, 64)?;
-            text(obj, "request_id")?;
-            Err(unsupported())
+            super::integration::request(
+                ctx,
+                text(obj, "worker_id")?.unwrap_or_default(),
+                text(obj, "diff_sha256")?.unwrap_or_default(),
+                text(obj, "request_id")?.unwrap_or_default(),
+            )
         }
         "subagent_rollback" => {
             let obj = object(
