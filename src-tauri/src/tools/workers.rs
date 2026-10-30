@@ -74,6 +74,8 @@ pub(crate) struct WorkerError {
     message: &'static str,
     /// A1 C2-ad (N2): CAPACITY because legacy trees alone hold the slots.
     legacy_slots: Option<usize>,
+    /// A1 C5: structured, non-sensitive details (conflicts, reason, ...).
+    details: Option<Value>,
 }
 impl WorkerError {
     const fn new(code: &'static str, message: &'static str) -> Self {
@@ -81,7 +83,15 @@ impl WorkerError {
             code,
             message,
             legacy_slots: None,
+            details: None,
         }
+    }
+    pub(crate) fn with_details(mut self, details: Value) -> Self {
+        self.details = Some(details);
+        self
+    }
+    pub(crate) fn details(&self) -> Option<&Value> {
+        self.details.as_ref()
     }
     pub(crate) fn code(&self) -> &'static str {
         self.code
@@ -1448,6 +1458,15 @@ pub(crate) fn error_value(error: &WorkerError) -> Value {
             details: json!({ "retry_after_ms": RETRY_AFTER_MS, "reason": "main_root_busy" }),
         });
     }
+    if let Some(details) = &error.details {
+        return crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
+            code: error.code(),
+            message: error.message().into(),
+            category: "worker",
+            retryable: busy,
+            details: details.clone(),
+        });
+    }
     if let Some(slots) = error.legacy_slots {
         return crate::tools::workspace::tool_err(WorkspaceError::ToolDetails {
             code: error.code(),
@@ -1655,6 +1674,8 @@ pub(crate) mod export_policy;
 
 #[path = "workers/integrate.rs"]
 pub(crate) mod integrate;
+#[path = "workers/journal.rs"]
+pub(crate) mod journal;
 
 /// Test hook (NB-f): runs between discard's idle check and its root guard.
 #[cfg(test)]

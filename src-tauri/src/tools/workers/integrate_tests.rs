@@ -279,3 +279,136 @@ fn spawn_records_an_advisory_main_fingerprint() {
     fs::write(f.root.path().join("fixture.txt"), "main edit\n").unwrap();
     assert_ne!(manager.main_fingerprint().unwrap(), print);
 }
+
+// --- C5-3: the integration journal (§5.3) -----------------------------------
+use crate::harness::worktree::{ChangeKind, FileChange};
+use journal::{check_size, Journal, JournalDoc, JournalEntry, JournalState, MAX_PREIMAGE_TOTAL};
+
+fn modified(path: &str, size: usize) -> FileChange {
+    let pre: Vec<u8> = (0..size).map(|i| (i * 7919 % 251) as u8).collect();
+    FileChange {
+        path: path.into(),
+        kind: ChangeKind::Modified,
+        pre: Some((pre, false)),
+        post: Some((b"post\n".to_vec(), true)),
+    }
+}
+fn prepared(journal: &Journal, changes: &[FileChange]) -> JournalDoc {
+    JournalDoc {
+        state: JournalState::Prepared,
+        integration_id: Some("a".repeat(32)),
+        entries: changes.iter().map(JournalEntry::from_change).collect(),
+        ..journal.doc().clone()
+    }
+}
+
+#[test]
+fn journal_holds_exactly_512_kib_of_preimages_as_base64_and_round_trips() {
+    let f = Fixture::new();
+    let total = MAX_PREIMAGE_TOTAL as usize;
+    let added = FileChange {
+        path: "new.txt".into(),
+        kind: ChangeKind::Added,
+        pre: None,
+        post: Some((vec![1; 4096], false)),
+    };
+    let single = vec![modified("one.bin", total), added.clone()];
+    let multi: Vec<FileChange> = (0..8)
+        .map(|i| modified(&format!("dir/f{i}.bin"), total / 8))
+        .chain([added])
+        .collect();
+    for changes in [single, multi] {
+        let mut journal = Journal::open(&f.ctx.host).unwrap();
+        let epoch = journal.doc().journal_epoch.clone();
+        let doc = prepared(&journal, &changes);
+        check_size(&changes, &doc).unwrap();
+        let raw = serde_json::to_string(&doc).unwrap();
+        assert!(raw.len() < 1_048_576, "{}", raw.len());
+        let value: Value = serde_json::from_str(&raw).unwrap();
+        assert!(
+            value["entries"][0]["pre"]["base64"].is_string(),
+            "not a string"
+        );
+        journal.write(doc.clone()).unwrap();
+        drop(journal);
+        let reopened = Journal::open(&f.ctx.host).unwrap();
+        assert_eq!(reopened.doc(), &doc);
+        assert_eq!(reopened.doc().journal_epoch, epoch);
+        for (entry, change) in reopened.doc().entries.iter().zip(&changes) {
+            assert_eq!(
+                entry.pre.as_ref().map(|p| p.bytes().unwrap()),
+                change.pre.as_ref().map(|(b, _)| b.clone())
+            );
+        }
+        let mut reopened = reopened;
+        let idle = reopened.doc().idle();
+        reopened.write(idle).unwrap();
+        assert!(reopened.doc().entries.is_empty());
+    }
+}
+
+#[test]
+fn journal_rejects_524289_preimage_bytes_before_writing() {
+    let f = Fixture::new();
+    let mut journal = Journal::open(&f.ctx.host).unwrap();
+    let before = journal.doc().clone();
+    for changes in [
+        vec![modified("one.bin", MAX_PREIMAGE_TOTAL as usize + 1)],
+        vec![
+            modified("a.bin", MAX_PREIMAGE_TOTAL as usize / 2),
+            modified("b.bin", MAX_PREIMAGE_TOTAL as usize / 2 + 1),
+        ],
+    ] {
+        let doc = prepared(&journal, &changes);
+        let error = check_size(&changes, &doc).unwrap_err();
+        assert_eq!(error.code(), "INTEGRATE_UNSUPPORTED");
+        assert_eq!(
+            error.details().unwrap(),
+            &json!({"reason": "preimage_too_large", "total_bytes": 524_289})
+        );
+        let value = error_value(&error);
+        assert_eq!(value["error"]["details"]["reason"], "preimage_too_large");
+    }
+    journal.refresh(&f.ctx.host).unwrap();
+    assert_eq!(journal.doc(), &before);
+}
+
+#[test]
+fn journal_epoch_is_stable_until_the_document_is_rebuilt_and_corruption_fails_closed() {
+    let f = Fixture::new();
+    assert!(Journal::open_existing(&f.ctx.host).unwrap().is_none());
+    let mut journal = Journal::open(&f.ctx.host).unwrap();
+    let epoch = journal.doc().journal_epoch.clone();
+    assert_eq!(epoch.len(), 32);
+    assert!(epoch.bytes().all(|c| c.is_ascii_hexdigit()));
+    let file = namespace(&f.ctx.host).join("integration-journal/auth.json");
+    assert!(file.is_file());
+    // An external delete is a reset: a new epoch, never the old pre-images.
+    let doc = prepared(&journal, &[modified("x", 4)]);
+    journal.write(doc).unwrap();
+    fs::remove_file(&file).unwrap();
+    assert!(journal.missing());
+    journal.refresh(&f.ctx.host).unwrap();
+    assert_ne!(journal.doc().journal_epoch, epoch);
+    assert_eq!(journal.doc().state, JournalState::None);
+    // A write with a stale epoch is refused.
+    let stale = JournalDoc {
+        journal_epoch: epoch,
+        ..journal.doc().clone()
+    };
+    assert_eq!(
+        journal.write(stale).unwrap_err().code(),
+        "STORE_UNAVAILABLE"
+    );
+    drop(journal);
+    fs::write(&file, "corrupt").unwrap();
+    assert_eq!(
+        Journal::open(&f.ctx.host).err().unwrap().code(),
+        "STORE_UNAVAILABLE"
+    );
+    assert_eq!(
+        Journal::open_existing(&f.ctx.host).err().unwrap().code(),
+        "STORE_UNAVAILABLE"
+    );
+    assert_eq!(fs::read_to_string(&file).unwrap(), "corrupt");
+}
