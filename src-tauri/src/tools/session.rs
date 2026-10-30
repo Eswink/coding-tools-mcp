@@ -51,10 +51,19 @@ impl SessionStore {
     }
 
     pub(crate) fn has_unfinished_work(&self) -> bool {
+        self.any_unfinished(|_| true)
+    }
+
+    /// A1 C3: an interactive session started by this worker is still live.
+    pub(crate) fn has_unfinished_worker_work(&self, worker_id: &str) -> bool {
+        self.any_unfinished(|s| s.worker.as_deref() == Some(worker_id))
+    }
+
+    fn any_unfinished(&self, selected: impl Fn(&ExecSession) -> bool) -> bool {
         let Ok(sessions) = self.sessions.lock() else {
             return true;
         };
-        sessions.values().any(|s| {
+        sessions.values().filter(|s| selected(s)).any(|s| {
             if let Ok(mut child) = s.child.try_lock() {
                 if let Ok(Some(status)) = child.try_wait() {
                     s.record_exit_status(status);
@@ -112,6 +121,8 @@ pub struct ExecSession {
     process_tree: Mutex<Option<crate::tools::process_tree::ProcessTree>>,
     managed: bool,
     tree_cleanup_failed: AtomicBool,
+    /// A1 C3: the worker that started this session (None for the main session).
+    worker: Option<String>,
 }
 
 impl ExecSession {
@@ -143,6 +154,7 @@ impl ExecSession {
             process_tree: Mutex::new(None),
             managed: false,
             tree_cleanup_failed: AtomicBool::new(false),
+            worker: None,
         }
     }
 
@@ -155,6 +167,11 @@ impl ExecSession {
 
     pub(crate) fn with_interactive_mode(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
+        self
+    }
+
+    pub(crate) fn for_worker(mut self, worker: Option<String>) -> Self {
+        self.worker = worker;
         self
     }
 

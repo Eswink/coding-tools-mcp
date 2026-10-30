@@ -26,11 +26,37 @@ impl Drop for LifecycleGuard {
 pub(super) fn held_by_current_thread() -> bool {
     HELD.with(std::cell::Cell::get)
 }
+#[cfg(test)]
+thread_local! {
+    static FAIL_NEXT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+/// Test seam (A1 C3): the next `lock()` on this thread returns LOCK_UNAVAILABLE,
+/// the same Err a poisoned lifecycle mutex yields, without poisoning the
+/// process-wide static that parallel tests share.
+#[cfg(test)]
+pub(super) fn fail_next_lock_for_test() {
+    FAIL_NEXT.with(|fail| fail.set(true));
+}
 pub(super) fn lock() -> WorktreeResult<LifecycleGuard> {
+    #[cfg(test)]
+    if FAIL_NEXT.with(std::cell::Cell::take) {
+        return Err(failure("LOCK_UNAVAILABLE"));
+    }
     let guard = LIFECYCLE.lock().map_err(|_| failure("LOCK_UNAVAILABLE"))?;
     #[cfg(test)]
     HELD.with(|held| held.set(true));
     Ok(LifecycleGuard(guard))
+}
+/// A1 C3: the lock for releasing a slot. It never fails: a poisoned mutex is
+/// recovered (the `()` payload carries no state), so a reservation is always
+/// dropped inside the lock a concurrent create counts under.
+pub(super) fn lock_for_release() -> LifecycleGuard {
+    let guard = LIFECYCLE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    #[cfg(test)]
+    HELD.with(|held| held.set(true));
+    LifecycleGuard(guard)
 }
 impl WorktreeManager {
     /// Serializes broker mutations in this host process. Not an execution drain proof.

@@ -90,6 +90,12 @@ impl From<WorktreeError> for WorkerError {
         Self::new(value.code(), "Managed worktree operation failed.")
     }
 }
+const INVALID_WORKER_ID: &str = "Invalid worker identifier.";
+/// A1 C3: the envelope of a malformed worker_id, shared by the native chat
+/// outer layer and `bind` (code INVALID_ARGUMENT, category validation).
+pub(crate) fn invalid_worker_id() -> Value {
+    error_value(&invalid(INVALID_WORKER_ID))
+}
 fn invalid(message: &'static str) -> WorkerError {
     WorkerError::new("INVALID_ARGUMENT", message)
 }
@@ -145,7 +151,7 @@ impl WorkerId {
         if hex32(value) {
             Ok(Self(value.to_owned()))
         } else {
-            Err(invalid("Invalid worker identifier."))
+            Err(invalid(INVALID_WORKER_ID))
         }
     }
     pub(crate) fn as_str(&self) -> &str {
@@ -227,6 +233,31 @@ pub(crate) struct WorkerRecord {
     pub(crate) cwd: String,
     pub(crate) created_at: u64,
     pub(crate) last_activity_at: u64,
+    /// A1 C3 (v4 §1.4.3): the newest `MAX_OPS` worker writes, oldest first.
+    /// Stored in the record so it shares the store's encryption, transactional
+    /// save and `make_room` lifetime; C2b documents load with an empty log.
+    #[serde(default)]
+    pub(crate) ops: Vec<WorkerOp>,
+    /// Total writes ever logged for this worker (the last `seq`).
+    #[serde(default)]
+    pub(crate) ops_seq: u64,
+}
+
+/// Per-worker operation log bound (v4 §1.4.3 "bounded").
+pub(crate) const MAX_OPS: usize = 32;
+const MAX_OP_CODE: usize = 64;
+/// One worker write. Never carries arguments, paths, commands or output.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct WorkerOp {
+    pub(crate) seq: u64,
+    pub(crate) at: u64,
+    pub(crate) tool: String,
+    pub(crate) ok: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) error_code: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) affected_files: Option<u64>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -289,8 +320,7 @@ impl Drop for DrainGuard {
 #[derive(Debug)]
 pub(crate) struct WorkerBinding {
     pub(crate) worker_id: WorkerId,
-    /// Read by C3 (worker history) and C5 (integrate attribution).
-    #[allow(dead_code)]
+    /// Read by C3 (worker ops log) and C5 (integrate attribution).
     pub(crate) owner: WorkerOwner,
     #[allow(dead_code)]
     pub(crate) worktree_id: String,
@@ -545,6 +575,8 @@ impl WorkerStore {
             cwd: default_cwd(),
             created_at: last_activity_at,
             last_activity_at,
+            ops: Vec::new(),
+            ops_seq: 0,
         };
         inner.apply(|doc| {
             doc.workers.push(record);
@@ -754,6 +786,8 @@ pub(crate) fn spawn(
         cwd: default_cwd(),
         created_at: now(),
         last_activity_at: now(),
+        ops: Vec::new(),
+        ops_seq: 0,
     };
     match manager.reserve_slot() {
         Ok(slot) => {
@@ -809,6 +843,10 @@ pub(crate) fn complete_spawn(
     }
     // Lock order: store mutex is released before the native lifecycle lock is taken.
     let slot = pending().remove(id.as_str());
+    #[cfg(test)]
+    if slot.is_some() && spawn_hooks::take(spawn_hooks::FAIL_BUILD_LOCK) {
+        WorktreeManager::fail_next_lifecycle_lock_for_test();
+    }
     let built = match slot {
         Some(slot) => manager.create_reserved(slot).map_err(WorkerError::from),
         None => Err(state_error()),
@@ -892,6 +930,8 @@ pub(crate) mod spawn_hooks {
     use std::cell::Cell;
     pub(crate) const BEFORE_COMPLETE: u8 = 1;
     pub(crate) const INSIDE_COMPLETE: u8 = 2;
+    /// A1 C3: the native lifecycle lock fails when the reserved slot is built.
+    pub(crate) const FAIL_BUILD_LOCK: u8 = 3;
     thread_local!(static ARMED: Cell<u8> = const { Cell::new(0) });
     pub(crate) fn arm(point: u8) {
         ARMED.with(|a| a.set(point));
@@ -955,6 +995,10 @@ pub(crate) fn cancel(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord,
 pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord, WorkerError> {
     let id = WorkerId::parse(worker_id)?;
     let owner = WorkerOwner::from_context(ctx)?;
+    // A1 C3: checked before the root guard, which a running command would
+    // otherwise turn into NATIVE_ROOT_UNAVAILABLE. The tagged commands live in this
+    // context's own stores, so this reveals nothing about foreign workers.
+    worker_idle(ctx, &id)?;
     let _root = root_work::exclusive_context(ctx).map_err(|_| root_unavailable())?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
@@ -965,6 +1009,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         WorkerState::Creating => return Err(state_error()),
         _ => {}
     }
+    // Re-checked under the root guard (a command may have started meanwhile).
+    worker_idle(ctx, &id)?;
     let removal = match record.worktree_id.as_deref() {
         Some(tree) => manager.remove_clean(tree),
         None => Ok(()),
@@ -979,6 +1025,20 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         record.last_activity_at = now();
         Ok(record.clone())
     })
+}
+
+/// A1 C3: cancel does not stop a worker's commands, so discard refuses while any
+/// async task or interactive session it started still runs; nothing is removed.
+fn worker_idle(ctx: &ToolContext, id: &WorkerId) -> Result<(), WorkerError> {
+    if ctx.exec_tasks.has_unfinished_worker_work(id.as_str())
+        || ctx.sessions.has_unfinished_worker_work(id.as_str())
+    {
+        return Err(WorkerError::new(
+            "WORKER_BUSY",
+            "Worker still has running commands; stop them before discarding.",
+        ));
+    }
+    Ok(())
 }
 
 /// Validates a worker-relative cwd: an existing directory inside `root`. Returns
@@ -1046,6 +1106,72 @@ pub(crate) fn set_cwd(
         record.last_activity_at = now();
         Ok(record.clone())
     })
+}
+
+/// The worker writes that enter the ops log (v4 §1.4.3); reads and dry runs do not.
+fn logged_op(name: &str, args: &Value) -> bool {
+    match name {
+        "exec_command" | "start_exec_task" | "set_default_cwd" => true,
+        "apply_patch" => !args
+            .get("dry_run")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+/// Appends one entry to the bound worker's ops log (A1 C3, v4 §1.4.3). Best
+/// effort like the main operation log: a store failure never changes the tool
+/// result. Only the tool name, outcome, a sanitized error code and an affected
+/// file count are kept.
+pub(crate) fn record_op(ctx: &ToolContext, name: &str, args: &Value, output: &Value) {
+    let Some(binding) = ctx.worker.as_ref() else {
+        return;
+    };
+    // The accepted start_exec_task is the logged operation; its background
+    // exec_command run is not a second entry.
+    if ctx.managed_task || !logged_op(name, args) {
+        return;
+    }
+    let ok = output.get("ok").and_then(Value::as_bool) == Some(true);
+    let error_code = (!ok).then(|| {
+        output
+            .pointer("/error/code")
+            .and_then(Value::as_str)
+            .filter(|c| {
+                !c.is_empty()
+                    && c.len() <= MAX_OP_CODE
+                    && c.bytes()
+                        .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+            })
+            .unwrap_or("UNKNOWN")
+            .to_owned()
+    });
+    let affected_files = output
+        .get("affected_files")
+        .and_then(Value::as_array)
+        .map(|files| files.len() as u64);
+    let Ok(Some(store)) = WorkerStore::open_existing(&ctx.host) else {
+        return;
+    };
+    let Ok(mut inner) = store.lock() else {
+        return;
+    };
+    let _ = inner.update(&binding.owner, &binding.worker_id, |record| {
+        let at = now();
+        record.ops_seq += 1;
+        record.ops.push(WorkerOp {
+            seq: record.ops_seq,
+            at,
+            tool: name.to_owned(),
+            ok,
+            error_code,
+            affected_files,
+        });
+        let excess = record.ops.len().saturating_sub(MAX_OPS);
+        record.ops.drain(..excess);
+        record.last_activity_at = at;
+        Ok(())
+    });
 }
 
 /// Native-owner setting only; remote callers can never raise the cap.
@@ -1128,7 +1254,7 @@ fn bind(
 ) -> Result<(ToolContext, Value, FlightGuard), WorkerError> {
     let id = raw
         .as_str()
-        .ok_or_else(|| invalid("Invalid worker identifier."))
+        .ok_or_else(|| invalid(INVALID_WORKER_ID))
         .and_then(WorkerId::parse)?;
     if !WORKER_TOOLS.contains(&name) {
         return Err(invalid("This tool does not accept worker_id."));

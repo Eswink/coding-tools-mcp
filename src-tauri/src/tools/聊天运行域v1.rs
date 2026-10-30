@@ -187,7 +187,13 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
         None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")),
     };
     if malformed_worker_id(args) {
-        return Some(denied("INVALID_ARGUMENT"));
+        // A1 C3: the scope check (side-effect free: no flight, no fence) comes
+        // first, then the same INVALID_ARGUMENT code the cloud prepare path
+        // returns. WorkerStore is never opened.
+        return Some(match req.service.permit(req, &scopes) {
+            Err(code) => denied(code),
+            Ok(()) => super::worktree_tools::workers::invalid_worker_id(),
+        });
     }
     if ctx.chat_scoped {
         return req.service.permit(req, &scopes).err().map(denied);

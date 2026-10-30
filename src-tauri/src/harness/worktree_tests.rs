@@ -476,3 +476,99 @@ fn fixture_git_commands_do_not_start_background_maintenance() {
         "fixture Git spawned maintenance after writing repository metadata"
     );
 }
+
+#[test]
+fn a_failed_lifecycle_lock_still_releases_the_reservation_inside_the_lock() {
+    // A1 C3 (steering 3): native::lock() Err must not free the slot outside the lock.
+    let fixture = TestRepo::new();
+    let slot = fixture.manager.reserve_slot().expect("reserve");
+    let _ = SlotReservation::take_last_release_locked_for_test();
+    WorktreeManager::fail_next_lifecycle_lock_for_test();
+    fixture.manager.release_slot(slot);
+    assert_eq!(
+        SlotReservation::take_last_release_locked_for_test(),
+        Some(true),
+        "release_slot dropped the reservation outside the lifecycle lock"
+    );
+    assert_eq!(reservations::count(&fixture.manager.managed_root), 0);
+
+    let slot = fixture.manager.reserve_slot().expect("reserve again");
+    WorktreeManager::fail_next_lifecycle_lock_for_test();
+    assert_eq!(
+        fixture
+            .manager
+            .create_reserved(slot)
+            .map(|_| ())
+            .map_err(|e| e.code()),
+        Err("LOCK_UNAVAILABLE")
+    );
+    assert_eq!(
+        SlotReservation::take_last_release_locked_for_test(),
+        Some(true),
+        "create_reserved dropped the reservation outside the lifecycle lock"
+    );
+    assert_eq!(reservations::count(&fixture.manager.managed_root), 0);
+    assert!(fixture.manager.list().unwrap().is_empty());
+    for _ in 0..MAX_MANAGED_WORKTREES {
+        fixture
+            .manager
+            .create_detached()
+            .expect("all eight slots are free");
+    }
+}
+
+#[test]
+fn legacy_chat_root_worktrees_count_against_the_main_slots_and_are_never_moved() {
+    // A1 C3 (steering 2, C1-b orphans): trees created before C1-b under a
+    // session's `chat-v1/<key>` harness root stay where they are but are counted.
+    let fixture = TestRepo::new();
+    let key = "ab".repeat(32);
+    let legacy_root = fixture.harness.path().join("chat-v1").join(&key);
+    fs::create_dir_all(&legacy_root).expect("legacy root");
+    let legacy =
+        WorktreeManager::new(fixture.repo.path(), &legacy_root, WORKSPACE_ID).expect("legacy");
+    let old: Vec<_> = (0..3)
+        .map(|_| legacy.create_detached().expect("legacy tree"))
+        .collect();
+    // The native per-root listing is unchanged (no duplicates across managers).
+    assert!(fixture.manager.list().unwrap().is_empty());
+    for _ in 0..(MAX_MANAGED_WORKTREES - old.len()) {
+        fixture.manager.create_detached().expect("main slot");
+    }
+    assert_eq!(
+        fixture
+            .manager
+            .create_detached()
+            .map(|_| ())
+            .map_err(|e| e.code()),
+        Err("CAPACITY"),
+        "legacy chat-v1 worktrees were not counted against the 8 main slots"
+    );
+    assert_eq!(
+        fixture
+            .manager
+            .reserve_slot()
+            .map(|_| ())
+            .map_err(|e| e.code()),
+        Err("CAPACITY")
+    );
+    // Removing a legacy tree through the main root fails closed; nothing moves.
+    assert_eq!(
+        fixture
+            .manager
+            .remove_clean(&old[0].id)
+            .map_err(|e| e.code()),
+        Err("LEGACY_WORKTREE")
+    );
+    for item in &old {
+        assert!(legacy_root
+            .join("worktrees-v1")
+            .join(WORKSPACE_ID)
+            .join(&item.id)
+            .join("README.md")
+            .is_file());
+    }
+    let mut sorted = old.clone();
+    sorted.sort_by(|a, b| a.id.cmp(&b.id));
+    assert_eq!(legacy.list().unwrap(), sorted);
+}

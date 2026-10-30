@@ -643,10 +643,12 @@ fn cloud_worker_calls_without_a_store_fail_closed_and_create_nothing() {
         worker_read(&f, &a, &unknown, "fixture.txt").err(),
         Some("WORKER_NOT_OWNED")
     );
+    // A1 C3 (C2b deviation 9): after the scope check a malformed id is the
+    // same INVALID_ARGUMENT code the native chat path returns.
     for bad in [json!("NOT-HEX"), json!(1), json!(null)] {
         assert_eq!(
             worker_read(&f, &a, &bad, "fixture.txt").err(),
-            Some("CLOUD_ARGUMENTS_REJECTED"),
+            Some("INVALID_ARGUMENT"),
             "{bad}"
         );
     }

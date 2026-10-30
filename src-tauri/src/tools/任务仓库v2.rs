@@ -125,6 +125,21 @@ impl ExecTaskStore {
             .any(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
     }
 
+    /// A1 C3: an exec task tagged with this worker still holds capacity.
+    pub(crate) fn has_unfinished_worker_work(&self, worker_id: &str) -> bool {
+        let Ok(mut inner) = self.inner.lock() else {
+            return true;
+        };
+        if self.initialize(&mut inner).is_err() {
+            return true;
+        }
+        inner
+            .jobs
+            .values()
+            .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+            .any(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
+    }
+
     pub(crate) fn persistent(&self) -> bool {
         self.root.is_some()
     }
@@ -320,7 +335,8 @@ impl ExecTaskStore {
         self.list_filtered(request_id, None)
     }
 
-    /// A1 C2b: `worker = Some(id)` lists only that worker's tagged jobs.
+    /// A1 C2b/C3: `worker = Some(id)` lists only that worker's tagged jobs and
+    /// `None` (the main session) only untagged ones (v4 §2.3).
     pub(super) fn list_filtered(
         &self,
         request_id: Option<&str>,
@@ -333,7 +349,8 @@ impl ExecTaskStore {
             .jobs
             .values()
             .filter(|j| request_id.is_none_or(|r| j.request_id == r))
-            .filter(|j| worker.is_none_or(|w| j.worker_id.as_deref() == Some(w)))
+            // A1 C3: main (None) lists only untagged jobs; a worker only its own.
+            .filter(|j| j.worker_id.as_deref() == worker)
             .cloned()
             .collect::<Vec<_>>();
         selected.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(a.id.cmp(&b.id)));

@@ -253,7 +253,8 @@ impl NativeToolHost {
         let id = raw
             .as_str()
             .and_then(|v| WorkerId::parse(v).ok())
-            .ok_or("CLOUD_ARGUMENTS_REJECTED")?;
+            // A1 C3: the native chat path's code, still after the scope check.
+            .ok_or("INVALID_ARGUMENT")?;
         let request = self.request(&authority.conversation)?;
         request.identity()?;
         let host = &self.context.host;

@@ -1335,9 +1335,19 @@ fn worker_exec_tasks_are_tagged_and_listed_per_worker() {
         &json!({"cmd":"echo w","request_id":"job-w"}),
     );
     assert_eq!(code(&clash), "IDEMPOTENCY_CONFLICT", "{clash}");
-    // Main is not a worker: its listing is unfiltered.
+    // A1 C3 (C2b deviation 11): the main session lists only its own untagged
+    // jobs; a worker's jobs are listed only through worker_id (v4 §2.3).
     let all = call_tool(&f.ctx, "list_exec_tasks", &json!({}));
-    assert_eq!(all["jobs"].as_array().unwrap().len(), 2, "{all}");
+    let jobs = all["jobs"].as_array().unwrap();
+    assert_eq!(jobs.len(), 1, "{all}");
+    assert_eq!(jobs[0]["job_id"], main["job_id"], "{all}");
+    let by_request = call_tool(&f.ctx, "list_exec_tasks", &json!({"request_id":"job-w"}));
+    assert_eq!(by_request["ok"], true, "{by_request}");
+    assert_eq!(
+        by_request["jobs"].as_array().unwrap().len(),
+        0,
+        "{by_request}"
+    );
 }
 
 #[test]
@@ -1352,4 +1362,302 @@ fn workers_cannot_manage_workers() {
     )
     .expect("worker_id present");
     assert_eq!(code(&out), "WORKER_STATE", "{out}");
+}
+
+// ---------------------------------------------------------------------------
+// A1 C3 (SPEC-A1 v4 §1.4.3): the worker operation log. Worker writes append a
+// bounded, argument-free entry to the worker's own record in the encrypted
+// main-root WorkerStore; the worker change_summary reads it back.
+// ---------------------------------------------------------------------------
+fn worker_ops(ctx: &ToolContext, id: &str) -> Value {
+    let out = call_tool(ctx, "change_summary", &with_worker(id, json!({})));
+    assert_eq!(out["ok"], true, "{out}");
+    out["operations"].clone()
+}
+
+#[test]
+fn worker_writes_append_a_bounded_ops_log_read_through_the_worker_change_summary() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let other = spawn_ok(&f.ctx, "req2", "x");
+    let id = worker.worker_id.as_str();
+    fs::create_dir_all(worker_tree(&f.ctx, &worker).join("nested")).unwrap();
+    assert_eq!(worker_ops(&f.ctx, id), json!([]));
+
+    // Reads and dry runs are not operations.
+    for (name, args) in [
+        ("read_file", json!({"path":"fixture.txt"})),
+        ("list_dir", json!({"path":"."})),
+        ("git_status", json!({})),
+        ("get_default_cwd", json!({})),
+        (
+            "patch_check",
+            json!({"patch":"*** Begin Patch\n*** Add File: probe.txt\n+p\n*** End Patch\n"}),
+        ),
+    ] {
+        call_tool(&f.ctx, name, &with_worker(id, args));
+    }
+    assert_eq!(worker_ops(&f.ctx, id), json!([]));
+
+    let patch = "*** Begin Patch\n*** Add File: secret-name.txt\n+secret body\n*** End Patch\n";
+    let written = call_tool(
+        &f.ctx,
+        "apply_patch",
+        &with_worker(id, json!({"patch":patch})),
+    );
+    assert_eq!(written["ok"], true, "{written}");
+    let broken = "*** Begin Patch\n*** Delete File: secret-missing.txt\n*** End Patch\n";
+    let failed = call_tool(
+        &f.ctx,
+        "apply_patch",
+        &with_worker(id, json!({"patch":broken})),
+    );
+    assert_eq!(failed["ok"], false, "{failed}");
+    let cwd = call_tool(
+        &f.ctx,
+        "set_default_cwd",
+        &with_worker(id, json!({"path":"nested"})),
+    );
+    assert_eq!(cwd["ok"], true, "{cwd}");
+    let job = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &with_worker(
+            id,
+            json!({"cmd":"echo secret-cmd","request_id":"secret-req"}),
+        ),
+    );
+    assert_eq!(job["ok"], true, "{job}");
+
+    let log = worker_ops(&f.ctx, id);
+    let entries = log.as_array().expect("operations array");
+    let tools: Vec<_> = entries.iter().map(|e| e["tool"].clone()).collect();
+    assert_eq!(
+        tools,
+        [
+            json!("apply_patch"),
+            json!("apply_patch"),
+            json!("set_default_cwd"),
+            json!("start_exec_task")
+        ],
+        "{log}"
+    );
+    let seqs: Vec<_> = entries.iter().map(|e| e["seq"].as_u64().unwrap()).collect();
+    assert_eq!(seqs, [1, 2, 3, 4], "{log}");
+    assert_eq!(entries[0]["ok"], true, "{log}");
+    assert_eq!(entries[0]["affected_files"], 1, "{log}");
+    assert_eq!(entries[1]["ok"], false, "{log}");
+    assert_eq!(entries[1]["error_code"], failed["error"]["code"], "{log}");
+    assert!(
+        entries.iter().all(|e| e["at"].as_u64().unwrap() > 0),
+        "{log}"
+    );
+    // No arguments, paths, contents, commands or request ids are recorded.
+    for needle in ["secret", "nested", "echo", "Begin", "path"] {
+        assert!(!log.to_string().contains(needle), "{needle}: {log}");
+    }
+    // The log is the worker's own; the main operation log is untouched.
+    assert_eq!(worker_ops(&f.ctx, other.worker_id.as_str()), json!([]));
+    assert!(written.get("operation_id").is_none(), "{written}");
+
+    // Persisted encrypted in the main-root store: survives a restart, and the
+    // ciphertext carries no plaintext tool names.
+    WorkerStore::evict_for_test(&f.ctx.host);
+    assert_eq!(worker_ops(&f.ctx, id), log);
+    let raw = fs::read(namespace(&f.ctx.host).join("auth.json")).unwrap();
+    assert!(
+        !String::from_utf8_lossy(&raw).contains("set_default_cwd"),
+        "plaintext ops on disk"
+    );
+
+    // Bounded: only the newest MAX_OPS entries are kept; seq keeps counting.
+    for _ in 0..40 {
+        let out = call_tool(
+            &f.ctx,
+            "set_default_cwd",
+            &with_worker(id, json!({"path":"."})),
+        );
+        assert_eq!(out["ok"], true, "{out}");
+    }
+    let log = worker_ops(&f.ctx, id);
+    let entries = log.as_array().unwrap();
+    // MAX_OPS = 32 per worker.
+    assert_eq!(entries.len(), 32, "{log}");
+    assert_eq!(entries.last().unwrap()["seq"], 44, "{log}");
+    assert_eq!(entries[0]["seq"], 13, "{log}");
+}
+
+#[test]
+fn c2b_records_without_an_ops_log_still_load_and_gain_an_empty_one() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    // The exact C2b record shape: no ops fields.
+    let c2b = json!({
+        "worker_id": worker.worker_id.as_str(),
+        "worktree_id": worker.worktree_id,
+        "workspace_id": worker.workspace_id,
+        "owner": worker.owner,
+        "spawn_request_id": "req",
+        "spawn_fingerprint": worker.spawn_fingerprint,
+        "label": "w",
+        "base_head": worker.base_head,
+        "state": worker.state,
+        "cwd": ".",
+        "created_at": 1,
+        "last_activity_at": 2
+    });
+    let record: WorkerRecord = serde_json::from_value(c2b).expect("C2b record loads");
+    let back = serde_json::to_value(&record).unwrap();
+    assert_eq!(back["ops"], json!([]), "{back}");
+    assert_eq!(back["ops_seq"], 0, "{back}");
+}
+
+// ---------------------------------------------------------------------------
+// A1 C3 (steering 1): discard refuses while the worker still runs commands.
+// ---------------------------------------------------------------------------
+/// A stopped command retires its root-work chain asynchronously; until then the
+/// root guard answers NATIVE_ROOT_UNAVAILABLE (retryable by the caller).
+fn discard_when_root_settles(ctx: &ToolContext, id: &str) -> Value {
+    for _ in 0..100 {
+        let out = subagent(ctx, "subagent_discard", json!({"worker_id": id}));
+        if code(&out) != "NATIVE_ROOT_UNAVAILABLE" {
+            return out;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    subagent(ctx, "subagent_discard", json!({"worker_id": id}))
+}
+#[cfg(unix)]
+#[test]
+fn discard_returns_worker_busy_while_a_worker_exec_runs_and_keeps_the_worktree() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    let started = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &with_worker(
+            &id,
+            json!({"cmd":"python3 -c \"import time; time.sleep(30)\"","request_id":"w-long"}),
+        ),
+    );
+    assert_eq!(started["ok"], true, "{started}");
+    let job = started["job_id"].as_str().unwrap().to_owned();
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(code(&out), "WORKER_BUSY", "{out}");
+    assert!(tree.is_dir(), "discard removed a busy worker's worktree");
+    assert_eq!(
+        status(&f.ctx, Some(&id)).unwrap()[0].state,
+        WorkerState::Ready
+    );
+    // cancel marks the worker only; it does not stop the worker's commands.
+    let out = subagent(&f.ctx, "subagent_cancel", json!({"worker_id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(code(&out), "WORKER_BUSY", "{out}");
+    assert!(tree.is_dir());
+    // Stop the task through the worker's own routing would need a ready worker;
+    // the main session's task store holds the job, so cancel it there.
+    let stop = call_tool(&f.ctx, "cancel_exec_task", &json!({"job_id": job}));
+    assert_eq!(stop["ok"], true, "{stop}");
+    for _ in 0..200 {
+        let got = call_tool(&f.ctx, "get_exec_task", &json!({"job_id": job}));
+        if !["queued", "running", "cancelling"].contains(&got["status"].as_str().unwrap()) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let out = discard_when_root_settles(&f.ctx, &id);
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(!tree.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn discard_returns_worker_busy_while_a_worker_interactive_session_runs() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str().to_owned();
+    let tree = worker_tree(&f.ctx, &worker);
+    let run = call_tool(
+        &f.ctx,
+        "exec_command",
+        &with_worker(
+            &id,
+            json!({"cmd":"python3 -c \"import time; time.sleep(30)\"","yield_time_ms":200}),
+        ),
+    );
+    assert!(run["session_id"].is_string(), "still running: {run}");
+    let session = run["session_id"].as_str().unwrap().to_owned();
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(code(&out), "WORKER_BUSY", "{out}");
+    assert!(tree.is_dir());
+    let killed = call_tool(
+        &f.ctx,
+        "kill_session",
+        &json!({"session_id": session, "signal":"KILL", "wait_ms": 2000}),
+    );
+    assert_eq!(killed["ok"], true, "{killed}");
+    let out = discard_when_root_settles(&f.ctx, &id);
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(!tree.exists());
+}
+
+#[test]
+fn concurrent_duplicate_spawns_with_one_request_id_end_failed_without_a_leak() {
+    // A1 C3 (steering 3): the same request_id raced from several threads while the
+    // build's lifecycle lock fails. One record, state failed, no pending slot, the
+    // slot released inside the lock, and all 8 device slots usable afterwards.
+    let f = Fixture::new();
+    let barrier = std::sync::Barrier::new(4);
+    let results: Vec<(Value, Option<bool>)> = std::thread::scope(|s| {
+        let handles: Vec<_> = (0..4)
+            .map(|_| {
+                s.spawn(|| {
+                    let _ = SlotReservation::take_last_release_locked_for_test();
+                    spawn_hooks::arm(spawn_hooks::FAIL_BUILD_LOCK);
+                    barrier.wait();
+                    let out = subagent(
+                        &f.ctx,
+                        "subagent_spawn",
+                        json!({"request_id":"dup","label":"w"}),
+                    );
+                    (out, SlotReservation::take_last_release_locked_for_test())
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    });
+    for (out, released) in &results {
+        assert_ne!(*released, Some(false), "slot freed outside the lock: {out}");
+        assert_ne!(out["worker"]["state"], "ready", "{out}");
+    }
+    assert!(
+        results
+            .iter()
+            .any(|(out, _)| code(out) == "LOCK_UNAVAILABLE"),
+        "no thread built the slot: {results:?}"
+    );
+    let records = status(&f.ctx, None).unwrap();
+    assert_eq!(records.len(), 1, "{records:?}");
+    assert_eq!(records[0].state, WorkerState::Failed);
+    assert!(records[0].worktree_id.is_none());
+    assert!(!pending_for_test(records[0].worker_id.as_str()));
+    // A retry with the same request_id returns the same failed worker.
+    let again = subagent(
+        &f.ctx,
+        "subagent_spawn",
+        json!({"request_id":"dup","label":"w"}),
+    );
+    assert_eq!(again["worker"]["state"], "failed", "{again}");
+    assert_eq!(
+        again["worker"]["worker_id"],
+        records[0].worker_id.as_str(),
+        "{again}"
+    );
+    for n in 0..8 {
+        let created = call_tool(&f.ctx, "worktree_create", &json!({}));
+        assert_eq!(created["ok"], true, "slot {n}: {created}");
+    }
 }

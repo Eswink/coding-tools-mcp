@@ -377,13 +377,42 @@ fn remote_calls_without_agents_manage_are_rejected_before_any_worker_state() {
             "{name} {args}: {out}"
         );
     }
-    // A malformed id is refused as an argument error, still before any state.
-    let bad = call_tool(
-        &ctx,
-        "read_file",
-        &json!({"path":"fixture.txt","worker_id":"NOT-HEX"}),
-    );
-    assert_eq!(bad["error"]["message"], "INVALID_ARGUMENT", "{bad}");
+    // A1 C3 (C2b deviation 9): a malformed id is checked only after the scope
+    // check, exactly like the cloud prepare path: without agents.manage it is
+    // INSUFFICIENT_CHAT_SCOPE, never an argument error that skips the scope.
+    for bad in [json!("NOT-HEX"), json!(7), json!(null)] {
+        let out = call_tool(
+            &ctx,
+            "read_file",
+            &json!({"path":"fixture.txt","worker_id":bad}),
+        );
+        assert_eq!(
+            out["error"]["message"], "INSUFFICIENT_CHAT_SCOPE",
+            "{bad}: {out}"
+        );
+    }
+    assert!(!WorkerStore::registered_for_test(&f.ctx.host));
+    assert!(!f.ctx.host.store_root.join("agents-v1").exists());
+    // With the scope held, the same calls fail with the unified argument code
+    // (error.code, as on the cloud path), still before any worker state.
+    f.request
+        .service
+        .grant_pending_scope_for_test(&f.request.profile, "agents.manage");
+    for (name, args) in [
+        (
+            "read_file",
+            json!({"path":"fixture.txt","worker_id":"NOT-HEX"}),
+        ),
+        ("read_file", json!({"path":"fixture.txt","worker_id":7})),
+        ("read_file", json!({"path":"fixture.txt","worker_id":null})),
+        ("subagent_discard", json!({"worker_id":"NOT-HEX"})),
+    ] {
+        let out = call_tool(&ctx, name, &args);
+        assert_eq!(
+            out["error"]["code"], "INVALID_ARGUMENT",
+            "{name} {args}: {out}"
+        );
+    }
     assert!(!WorkerStore::registered_for_test(&f.ctx.host));
     assert!(!f.ctx.host.store_root.join("agents-v1").exists());
 }
@@ -451,4 +480,59 @@ fn remote_subagent_lifecycle_runs_through_the_chat_permit_once_agents_manage_is_
     assert_eq!(discarded["error"]["code"], "DIRTY", "{discarded}");
     let cancelled = call_tool(&ctx, "subagent_cancel", &json!({"worker_id": id}));
     assert_eq!(cancelled["worker"]["state"], "cancelled", "{cancelled}");
+}
+
+#[test]
+fn worktree_list_shows_legacy_chat_root_trees_and_create_counts_them() {
+    // A1 C3 (steering 2): pre-C1-b trees under `<store>/chat-v1/<key>` are listed
+    // and occupy main-root slots; they are not moved and cannot be removed here.
+    let f = Fixture::new(false);
+    let key = "cd".repeat(32);
+    let legacy_root = f.ctx.host.store_root.join("chat-v1").join(&key);
+    fs::create_dir_all(&legacy_root).unwrap();
+    let legacy = crate::harness::worktree::WorktreeManager::new(
+        f.root.path(),
+        &legacy_root,
+        &f.ctx.host.workspace_id,
+    )
+    .unwrap();
+    let mut old: Vec<String> = (0..2)
+        .map(|_| legacy.create_detached().unwrap().id)
+        .collect();
+    old.sort();
+    let listed = call_tool(&f.ctx, "worktree_list", &json!({}));
+    let items = listed["worktrees"].as_array().unwrap();
+    let ids: Vec<_> = items.iter().map(|i| i["id"].as_str().unwrap()).collect();
+    assert_eq!(
+        ids, old,
+        "legacy trees missing from worktree_list: {listed}"
+    );
+    for item in items {
+        assert_eq!(item["legacy"], true, "{item}");
+        assert_eq!(
+            item["display_path"],
+            format!("legacy/{}", item["id"].as_str().unwrap())
+        );
+        let text = item.to_string();
+        assert!(!text.contains(&key) && !text.contains("chat-v1"), "{text}");
+    }
+    for n in 0..6 {
+        let out = call_tool(&f.ctx, "worktree_create", &json!({}));
+        assert_eq!(out["ok"], true, "{n}: {out}");
+        assert!(out["worktree"].get("legacy").is_none(), "{out}");
+    }
+    let out = call_tool(&f.ctx, "worktree_create", &json!({}));
+    assert_eq!(out["error"]["code"], "CAPACITY", "{out}");
+    let out = call_tool(&f.ctx, "worktree_remove", &json!({"id": old[0]}));
+    assert_eq!(out["error"]["code"], "LEGACY_WORKTREE", "{out}");
+    for id in &old {
+        assert!(legacy_root
+            .join("worktrees-v1")
+            .join(&f.ctx.host.workspace_id)
+            .join(id)
+            .join("fixture.txt")
+            .is_file());
+    }
+    let listed = call_tool(&f.ctx, "worktree_list", &json!({}));
+    assert_eq!(listed["worktrees"].as_array().unwrap().len(), 8, "{listed}");
 }

@@ -196,6 +196,9 @@ pub(crate) fn worker_change_summary(ctx: &ToolContext, args: &Value) -> Value {
         "base_head": record.base_head,
         "cwd": record.cwd,
         "git_status": git_status,
+        // A1 C3 (v4 §1.4.3): the worker's own bounded ops log, oldest first.
+        "operations": record.ops,
+        "operations_total": record.ops_seq,
         "warnings": warnings,
     }))
 }

@@ -300,10 +300,13 @@ async fn run_command(
     })?;
     let native_pid = child.id();
 
-    let session = ctx.sessions.insert(match tree {
-        Some(tree) => ExecSession::new_managed(child, tree).with_interactive_mode(tty),
-        None => ExecSession::new_with_mode(child, tty),
-    });
+    let session = ctx.sessions.insert(
+        match tree {
+            Some(tree) => ExecSession::new_managed(child, tree).with_interactive_mode(tty),
+            None => ExecSession::new_with_mode(child, tty),
+        }
+        .for_worker(ctx.worker.as_ref().map(|w| w.worker_id.as_str().to_owned())),
+    );
     session.spawn_readers().await;
     #[cfg(target_os = "linux")]
     super::execution_sandbox::retain_admission(session.clone(), admission);

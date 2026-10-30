@@ -106,7 +106,7 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
     }
 
     // Worker calls never touch the main task's baseline, events or operation log
-    // (SPEC-A1 v4 §1.4.3); the worker's own history is C3.
+    // (SPEC-A1 v4 §1.4.3); the worker's own history is its ops log (C3).
     let in_worker = ctx.worker.is_some();
     let task_id = if !in_worker && requires_write_baseline(name, &effective_args) {
         let task = ctx.harness.current_task().ok().flatten();
@@ -226,6 +226,10 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         Ok(v) => v,
         Err(e) => tool_err(e),
     };
+    if in_worker {
+        // A1 C3 (v4 §1.4.3): the worker's own history; main logs stay untouched.
+        crate::tools::worktree_tools::workers::record_op(ctx, name, effective_args, &output);
+    }
     if task_id.is_none()
         && !in_worker
         && standalone_operation(name)

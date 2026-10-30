@@ -78,7 +78,8 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
         "worktree_create" => json!({"worktree": manager.create_detached().map_err(error)?}),
         "worktree_list" => {
             let owned = owned()?;
-            let mut items = manager.list().map_err(error)?;
+            // A1 C3: legacy chat-v1 trees are listed (marked) next to managed ones.
+            let mut items = manager.list_with_legacy().map_err(error)?;
             items.retain(|item| !owned.contains(&item.id));
             json!({"worktrees": items})
         }

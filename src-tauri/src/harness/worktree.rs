@@ -17,6 +17,10 @@ pub struct ManagedWorktree {
     pub display_path: String,
     pub head: String,
     pub detached: bool,
+    /// A1 C3: a pre-C1-b tree under a session's `chat-v1/<key>` harness root.
+    /// Counted against the main-root slots and listed, never moved or removed here.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub legacy: bool,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -119,7 +123,7 @@ impl WorktreeManager {
     pub fn create_detached(&self) -> WorktreeResult<ManagedWorktree> {
         let _guard = native::lock()?;
         // Not-yet-built worker reservations share the same eight-slot budget.
-        if self.list()?.len() + reservations::count(&self.managed_root) >= MAX_MANAGED_WORKTREES {
+        if self.slots_in_use()? >= MAX_MANAGED_WORKTREES {
             return Err(error("CAPACITY", "Managed worktree capacity reached."));
         }
         let (id, target) = self.allocate()?;
@@ -141,7 +145,7 @@ impl WorktreeManager {
     /// pins the opaque id the later build will use. Dropping the guard frees the slot.
     pub(crate) fn reserve_slot(&self) -> WorktreeResult<SlotReservation> {
         let _guard = native::lock()?;
-        if self.list()?.len() + reservations::count(&self.managed_root) >= MAX_MANAGED_WORKTREES {
+        if self.slots_in_use()? >= MAX_MANAGED_WORKTREES {
             return Err(error("CAPACITY", "Managed worktree capacity reached."));
         }
         let (id, _) = self.allocate()?;
@@ -149,15 +153,29 @@ impl WorktreeManager {
     }
     /// Releases an unused reservation while the native lifecycle lock is held, so
     /// the slot never frees outside the lock a concurrent create counts under (C1-a).
+    /// Test seam (A1 C3): fail this thread's next lifecycle lock acquisition.
+    #[cfg(test)]
+    pub(crate) fn fail_next_lifecycle_lock_for_test() {
+        native::fail_next_lock_for_test();
+    }
     pub(crate) fn release_slot(&self, slot: SlotReservation) {
-        let guard = native::lock();
+        // A1 C3: an Err from native::lock() (poisoned mutex) still releases inside
+        // the lock; lock_for_release recovers the guard instead of skipping it.
+        let guard = native::lock().unwrap_or_else(|_| native::lock_for_release());
         drop(slot);
         drop(guard);
     }
     /// Builds the worktree for a reservation. The slot is released while the native
     /// lifecycle lock is still held on every path, early returns included (SPEC-A1 v4 N4).
     pub(crate) fn create_reserved(&self, slot: SlotReservation) -> WorktreeResult<ManagedWorktree> {
-        let guard = native::lock()?;
+        let guard = match native::lock() {
+            Ok(guard) => guard,
+            Err(error) => {
+                // A1 C3: never drop the reservation on the early-return path.
+                self.release_slot(slot);
+                return Err(error);
+            }
+        };
         let result = self.build_reserved(&slot);
         drop(slot);
         drop(guard);
@@ -167,7 +185,7 @@ impl WorktreeManager {
         if slot.root() != self.managed_root.as_path() || !valid_id(slot.id()) {
             return Err(boundary_error());
         }
-        if self.list()?.len() + reservations::count(&self.managed_root) > MAX_MANAGED_WORKTREES {
+        if self.slots_in_use()? > MAX_MANAGED_WORKTREES {
             return Err(error("CAPACITY", "Managed worktree capacity reached."));
         }
         let id = slot.id().to_owned();
@@ -246,6 +264,7 @@ impl WorktreeManager {
                 display_path: format!("managed/{id}"),
                 head: head.to_owned(),
                 detached: true,
+                legacy: false,
             });
         }
         managed.sort_by(|left, right| left.id.cmp(&right.id));
@@ -254,6 +273,89 @@ impl WorktreeManager {
         }
         Ok(managed)
     }
+    /// A1 C3: slots held on this main root: its managed trees, the legacy
+    /// chat-v1 trees of the same workspace, and not-yet-built reservations.
+    fn slots_in_use(&self) -> WorktreeResult<usize> {
+        Ok(
+            self.list()?.len()
+                + self.legacy_list()?.len()
+                + reservations::count(&self.managed_root),
+        )
+    }
+    /// A1 C3: the managed trees followed by the legacy chat-v1 trees (by id).
+    pub fn list_with_legacy(&self) -> WorktreeResult<Vec<ManagedWorktree>> {
+        let mut items = self.list()?;
+        items.extend(self.legacy_list()?);
+        items.sort_by(|left, right| left.id.cmp(&right.id));
+        Ok(items)
+    }
+    /// A1 C3 (C1-b orphans): Git-registered trees at
+    /// `<harness_root>/chat-v1/<64 hex>/worktrees-v1/<workspace_id>/<id>`, i.e. the
+    /// per-session roots worktree tools used before C1-b. Read-only: nothing is
+    /// moved. Links, other workspaces and non-detached entries are ignored.
+    fn legacy_list(&self) -> WorktreeResult<Vec<ManagedWorktree>> {
+        let real_dir = |path: &Path| {
+            fs::symlink_metadata(path).is_ok_and(|m| m.is_dir() && !is_link_or_reparse(&m))
+        };
+        let base = self.harness_root.join("chat-v1");
+        if !real_dir(&base) || base.canonicalize().ok().as_deref() != Some(base.as_path()) {
+            return Ok(Vec::new());
+        }
+        let hex = |s: &str| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit());
+        let mut legacy = Vec::new();
+        for (count, entry) in fs::read_dir(&base).map_err(|_| io_failure())?.enumerate() {
+            if count >= 256 {
+                return Err(error("CAPACITY", "Too many legacy conversation roots."));
+            }
+            let entry = entry.map_err(|_| io_failure())?;
+            if !entry.file_name().to_str().is_some_and(hex) {
+                continue;
+            }
+            let kind = entry.path().join("worktrees-v1");
+            let root = kind.join(&self.workspace_id);
+            if !(real_dir(&entry.path()) && real_dir(&kind) && real_dir(&root))
+                || root.canonicalize().ok().as_deref() != Some(root.as_path())
+            {
+                continue;
+            }
+            let output = run_git(
+                &self.repository_root,
+                &[
+                    OsString::from("worktree"),
+                    OsString::from("list"),
+                    OsString::from("--porcelain"),
+                    OsString::from("-z"),
+                ],
+                &self.repository_root,
+                Some(&root),
+            )?;
+            if !output.success {
+                return Err(git_failed());
+            }
+            for item in parse_registry(&output.stdout)? {
+                if item.path.parent() != Some(root.as_path()) || !item.detached {
+                    continue;
+                }
+                let Some(id) = item.path.file_name().and_then(|v| v.to_str()) else {
+                    continue;
+                };
+                let Some(head) = item.head.as_deref().filter(|head| valid_head(head)) else {
+                    continue;
+                };
+                if valid_id(id) {
+                    legacy.push(ManagedWorktree {
+                        id: id.to_owned(),
+                        display_path: format!("legacy/{id}"),
+                        head: head.to_owned(),
+                        detached: true,
+                        legacy: true,
+                    });
+                }
+            }
+        }
+        legacy.sort_by(|left, right| left.id.cmp(&right.id));
+        Ok(legacy)
+    }
     pub fn remove_clean(&self, id: &str) -> WorktreeResult<()> {
         let _guard = native::lock()?;
         if !valid_id(id) {
@@ -261,6 +363,12 @@ impl WorktreeManager {
         }
         let item = self.list()?.into_iter().find(|item| item.id == id);
         let Some(item) = item else {
+            if self.legacy_list()?.iter().any(|item| item.id == id) {
+                return Err(error(
+                    "LEGACY_WORKTREE",
+                    "This worktree belongs to a pre-0.8 conversation root and is not removed here.",
+                ));
+            }
             // Absence is retry-safe only when no unregistered filesystem entry remains.
             return match fs::symlink_metadata(self.managed_root.join(id)) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),

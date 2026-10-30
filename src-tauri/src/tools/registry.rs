@@ -347,7 +347,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
     (
         "subagent_cancel",
         "Cancel subagent worker",
-        "Cancel a worker's managed asynchronous commands and mark it cancelled. Does not delete its worktree.",
+        "Mark a worker cancelled so it accepts no further worker calls. Does not stop its running asynchronous commands or interactive sessions (use cancel_exec_task / kill_session) and does not delete its worktree.",
         false,
         true,
         false,
@@ -371,7 +371,7 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
     (
         "subagent_discard",
         "Discard subagent worker",
-        "Remove a clean worker worktree and release its slot. A dirty worktree is refused (DIRTY); nothing is deleted.",
+        "Remove a clean worker worktree and release its slot. A dirty worktree is refused (DIRTY) and a worker with running commands is refused (WORKER_BUSY); nothing is deleted.",
         false,
         true,
         false,
