@@ -1,0 +1,60 @@
+name: Pre-tag rc080 topology profile (no live evidence)
+
+# rc-pretag-contract-checks.yml only matches top-level scripts/rc_pretag* and is
+# byte-pinned by the pre-tag publication profile (ANCILLARY_PINS / TIMEOUT_SHAPES), so
+# the rc080 package under scripts/rc_pretag_rc080/ gets its own least-privilege runner
+# instead of an edit to that frozen file.
+on:
+  push:
+    branches: ['main', 'develop/**', 'feat/rc-pretag-contract-*', 'release/dot-rc-reconciliation-*']
+    paths:
+      - 'scripts/rc_pretag_rc080/**'
+      - 'scripts/rc_pretag_rc070_topology_profile.py'
+      - 'scripts/rc_pretag_publication_profile.py'
+      - 'scripts/rc_native_probe_manifest.py'
+      - 'scripts/rc_native_probe_source_manifest.json'
+      - 'docs/releases/reviewed-source-manifest.json'
+      - '.github/workflows/rc080-pretag-topology-checks.yml'
+  pull_request:
+    paths:
+      - 'scripts/rc_pretag_rc080/**'
+      - 'scripts/rc_pretag_rc070_topology_profile.py'
+      - 'scripts/rc_pretag_publication_profile.py'
+      - 'scripts/rc_native_probe_manifest.py'
+      - 'scripts/rc_native_probe_source_manifest.json'
+      - 'docs/releases/reviewed-source-manifest.json'
+      - '.github/workflows/rc080-pretag-topology-checks.yml'
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+
+jobs:
+  topology:
+    name: rc080 topology profile tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # The profile walks real history from HEAD: test the pushed/PR head commit, not
+          # the synthetic PR merge ref, and keep the full graph.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run scripts/rc_pretag_rc080 topology profile tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd scripts
+          python -B -m unittest rc_pretag_rc080.topology_profile_tests -v 2>&1 | tee "$RUNNER_TEMP/rc080-topology.txt"
+          # Fail closed when the descendant-only cases are silently skipped.
+          grep -E '^Ran [0-9]+ tests? in ' "$RUNNER_TEMP/rc080-topology.txt"
+          grep -qx 'OK' "$RUNNER_TEMP/rc080-topology.txt"
+          git diff --exit-code HEAD --

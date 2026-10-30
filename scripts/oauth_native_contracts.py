@@ -56,7 +56,7 @@ class OAuthNativeContracts(unittest.TestCase):
         self.assertIn("os: [ubuntu-22.04, ubuntu-24.04]", section)
         self.assertIn("kind: [deb, appimage]", section)
         self.assertIn("聊天授权证据门禁v18.py", section)
-        self.assertIn("聊天授权原生验收v6.py", section)
+        self.assertIn("chat_native_v7/聊天授权原生验收v7.py", section)
         windows = job(source, "windows")
         self.assertIn("聊天授权Windows安装v10.ps1", windows)
         self.assertIn("!inputs.windows_local", windows)

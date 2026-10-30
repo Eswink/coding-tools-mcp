@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch3 (A1 batch 3: #173 durable outcome_unknown + Linux sandbox program search path (ui-refactor :301) + v23 evidence name) on develop/0.8.0 e67382cf. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH3-DIGESTS.md; owner review and CI rebuild required",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-batch4 tip-fix (short PNG read-only screenshot retry; keeps 5000-byte floor; #175 reconnect log + CTM_RECONNECT_LOG + rc080 topology CI + v10 v7) on develop/0.8.0 0ae772bd. NOT QUALIFIED, NOT A RELEASE, NOT APPROVED, NOT PUSHED. Generated 2026-10-29 by 专业打工人; digests rc_bundle/multiagent/a1/A1-BATCH4-DIGESTS.md; owner review and CI rebuild required",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -24,8 +24,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ea7a162ce8e13e6b9f5727e5eaec82deeeceeedc",
-        "sha256": "e3692e763d67761d837fb7162d47e0f3d9012f080d1fb02dd6688f3dbfb198c6"
+        "blob_sha": "4e3380b8bbb516754e8347128b776b7640a5a703",
+        "sha256": "48718e3b6d300c48ccc221ea09100f419840f9a886ced9e962f297500e5e0bac"
       }
     },
     {
@@ -44,8 +44,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c7b62fad5ad109d2becbcf8c7d3f54202f632c94",
-        "sha256": "5db4c4174c9160b1577804416028ef42d9f7ae3ca68e9161201b2c6acc500289"
+        "blob_sha": "2ea506e8a3ee0c34072a09b2d1c9e8bb782b39a3",
+        "sha256": "e8a0de0a9641f9aa0c79c0e0356bb9a6f02a6c642d2228a3be4da1081c78b8f3"
       }
     },
     {
@@ -417,6 +417,16 @@
       }
     },
     {
+      "path": ".github/workflows/rc080-pretag-topology-checks.yml",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "503640f3501c4b162bf0f665eba3f488614efc20",
+        "sha256": "898938d4d810c77a53a5c52a39703f0792b3f6c820162aa11b4538268cd219e8"
+      }
+    },
+    {
       "path": ".github/workflows/release.yml",
       "status": "M",
       "before": {
@@ -516,8 +526,22 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "29638819976e63fc8e7bf764f65c54a8141b20ba",
-        "sha256": "c76f358f3c2653ff238322bbcdba61a49a38b61a0980b3725b9a517087d9d97d"
+        "blob_sha": "a286a5a6ebad454cc5745bb2704d36587f688651",
+        "sha256": "91041cd7823958f06cf53a9d3bcb3fbd557c2d128508e5f31d6efd5903214b45"
+      }
+    },
+    {
+      "path": ".github/workflows/聊天授权验证v1.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "b084c8a1affc8b55a633bc108eafb94feafe5953",
+        "sha256": "9ceeed90d42fda72d60d64cd770f65a86fb7375410f26f5e766c87bd3cd0e3b4"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c3198edf8af2d3e118f0722058354249d6f2b013",
+        "sha256": "d8f73161cc28a257e07a6a9efc4fbf97ad3cc5ee2ea7f805d6b41df4f1e2366d"
       }
     },
     {
@@ -3468,8 +3492,22 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "7f8fe82680b4f32dcb51531bd897d1748f3c21c2",
-        "sha256": "50db1d813312384913a0d07cee641589e4b8714c9fc18f7b579d19def20139a2"
+        "blob_sha": "bb2168dbaf6d456f2963450d91169a2535a5299e",
+        "sha256": "f14f642de91f782e70c764b66c10d9bc9323c2a48a8a0aedf2f79f039662963d"
+      }
+    },
+    {
+      "path": "scripts/Ubuntu截图回归v10.py",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "fb2c74ee0d19f06369186fc330ff5489c77d94db",
+        "sha256": "5e1dee0fbb052bbda037ad9e4edf941757a7f2498054f7f63e3611f9f999eb4e"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "6ee45775ab971f5ad469d3811052fabab432732d",
+        "sha256": "78e0df827e61a005f040193e67d7e19a11c7b4c0f3fc22982bb984b4ccba79b7"
       }
     },
     {
@@ -3550,6 +3588,26 @@
         "mode": "100644",
         "blob_sha": "0ae70f9f1c954609d5aa45752f662944c19882a8",
         "sha256": "329e183fb5b955dadb2ff6d46e2f2faf7571783b8dabeda3113af4fc92c10a7c"
+      }
+    },
+    {
+      "path": "scripts/chat_native_v7/聊天授权原生回归v7.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "48100194b0460a7e2cee77414b365ea0fcab89b3",
+        "sha256": "992e3ab64f6af7addc881412afefe7f9c4a0ab73b1a014c56861a7c0691ee620"
+      }
+    },
+    {
+      "path": "scripts/chat_native_v7/聊天授权原生验收v7.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "eeaeba837f56ab514e503a94ad45416a511ef98e",
+        "sha256": "0eeb489168855e8f1263fe8a75cacdf8f6eae683a74d4d59a3f63a05042aec12"
       }
     },
     {
@@ -3886,6 +3944,20 @@
         "mode": "100644",
         "blob_sha": "a1201e71e691f3b160984153313afe2dd4dcb1b6",
         "sha256": "f6bedb741776dc643e4b7e5a1a278b1a6c9e2a4a343e3c023c3a1fadcc20962c"
+      }
+    },
+    {
+      "path": "scripts/oauth_native_contracts.py",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "85e97231e6f33a328dfc82b633fb752ed403a81b",
+        "sha256": "66c621093af78d07daf93667f01143583c1d811d760a687e0613da3d3da36a35"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "3b5c5c9d1f211f00cc28937cde47da67284278da",
+        "sha256": "e14c57c9fed689690815f5ad1ca5ce3e09b8e3661e415b7059d0951be91e3714"
       }
     },
     {
@@ -4448,8 +4520,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cb1d7dd974e848f3e15b30bf54ffe2a87ab48f9d",
-        "sha256": "6dfdebb841f7428cb0207f062c44068a99b0218f7454668a5d6e23b91eac68ac"
+        "blob_sha": "307dd8e7f419497c0c7c73c43695053c9e829c68",
+        "sha256": "d607cc3b82ad1a0245b947c6da5c985b91e0ff063fe03bb053a35498cf86c09a"
       }
     },
     {
@@ -5958,8 +6030,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "609a02440fc6cb2033d93214d8ef5caed80c1e7b",
-        "sha256": "8605aeb71c8b7e95aa1e72e93bcf5bc5268bdbcaeb49bce6b4f132324310d18a"
+        "blob_sha": "9d6dda3d2055e94150e9dfcdc3cde1765daa6ff9",
+        "sha256": "f98310c35b2f513b855579857e22d6a53ca56ad6d764ff6229b05a96465e32bb"
       }
     },
     {
@@ -5978,8 +6050,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5d98fa314bb6dc087fbb817c81f36dd514a2d983",
-        "sha256": "fb69d266dea9338d90c047323e22e6f43afcc053d782f7aa7d1a5efb86367882"
+        "blob_sha": "d8d7e777403bbbbe9e470fd3714dd4fddd9f7358",
+        "sha256": "0d9368a3f166bb5d7c049173b3e964861be80ba2e55e66eb561142c2e5e9c945"
       }
     },
     {
@@ -5988,8 +6060,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "4d52422f883a908c1602e7d0b6f87154ca2e0b79",
-        "sha256": "005a422cfb2361f529cb5429ea7bb0a86af0363336acc56675a89e09654b121e"
+        "blob_sha": "cfd5f7dc33408c144d2c69ea9418a3fb599daab0",
+        "sha256": "5c17bbfc1101bc0505e0c0fd9a62b39d8c267c05acd37512cbd0586dfad492f5"
       }
     },
     {
@@ -6218,8 +6290,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "406e8f82351eef659ca577a82bff4de901e163a9",
-        "sha256": "7cc835d45223eb866a41a960b818fb67a0c88043ab7f3dc1a146c5803969fdf0"
+        "blob_sha": "9daa83b7f055d71801a18c0c90b77ac6b0ff7137",
+        "sha256": "4d58802bf6e060bd66f20ab7d99cd2e9be0009b5f39617b949ce9cb0046af90a"
       }
     },
     {

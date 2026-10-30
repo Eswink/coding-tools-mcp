@@ -11,7 +11,8 @@ use authority::ProjectedHost;
 pub use authority::{HostAuthoritySnapshot, HostFuture, LocalHost};
 use journal::HostJournal;
 pub use reconnect::{
-    backoff_base, backoff_delay, classify_retry, Jitter, LinkState, RetryClass, SystemJitter,
+    backoff_base, backoff_delay, classify_retry, Jitter, LinkState, ReconnectEvent, ReconnectLog,
+    RetryClass, SystemJitter,
 };
 use serde_json::{json, Value};
 use std::{
@@ -28,6 +29,7 @@ pub struct HostAgent<H: LocalHost> {
     jitter: Arc<dyn Jitter>,
     pacing: reconnect::Pacing,
     state: watch::Sender<LinkState>,
+    reconnects: ReconnectLog,
 }
 impl<H: LocalHost> HostAgent<H> {
     /// Explicitly create a NEW state file or attach an existing one. Missing,
@@ -47,6 +49,7 @@ impl<H: LocalHost> HostAgent<H> {
             jitter: Arc::new(SystemJitter),
             pacing: reconnect::Pacing::REAL,
             state: watch::channel(LinkState::Connecting).0,
+            reconnects: ReconnectLog::default(),
             worker: Arc::new(Worker {
                 host,
                 signer,
@@ -59,6 +62,11 @@ impl<H: LocalHost> HostAgent<H> {
     /// needs-operator / failed / stopped). Public metadata only.
     pub fn link_state(&self) -> watch::Receiver<LinkState> {
         self.state.subscribe()
+    }
+    /// Bounded log of reconnect decisions (backoff taken, connect timeouts, counter
+    /// resets). Public metadata only; shared, so it stays readable while `run` is active.
+    pub fn reconnect_log(&self) -> ReconnectLog {
+        self.reconnects.clone()
     }
     /// Replace the jitter source (deterministic tests). Production uses `SystemJitter`.
     pub fn with_jitter(mut self, jitter: Arc<dyn Jitter>) -> Self {
@@ -81,9 +89,15 @@ impl<H: LocalHost> HostAgent<H> {
     /// One caller at a time.
     pub async fn run(&mut self, stop: watch::Receiver<bool>) -> Result<(), AgentError> {
         let (cfg, worker) = (&self.cfg, &self.worker);
-        reconnect::supervise(stop, &*self.jitter, &self.state, self.pacing, |probe| {
-            runner::session(cfg, worker.clone(), probe)
-        })
+        let log = &self.reconnects;
+        reconnect::supervise(
+            stop,
+            &*self.jitter,
+            &self.state,
+            self.pacing,
+            log,
+            |probe| runner::session(cfg, worker.clone(), probe),
+        )
         .await
     }
 }

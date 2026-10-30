@@ -103,7 +103,10 @@ pub(super) async fn connect(
         connect_async_tls_with_config(request, Some(ws_config), false, connector),
     )
     .await
-    .map_err(|_| AgentError::Transport)?
+    .map_err(|_| {
+        probe.connect_timed_out();
+        AgentError::Transport
+    })?
     .map_err(|error| {
         // 403/404 stay `Authentication` but are flagged: a restarting gateway or a
         // proxy mid-deploy answers exactly these (see `SOFT_REJECT_LIMIT`).
