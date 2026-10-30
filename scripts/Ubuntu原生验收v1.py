@@ -122,8 +122,10 @@ class NativeSession:
 
     def screenshot(self, path: Path) -> None:
         # GET screenshot is read-only. tauri-driver may reset an upstream
-        # connection while the same native session remains healthy. Recover
-        # this read only; never replay clicks, IPC, or command submissions.
+        # connection while the same native session remains healthy; the first
+        # paint on a cold AppImage may also return a valid but near-empty PNG
+        # below the 5000-byte floor. Recover those reads only; never lower the
+        # floor, invent bytes, or replay clicks, IPC, or command submissions.
         for attempt in range(1, 4):
             try:
                 encoded = self.call("screenshot")
@@ -134,12 +136,22 @@ class NativeSession:
                       f"{type(exc).__name__}", file=sys.stderr)
                 time.sleep(0.25 * attempt)
                 continue
-            # HTTP errors, timeouts and invalid image data remain failures.
+            # HTTP errors, timeouts, bad base64 and non-PNG payloads remain failures.
             raw = base64.b64decode(encoded, validate=True)
-            if not raw.startswith(b"\x89PNG\r\n\x1a\n") or len(raw) < 5000:
+            if not raw.startswith(b"\x89PNG\r\n\x1a\n"):
                 raise AssertionError("native screenshot is missing or invalid: " + json.dumps({
-                    "bytes": len(raw), "png_signature": raw.startswith(b"\x89PNG\r\n\x1a\n"),
+                    "bytes": len(raw), "png_signature": False,
                     "sha256": hashlib.sha256(raw).hexdigest()}))
+            if len(raw) < 5000:
+                if attempt == 3:
+                    raise AssertionError("native screenshot is missing or invalid: " + json.dumps({
+                        "bytes": len(raw), "png_signature": True,
+                        "sha256": hashlib.sha256(raw).hexdigest()}))
+                print(f"read-only screenshot short-frame recovery {attempt}/3: "
+                      f"bytes={len(raw)}", file=sys.stderr)
+                # Cold AppImage paint often needs more than a transport blip.
+                time.sleep(0.75 * attempt)
+                continue
             path.write_bytes(raw)
             return
 

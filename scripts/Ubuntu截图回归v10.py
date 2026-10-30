@@ -81,11 +81,24 @@ class ScreenshotTransportTests(unittest.TestCase):
         self.assertEqual(self.session.call.call_count, 1)
         self.assertFalse(self.path.exists())
 
-    def test_short_png_is_not_retried(self):
-        self.session.call.return_value = base64.b64encode(b"\x89PNG\r\n\x1a\n").decode()
-        with self.assertRaises(AssertionError):
+    def test_short_png_recovers_on_later_read(self):
+        short = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * 100).decode()
+        self.session.call.side_effect = [short, self.encoded]
+        self.session.screenshot(self.path)
+        self.assertEqual(self.path.read_bytes(), self.png)
+        self.assertEqual(self.session.call.call_args_list, [call("screenshot")] * 2)
+        self.pause.assert_called_once_with(0.75)
+
+    def test_persistent_short_png_is_bounded_and_does_not_write(self):
+        short = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"x" * 100).decode()
+        self.session.call.return_value = short
+        with self.assertRaises(AssertionError) as caught:
             self.session.screenshot(self.path)
-        self.assertEqual(self.session.call.call_count, 1)
+        detail = str(caught.exception)
+        self.assertIn('"bytes": 108', detail)
+        self.assertIn('"png_signature": true', detail)
+        self.assertEqual(self.session.call.call_count, 3)
+        self.assertEqual(self.pause.call_args_list, [call(0.75), call(1.5)])
         self.assertFalse(self.path.exists())
 
     def test_real_http_disconnect_recovers_same_native_session(self):
