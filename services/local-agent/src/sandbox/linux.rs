@@ -225,6 +225,7 @@ pub(super) fn prepare(
     cwd: &Path,
     read_only: bool,
     umask: Option<u32>,
+    resources: Option<super::resources::PreparedResources>,
 ) -> Result<PreparedSandbox, SandboxError> {
     require_unprivileged()?;
     // ABI1/ABI2 (e.g. the Ubuntu 22.04 GA kernel) fail closed: pre-existing baseline.
@@ -299,6 +300,7 @@ pub(super) fn prepare(
         cwd,
         filter: filter::program(),
         umask,
+        resources,
     })
 }
 
@@ -307,6 +309,7 @@ pub(crate) struct PreparedSandbox {
     cwd: File,
     filter: Vec<libc::sock_filter>,
     umask: Option<u32>,
+    resources: Option<super::resources::PreparedResources>,
 }
 
 impl PreparedSandbox {
@@ -316,6 +319,11 @@ impl PreparedSandbox {
             len: self.filter.len() as u16,
             filter: self.filter.as_ptr() as *mut libc::sock_filter,
         };
+        // A1 C4-b, SPEC-A1 v5.3 §4.2 order ①: join the worker cgroup (or set
+        // the fallback rlimits) before anything else restricts this child.
+        if let Some(resources) = &self.resources {
+            resources.apply()?;
+        }
         // A1 C4-b: umask(2) cannot fail and is async-signal-safe.
         if let Some(mask) = self.umask {
             unsafe { libc::umask(mask as libc::mode_t) };

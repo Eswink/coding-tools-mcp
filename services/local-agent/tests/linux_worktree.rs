@@ -201,3 +201,24 @@ echo x > "$NAME" && mkdir "$NAME.d" && echo created
     let root = probe(&layout, plain, &SCRIPT.replace("$NAME", "p")).await;
     assert_eq!(root, [inherited, "created".into()]);
 }
+
+/// A1 C4-b (SPEC-A1 v5.3 §4.2): `with_worker_resources` always yields a
+/// report, and a worker whose cgroup cannot be delegated (this host has no user
+/// systemd/D-Bus in CI) still execs, under the fallback rlimits.
+#[tokio::test]
+async fn worker_resources_report_and_fallback_limits_reach_the_child() {
+    let layout = Layout::new();
+    let id = format!("itest-{}", std::process::id());
+    let policy = layout.policy().with_worker_resources(&id);
+    let report = policy.resource_report().unwrap();
+    let limits = probe(&layout, policy, "ulimit -v; ulimit -t").await;
+    match report.resource_limit {
+        "rlimit_fallback" => {
+            assert!(report.cgroup_error.is_some(), "{report:?}");
+            assert_eq!(limits, ["4194304", "3600"]);
+        }
+        "cgroup_v2" => assert!(report.cgroup_error.is_none(), "{report:?}"),
+        other => panic!("unexpected resource_limit {other}"),
+    }
+    coding_tools_local_agent::release_worker_cgroup(&id);
+}

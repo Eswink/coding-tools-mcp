@@ -13,6 +13,13 @@ mod filter;
 mod linux;
 #[cfg(target_arch = "x86_64")]
 pub(crate) use linux::PreparedSandbox;
+#[cfg(target_arch = "x86_64")]
+mod resources;
+#[cfg(target_arch = "x86_64")]
+pub use resources::{
+    kill_worker_cgroup, release_worker_cgroup, ResourceReport, CPU_SECONDS, MEMORY_MAX_BYTES,
+    PIDS_MAX,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SandboxErrorKind {
@@ -67,6 +74,9 @@ pub struct LinuxSandbox {
     /// `for_worktree` (worker exec and worker Git) uses 0o077; `new` keeps the
     /// inherited mask.
     umask: Option<u32>,
+    /// SPEC-A1 v5.3 §4.2 (C4-b): the worker's cgroup v2 / rlimit limits.
+    #[cfg(target_arch = "x86_64")]
+    resources: Option<Arc<resources::WorkerResources>>,
 }
 
 impl LinuxSandbox {
@@ -78,6 +88,7 @@ impl LinuxSandbox {
                 gitdirs: None,
                 read_only: false,
                 umask: None,
+                resources: None,
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -123,6 +134,7 @@ impl LinuxSandbox {
                 gitdirs: Some(Arc::new(gitdirs)),
                 read_only: false,
                 umask: Some(WORKER_UMASK),
+                resources: None,
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -141,6 +153,28 @@ impl LinuxSandbox {
         self
     }
 
+    /// A1 C4-b (SPEC-A1 v5.3 §4.2): limit every child of this policy as worker
+    /// `worker_id` (`[A-Za-z0-9_-]{1,64}`): it joins `w-<worker_id>` in the
+    /// host's delegated cgroup v2 scope (memory.max 4 GiB, pids.max 256) as the
+    /// first `pre_exec` step, or, when no delegation/migration is possible,
+    /// runs under `RLIMIT_AS`/`RLIMIT_NPROC`/`RLIMIT_CPU`. Never fails: the
+    /// outcome is in `resource_report`.
+    pub fn with_worker_resources(mut self, worker_id: &str) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        {
+            self.resources = Some(resources::for_worker(worker_id));
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        let _ = worker_id;
+        self
+    }
+
+    /// The environment report for `with_worker_resources` policies.
+    #[cfg(target_arch = "x86_64")]
+    pub fn resource_report(&self) -> Option<ResourceReport> {
+        self.resources.as_deref().map(|r| r.report().clone())
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,
@@ -155,6 +189,7 @@ impl LinuxSandbox {
                 cwd,
                 self.read_only,
                 self.umask,
+                self.resources.as_deref().map(|r| r.prepare_child()),
             )
         }
         #[cfg(not(target_arch = "x86_64"))]

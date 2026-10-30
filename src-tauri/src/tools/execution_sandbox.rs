@@ -67,6 +67,35 @@ pub(crate) fn annotate(ctx: &ToolContext, result: &mut Value, child_started: boo
     } else {
         "policy_only"
     });
+    if required {
+        worker_resources(ctx, result);
+    }
+}
+
+/// A1 C4-b (SPEC-A1 v5.3 §4.2): how a worker child's resources are limited:
+/// `resource_limit` (`cgroup_v2` | `rlimit_fallback`), `cgroup_error`, and
+/// `cgroup_partial` when only some controllers were delegated.
+pub(super) fn worker_resources(ctx: &ToolContext, result: &mut Value) {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    if ctx.worker.is_some() {
+        if let Some(report) = ctx
+            .linux_sandbox
+            .as_ref()
+            .as_ref()
+            .ok()
+            .and_then(|sandbox| sandbox.resource_report())
+        {
+            result["resource_limit"] = json!(report.resource_limit);
+            if let Some(error) = report.cgroup_error {
+                result["cgroup_error"] = json!(error);
+            }
+            if !report.cgroup_partial.is_empty() {
+                result["cgroup_partial"] = json!(report.cgroup_partial);
+            }
+        }
+    }
+    #[cfg(not(all(target_os = "linux", target_arch = "x86_64")))]
+    let _ = (ctx, result);
 }
 
 pub(crate) fn environment(ctx: &ToolContext, result: Value) -> Value {
@@ -133,6 +162,7 @@ fn environment_for(linux: bool, windows: bool, ctx: &ToolContext, mut result: Va
             "Network and writes outside the approved workspace are denied.",
             "Legacy tty=true is a bounded pipe session, not a native PTY."
         ]);
+        worker_resources(ctx, &mut result);
     }
     result
 }

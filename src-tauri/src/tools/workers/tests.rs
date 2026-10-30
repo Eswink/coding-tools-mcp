@@ -924,6 +924,50 @@ fn worker_context_sandbox_reads_but_cannot_write_its_gitdirs() {
     assert!(tree.join("c4-inside").exists());
 }
 
+/// A1 C4-b (SPEC-A1 v5.3 §4.2): a bound worker context limits its children
+/// (cgroup v2 `w-<worker_id>`, else the RLIMIT fallback) and reports which;
+/// the main context reports nothing. This host has no user systemd, so the
+/// fallback limits must reach the child.
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+fn worker_context_children_run_under_reported_resource_limits() {
+    use coding_tools_local_agent::{ExecSpec, ProcessManager};
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let tree = worker_tree(&f.ctx, &worker);
+    let (worker_ctx, _, _guard, _) = bind(
+        &f.ctx,
+        "exec_command",
+        &json!(worker.worker_id.as_str()),
+        &json!({}),
+    )
+    .unwrap();
+    let mut report = json!({});
+    crate::tools::execution_sandbox::worker_resources(&worker_ctx, &mut report);
+    let mut main = json!({});
+    crate::tools::execution_sandbox::worker_resources(&f.ctx, &mut main);
+    assert_eq!(main, json!({}));
+    let policy = worker_ctx.linux_sandbox.as_ref().clone().unwrap();
+    let spec = ExecSpec::new(
+        vec!["/bin/sh".into(), "-c".into(), "ulimit -v; ulimit -t".into()],
+        tree.canonicalize().unwrap(),
+    )
+    .unwrap()
+    .with_env("PATH", "/usr/bin:/bin")
+    .unwrap()
+    .with_sandbox(policy);
+    let output = tauri::async_runtime::block_on(ProcessManager::default().run(spec)).unwrap();
+    let limits = String::from_utf8_lossy(&output.stdout).into_owned();
+    match report["resource_limit"].as_str() {
+        Some("rlimit_fallback") => {
+            assert!(report["cgroup_error"].is_string(), "{report}");
+            assert_eq!(limits, "4194304\n3600\n", "{report}");
+        }
+        Some("cgroup_v2") => assert!(report.get("cgroup_error").is_none(), "{report}"),
+        _ => panic!("no resource report: {report}"),
+    }
+}
+
 #[test]
 fn worker_default_cwd_is_per_worker_and_persisted_in_the_store() {
     let f = Fixture::new();

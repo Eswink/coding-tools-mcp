@@ -1156,6 +1156,10 @@ pub(crate) fn cancel(
         sources.push(own);
     }
     let killed = sources.iter().map(|s| s.kill(id.as_str())).sum();
+    // A1 C4-b (SPEC-A1 v5.3 §4.2): `cgroup.kill` also reaches descendants that
+    // left the process group; without a cgroup the pgid kill above is the path.
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    let _ = coding_tools_local_agent::kill_worker_cgroup(id.as_str());
     Ok((record, killed))
 }
 
@@ -1213,6 +1217,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
     })?;
     if out.state == WorkerState::Discarded {
         store.flight().background.remove(&id);
+        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+        coding_tools_local_agent::release_worker_cgroup(id.as_str());
     }
     Ok(out)
 }

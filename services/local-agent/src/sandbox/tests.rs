@@ -217,3 +217,98 @@ fn for_worktree_only_accepts_a_private_gitdir_directly_under_common_worktrees() 
     let policy = LinuxSandbox::for_worktree(&root, &private, &common).unwrap();
     assert!(!format!("{policy:?}").contains(dir.0.to_str().unwrap()));
 }
+
+/// A1 C4-b (SPEC-A1 v5.3 §4.2): what a sandboxed worker child actually runs
+/// under, against a stand-in for the delegated `w-<id>` cgroup directory.
+mod worker_resources {
+    use super::{resources::WorkerResources, *};
+    use std::os::unix::process::CommandExt;
+
+    fn fake_cgroup(parent: &Path) -> PathBuf {
+        let root = parent.join("scope");
+        let dir = root.join("w-w1");
+        std::fs::create_dir_all(&dir).unwrap();
+        for file in [
+            "cgroup.procs",
+            "cgroup.kill",
+            "memory.max",
+            "pids.max",
+            "cpu.max",
+        ] {
+            std::fs::write(dir.join(file), b"").unwrap();
+        }
+        root
+    }
+
+    fn run(root: &Path, resources: Option<WorkerResources>, script: &str) -> Vec<String> {
+        let mut command = std::process::Command::new("/bin/sh");
+        command
+            .args(["-c", script])
+            .current_dir(root)
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin");
+        if let Some(resources) = resources {
+            let mut policy = LinuxSandbox::new(root).unwrap();
+            policy.resources = Some(Arc::new(resources));
+            let prepared = policy.prepare(Path::new("/bin/sh"), root).unwrap();
+            unsafe {
+                command.pre_exec(move || prepared.apply());
+            }
+        }
+        let output = command.output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .lines()
+            .map(str::to_owned)
+            .collect()
+    }
+
+    const LIMITS: &str = "ulimit -v; ulimit -t";
+
+    #[test]
+    fn a_cgroup_worker_child_joins_w_id_first_and_gets_no_rlimit() {
+        let dir = Directory::new();
+        let work = dir.0.join("work");
+        std::fs::create_dir(&work).unwrap();
+        let scope = fake_cgroup(&dir.0);
+        let resources = WorkerResources::prepare_under(Ok(&scope), "w1");
+        assert_eq!(resources.report().resource_limit, "cgroup_v2");
+        let procs = scope.join("w-w1/cgroup.procs");
+        std::fs::write(&procs, b"").unwrap(); // drop the setup probe's pid
+        let child = run(&work, Some(resources), &format!("echo $$; {LIMITS}"));
+        let host = run(&work, None, LIMITS);
+        assert_eq!(
+            std::fs::read_to_string(&procs).unwrap(),
+            format!("{}\n", child[0])
+        );
+        assert_eq!(child[1..], host[..]);
+    }
+
+    #[test]
+    fn a_fallback_worker_child_runs_under_as_nproc_and_cpu_rlimits() {
+        let dir = Directory::new();
+        let resources = WorkerResources::prepare_under(Err("NO_USER_SYSTEMD"), "w1");
+        // dash: "process N", bash: "max user processes (-u) N".
+        let script = format!("{LIMITS}; ulimit -a | grep -i 'process'");
+        let child = run(&dir.0, Some(resources), &script);
+        assert_eq!(child[..2], ["4194304", "3600"]);
+        let nproc: u64 = child[2].split_whitespace().last().unwrap().parse().unwrap();
+        assert!(nproc > PIDS_MAX, "{nproc}");
+    }
+
+    #[test]
+    fn a_migration_refused_in_the_child_still_execs_under_every_rlimit() {
+        let dir = Directory::new();
+        let work = dir.0.join("work");
+        std::fs::create_dir(&work).unwrap();
+        let scope = fake_cgroup(&dir.0);
+        let resources = WorkerResources::prepare_under(Ok(&scope), "w1");
+        assert_eq!(resources.report().resource_limit, "cgroup_v2");
+        let procs = scope.join("w-w1/cgroup.procs");
+        std::fs::remove_file(&procs).unwrap();
+        std::os::unix::fs::symlink("/dev/full", &procs).unwrap(); // write(2) → ENOSPC
+        let child = run(&work, Some(resources), LIMITS);
+        assert_eq!(child, ["4194304", "3600"]);
+    }
+}

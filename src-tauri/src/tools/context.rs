@@ -211,7 +211,12 @@ impl ToolContext {
         {
             // SPEC-A1 v4 §4.2 (C4): the worker's gitdirs are readable, never writable.
             // A1 C2-ad2 (NB-p): fail-closed, no root-only fallback for a worker.
-            copy.linux_sandbox = Arc::new(super::git_runner::worker_sandbox_for_root(&root));
+            // A1 C4-b (SPEC-A1 v5.3 §4.2): its children join `w-<worker_id>`
+            // (cgroup v2) or run under the RLIMIT fallback.
+            copy.linux_sandbox = Arc::new(
+                super::git_runner::worker_sandbox_for_root(&root)
+                    .map(|sandbox| sandbox.with_worker_resources(binding.worker_id.as_str())),
+            );
         }
         copy.workspace = workspace;
         copy.default_cwd = Arc::new(Mutex::new(cwd));
