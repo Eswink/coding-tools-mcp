@@ -1638,6 +1638,9 @@ fn busy_value(store: &WorkerStore, owner: &WorkerOwner) -> Value {
 #[path = "workers/subagent.rs"]
 pub(crate) mod subagent;
 
+#[path = "workers/export_policy.rs"]
+pub(crate) mod export_policy;
+
 /// Test hook (NB-f): runs between discard's idle check and its root guard.
 #[cfg(test)]
 pub(crate) mod discard_hooks {
