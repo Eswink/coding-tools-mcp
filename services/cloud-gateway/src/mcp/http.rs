@@ -283,6 +283,9 @@ fn permission(code: &str) -> Value {
         "CHAT_SCOPE_REQUIRED"=>"This conversation lacks the required local scope.",
         "CHAT_RECOVERY_REQUIRED"=>"Local workspace authorization requires recovery. Do not retry or request OAuth.",
         "CHAT_AUTHORIZATION_UNAVAILABLE"=>"New cloud-side authorization cannot be created. Use the local approval path when available.",
+        // A1 C8-0: same text as validate_empty_args; before this arm INVALID_ARGUMENTS
+        // fell through to the "not locally approved" message.
+        "INVALID_ARGUMENTS"=>"Invalid tool arguments.",
         _=>"This conversation is not locally approved.",
     };
     denial(code, "permission", message)
@@ -480,5 +483,28 @@ mod c7_tests {
         let check = src.find("state.control.worker_owned(").unwrap();
         let alloc = src.find("let Some(external_id)").unwrap();
         assert!(scope < check && check < alloc);
+    }
+    #[test]
+    fn c8_invalid_arguments_denial_carries_its_own_message() {
+        let v = super::permission("INVALID_ARGUMENTS");
+        assert_eq!(v["error"]["code"], "INVALID_ARGUMENTS");
+        assert_eq!(v["error"]["category"], "permission");
+        assert_eq!(v["error"]["message"], "Invalid tool arguments.");
+        assert_eq!(
+            v["error"]["message"],
+            super::validate_empty_args(&super::RpcMessage {
+                id: Some(serde_json::json!(1)),
+                method: "tools/call".into(),
+                params: serde_json::json!({"arguments":[1]})
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            })
+            .unwrap_err()["error"]["message"]
+        );
+        assert_eq!(
+            super::permission("CHAT_AUTHORIZATION_REQUIRED")["error"]["message"],
+            "This conversation is not locally approved."
+        );
     }
 }

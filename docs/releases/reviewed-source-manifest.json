@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7 commit 4 (cloud_host prepare worker resolution test, SPEC v5.6 §3.5) on a1-c7 b47457c2, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c8 commit 0 (gateway mcp_postgres C2b regressions + INVALID_ARGUMENTS message) on a1-c8 b8af8834, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ae5dca384b7967e07e5bbde7abac11d344ecf887",
-        "sha256": "d3ebb651e4d721ffb65aa41e44a977ff9b3982881342be8c7dffb8d261136cfc"
+        "blob_sha": "ddcf6e61e6cdfdf421962e9973f6e1c9fd3f1b00",
+        "sha256": "f610c0e913c14f0be8f9d40db49aef7dd0b02a497713381d50bfbbe6a761e042"
       }
     },
     {
@@ -6950,8 +6950,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c831962b147eec839dbc0e04166b95d78a6a241d",
-        "sha256": "31e9fc9e052f624c1da3eda191b9b4d0b6d2317f5042385e740b2b222f7f8dd6"
+        "blob_sha": "34169243a2509be989e7b2d9ebdc76d0f9f0f4fe",
+        "sha256": "943c80179806510868fdebe5e441daeb46b96cf0278c8f4474a6415e3fec0fec"
       }
     },
     {
@@ -7400,8 +7400,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a9b850af012c523d7b29010e426f80eeda75e0f1",
-        "sha256": "5e7730e65dfeeb22301b81cbcf1a92a51829930f6df22d36949216f0d936a61a"
+        "blob_sha": "dea32777283e1852ccb2f528e2f3dd756a976696",
+        "sha256": "a5f4b39f014cbd61ff4cfd78a43d4cd11ecda5bf49fb268c3a65e89f7a2d0c42"
       }
     },
     {

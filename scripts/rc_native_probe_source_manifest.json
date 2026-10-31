@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "a1b4ee9f899683b2410ddc607d731f872f9ebc72",
-   "bytes": 427228,
+   "blob": "07251b3f8ea4d5bb30cb8e4ca95986d44098005d",
+   "bytes": 427189,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "07a350a34f0b658ab753e1df150b9d149b1c963eed3e875379a939594f7d240d"
+   "sha256": "66f69f7c363cea64c366c2953843ea6b5e575133fe26abdc54c6d369c6b0f6a5"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -8788,11 +8788,11 @@
    "sha256": "8d23acf917ae2304ad173ea6f19ff9384f272c8d191d7f159e8141952347d047"
   },
   {
-   "blob": "c831962b147eec839dbc0e04166b95d78a6a241d",
-   "bytes": 17161,
+   "blob": "34169243a2509be989e7b2d9ebdc76d0f9f0f4fe",
+   "bytes": 18299,
    "mode": "100644",
    "path": "services/cloud-gateway/src/mcp/http.rs",
-   "sha256": "31e9fc9e052f624c1da3eda191b9b4d0b6d2317f5042385e740b2b222f7f8dd6"
+   "sha256": "943c80179806510868fdebe5e441daeb46b96cf0278c8f4474a6415e3fec0fec"
   },
   {
    "blob": "337f0e4cd3b06cb7a124b29d4439c7ac2ff5c24c",
@@ -9103,11 +9103,11 @@
    "sha256": "0059ebf151d0407be6b7c398cc501fdc8e079b87d51e84810d1daa810bf8de18"
   },
   {
-   "blob": "a9b850af012c523d7b29010e426f80eeda75e0f1",
-   "bytes": 20455,
+   "blob": "dea32777283e1852ccb2f528e2f3dd756a976696",
+   "bytes": 23661,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/mcp_postgres.rs",
-   "sha256": "5e7730e65dfeeb22301b81cbcf1a92a51829930f6df22d36949216f0d936a61a"
+   "sha256": "a5f4b39f014cbd61ff4cfd78a43d4cd11ecda5bf49fb268c3a65e89f7a2d0c42"
   },
   {
    "blob": "d36e74ecd42767f342a9cef8bd172a01d3256334",
