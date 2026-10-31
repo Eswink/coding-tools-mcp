@@ -3,8 +3,9 @@
 //! -p Delegate=yes`) with `holder/` and one `w-<worker_id>/` per worker, which
 //! the child joins in `pre_exec` before any other restriction. Fallback (no
 //! user systemd/D-Bus, controllers not delegated, or a refused migration):
-//! `RLIMIT_AS`/`RLIMIT_NPROC`/`RLIMIT_CPU` in `pre_exec` plus pgid termination.
-//! This is containment of ordinary workloads, not an authorization source.
+//! `RLIMIT_DATA`/`RLIMIT_CPU` in `pre_exec`; there is no process-count limit
+//! outside the cgroup (`procs_limit: "none"`, A1 C4-c D). This is containment
+//! of ordinary workloads, not an authorization source.
 use std::{
     collections::HashMap,
     ffi::CString,
@@ -15,13 +16,22 @@ use std::{
     },
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
-    sync::{Arc, Mutex, OnceLock},
+    ptr::NonNull,
+    sync::{
+        atomic::{AtomicI32, Ordering},
+        Arc, Mutex, OnceLock,
+    },
     time::{Duration, Instant},
 };
 
-/// `memory.max`, and `RLIMIT_AS` in the fallback.
+/// `memory.max` of the worker cgroup.
 pub const MEMORY_MAX_BYTES: u64 = 4 << 30;
-/// `pids.max`; the fallback allows this many tasks above the user's current count.
+/// A1 C4-c E: `RLIMIT_DATA` in the fallback (and for an undelegated memory
+/// controller). Not `RLIMIT_AS`: node, JVMs and ASan builds reserve far more
+/// address space than they ever touch and would not even start under 4 GiB.
+pub const FALLBACK_DATA_BYTES: u64 = 8 << 30;
+/// `pids.max`. The only process-count limit: A1 C4-c D dropped `RLIMIT_NPROC`
+/// (it counts every process of the real uid, not the worker's).
 pub const PIDS_MAX: u64 = 256;
 /// `RLIMIT_CPU` (seconds) in the fallback. SPEC-A1 v5.3 names the limit without
 /// a value; `cpu.max` is left at the kernel default for the same reason.
@@ -29,6 +39,8 @@ pub const CPU_SECONDS: u64 = 3600;
 
 const SYSTEMD_RUN: &str = "/usr/bin/systemd-run";
 const CGROUP_ROOT: &str = "/sys/fs/cgroup";
+/// A1 C4-c G: a failed delegation is retried after this long, not cached.
+const DELEGATION_RETRY: Duration = Duration::from_secs(30);
 
 /// How a worker child's resources are limited (the environment report).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -39,33 +51,82 @@ pub struct ResourceReport {
     pub cgroup_error: Option<String>,
     /// Controllers missing from an otherwise used cgroup; their rlimit applies.
     pub cgroup_partial: Vec<&'static str>,
+    /// `"cgroup_pids_max"`, or `"none"` (fallback, or no pids controller).
+    pub procs_limit: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct Rlimits {
-    address_space: bool,
-    tasks: bool,
+    data: bool,
     cpu: bool,
 }
 
 const ALL_RLIMITS: Rlimits = Rlimits {
-    address_space: true,
-    tasks: true,
+    data: true,
     cpu: true,
 };
+
+/// A1 C4-c F: one shared (`MAP_SHARED`) word per worker. A child whose
+/// migration fails in `pre_exec` stores its errno here (async-signal-safe),
+/// so the parent's report says `rlimit_fallback` instead of `cgroup_v2`.
+struct MigrationError(NonNull<AtomicI32>);
+
+// The mapping is only ever accessed through the atomic.
+unsafe impl Send for MigrationError {}
+unsafe impl Sync for MigrationError {}
+
+impl MigrationError {
+    fn new() -> Option<Self> {
+        let page = unsafe {
+            libc::mmap(
+                std::ptr::null_mut(),
+                std::mem::size_of::<AtomicI32>(),
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_SHARED | libc::MAP_ANONYMOUS,
+                -1,
+                0,
+            )
+        };
+        if page == libc::MAP_FAILED {
+            return None;
+        }
+        NonNull::new(page.cast::<AtomicI32>()).map(Self)
+    }
+
+    fn get(&self) -> i32 {
+        unsafe { self.0.as_ref() }.load(Ordering::SeqCst)
+    }
+
+    /// Async-signal-safe; the first error wins.
+    fn set(&self, errno: i32) {
+        let _ = unsafe { self.0.as_ref() }.compare_exchange(
+            0,
+            errno.max(1),
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+        );
+    }
+}
+
+impl Drop for MigrationError {
+    fn drop(&mut self) {
+        unsafe { libc::munmap(self.0.as_ptr().cast(), std::mem::size_of::<AtomicI32>()) };
+    }
+}
 
 /// Host-side, per-worker state shared by every sandbox for that worker.
 pub(crate) struct WorkerResources {
     cgroup: Option<PathBuf>,
     rlimits: Rlimits,
     report: ResourceReport,
+    migration: Option<Arc<MigrationError>>,
 }
 
 /// Per-child, prepared in the parent; `apply` only issues syscalls.
 pub(crate) struct PreparedResources {
     procs: Option<OwnedFd>,
     rlimits: Rlimits,
-    nproc: u64,
+    migration: Option<Arc<MigrationError>>,
 }
 
 fn errno_name(error: &io::Error) -> String {
@@ -126,34 +187,6 @@ fn write_own_pid(fd: RawFd) -> io::Result<()> {
     }
 }
 
-/// Tasks (threads) the real user already runs: `RLIMIT_NPROC` counts all of
-/// them, so a bare 256 could fail every fork on a busy desktop.
-fn current_user_tasks() -> u64 {
-    let uid = unsafe { libc::getuid() }.to_string();
-    let Ok(entries) = fs::read_dir("/proc") else {
-        return 0;
-    };
-    let mut total = 0;
-    for entry in entries.flatten() {
-        let Ok(status) = fs::read_to_string(entry.path().join("status")) else {
-            continue;
-        };
-        let mut mine = false;
-        let mut threads = 0;
-        for line in status.lines() {
-            if let Some(rest) = line.strip_prefix("Uid:") {
-                mine = rest.split_whitespace().next() == Some(uid.as_str());
-            } else if let Some(rest) = line.strip_prefix("Threads:") {
-                threads = rest.trim().parse().unwrap_or(0);
-            }
-        }
-        if mine {
-            total += threads;
-        }
-    }
-    total
-}
-
 /// Joins `dir` from a throwaway `/bin/true` exactly as a sandboxed child would
 /// (pre_exec, own pid). The spawn error carries the child's errno.
 fn probe_migration(dir: &Path) -> io::Result<()> {
@@ -185,7 +218,9 @@ impl WorkerResources {
                 resource_limit: "rlimit_fallback",
                 cgroup_error: Some(error),
                 cgroup_partial: Vec::new(),
+                procs_limit: "none",
             },
+            migration: None,
         }
     }
 
@@ -206,6 +241,7 @@ impl WorkerResources {
         }
         let mut partial = Vec::new();
         let mut rlimits = Rlimits::default();
+        let mut procs_limit = "cgroup_pids_max";
         let memory = MEMORY_MAX_BYTES.to_string();
         let pids = PIDS_MAX.to_string();
         for (controller, file, value) in [
@@ -226,8 +262,9 @@ impl WorkerResources {
             if !ok {
                 partial.push(controller);
                 match controller {
-                    "memory" => rlimits.address_space = true,
-                    "pids" => rlimits.tasks = true,
+                    "memory" => rlimits.data = true,
+                    // No rlimit substitute (C4-c D): reported, not emulated.
+                    "pids" => procs_limit = "none",
                     _ => rlimits.cpu = true,
                 }
             }
@@ -235,6 +272,11 @@ impl WorkerResources {
         if let Err(error) = probe_migration(&dir) {
             return Self::fallback(errno_name(&error));
         }
+        let Some(migration) = MigrationError::new() else {
+            // Without the shared word a failed child migration would be
+            // reported as cgroup_v2 (C4-c F): do not use the cgroup at all.
+            return Self::fallback("ENOMEM".into());
+        };
         Self {
             cgroup: Some(dir),
             rlimits,
@@ -242,18 +284,37 @@ impl WorkerResources {
                 resource_limit: "cgroup_v2",
                 cgroup_error: None,
                 cgroup_partial: partial,
+                procs_limit,
             },
+            migration: Some(Arc::new(migration)),
         }
     }
 
-    pub(crate) fn report(&self) -> &ResourceReport {
-        &self.report
+    /// A1 C4-c F: once any child of this worker could not join `w-<id>` (and
+    /// so runs under the rlimits), the report says so, with that errno.
+    pub(crate) fn report(&self) -> ResourceReport {
+        match self.migration.as_deref().map(MigrationError::get) {
+            Some(errno) if errno != 0 => {
+                Self::fallback(errno_name(&io::Error::from_raw_os_error(errno))).report
+            }
+            _ => self.report.clone(),
+        }
     }
 
     /// Opened in the parent for each child. A cgroup that can no longer be
-    /// opened degrades this child to the full rlimit set, never to no limit.
+    /// opened degrades this child to the full rlimit set, never to no limit,
+    /// and the report to `rlimit_fallback`.
     pub(crate) fn prepare_child(&self) -> PreparedResources {
-        let procs = self.cgroup.as_deref().and_then(|dir| open_procs(dir).ok());
+        let procs = match self.cgroup.as_deref().map(open_procs) {
+            Some(Ok(procs)) => Some(procs),
+            Some(Err(error)) => {
+                if let Some(migration) = &self.migration {
+                    migration.set(error.raw_os_error().unwrap_or(libc::EIO));
+                }
+                None
+            }
+            None => None,
+        };
         let rlimits = if self.cgroup.is_some() && procs.is_none() {
             ALL_RLIMITS
         } else {
@@ -262,26 +323,29 @@ impl WorkerResources {
         PreparedResources {
             procs,
             rlimits,
-            nproc: current_user_tasks() + PIDS_MAX,
+            migration: self.migration.clone(),
         }
     }
 }
 
 impl PreparedResources {
-    /// Only called in `pre_exec`, first: ① join `w-<id>` → (then close_range,
-    /// Landlock, seccomp in `PreparedSandbox::apply`). A refused migration
-    /// (`EACCES`/`EPERM`/`EBUSY`, or any other error) does not abort the exec:
-    /// the child applies every rlimit instead.
+    /// Only called in `pre_exec`, first: ① join `w-<id>` → (then umask,
+    /// fchdir, no_new_privs, Landlock, close_range, seccomp in
+    /// `PreparedSandbox::apply`). A refused migration (`EACCES`/`EPERM`/
+    /// `EBUSY`, or any other error) does not abort the exec: the child applies
+    /// every rlimit instead and records the errno for the report.
     pub(crate) fn apply(&self) -> io::Result<()> {
         let mut rlimits = self.rlimits;
         if let Some(procs) = &self.procs {
-            if write_own_pid(procs.as_raw_fd()).is_err() {
+            if let Err(error) = write_own_pid(procs.as_raw_fd()) {
                 rlimits = ALL_RLIMITS;
+                if let Some(migration) = &self.migration {
+                    migration.set(error.raw_os_error().unwrap_or(libc::EIO));
+                }
             }
         }
         for (enabled, resource, value) in [
-            (rlimits.address_space, libc::RLIMIT_AS, MEMORY_MAX_BYTES),
-            (rlimits.tasks, libc::RLIMIT_NPROC, self.nproc),
+            (rlimits.data, libc::RLIMIT_DATA, FALLBACK_DATA_BYTES),
             (rlimits.cpu, libc::RLIMIT_CPU, CPU_SECONDS),
         ] {
             if !enabled {
@@ -304,7 +368,17 @@ impl PreparedResources {
 /// removes the scope.
 struct Delegation {
     scope: PathBuf,
-    _holder: Mutex<Child>,
+    holder: Mutex<Child>,
+}
+
+/// Only a delegation that lost a concurrent acquire (C4-c G) is dropped; the
+/// one in use lives for the process.
+impl Drop for Delegation {
+    fn drop(&mut self) {
+        let holder = self.holder.get_mut().unwrap_or_else(|e| e.into_inner());
+        let _ = holder.kill();
+        let _ = holder.wait();
+    }
 }
 
 fn boot_tag() -> String {
@@ -389,16 +463,73 @@ fn acquire(systemd_run: &Path) -> Result<Delegation, String> {
     }
     Ok(Delegation {
         scope,
-        _holder: Mutex::new(holder),
+        holder: Mutex::new(holder),
     })
 }
 
-fn delegation() -> Result<&'static Path, &'static str> {
-    static DELEGATION: OnceLock<Result<Delegation, String>> = OnceLock::new();
-    match DELEGATION.get_or_init(|| acquire(Path::new(SYSTEMD_RUN))) {
-        Ok(delegation) => Ok(delegation.scope.as_path()),
-        Err(error) => Err(error.as_str()),
+/// A1 C4-c G: a success is kept for the process; a failure only for
+/// `retry_after`, then the next caller tries again. `acquire` runs without
+/// the lock held, so a slow `systemd-run` never blocks other callers.
+struct Retrying<T: 'static> {
+    slot: Mutex<Slot<T>>,
+}
+
+enum Slot<T: 'static> {
+    Empty,
+    Ready(&'static T),
+    Failed(Instant, String),
+}
+
+impl<T: 'static> Retrying<T> {
+    const fn new() -> Self {
+        Self {
+            slot: Mutex::new(Slot::Empty),
+        }
     }
+
+    fn get(
+        &self,
+        now: Instant,
+        retry_after: Duration,
+        acquire: impl FnOnce() -> Result<T, String>,
+    ) -> Result<&'static T, String> {
+        {
+            let slot = self.slot.lock().unwrap_or_else(|e| e.into_inner());
+            match &*slot {
+                Slot::Ready(value) => return Ok(value),
+                Slot::Failed(at, error) if now.saturating_duration_since(*at) < retry_after => {
+                    return Err(error.clone())
+                }
+                _ => {}
+            }
+        }
+        let result = acquire();
+        let mut slot = self.slot.lock().unwrap_or_else(|e| e.into_inner());
+        if let Slot::Ready(value) = &*slot {
+            // A concurrent caller won; ours (if any) is dropped.
+            return Ok(value);
+        }
+        match result {
+            Ok(value) => {
+                let value: &'static T = Box::leak(Box::new(value));
+                *slot = Slot::Ready(value);
+                Ok(value)
+            }
+            Err(error) => {
+                *slot = Slot::Failed(now, error.clone());
+                Err(error)
+            }
+        }
+    }
+}
+
+fn delegation() -> Result<&'static Path, String> {
+    static DELEGATION: Retrying<Delegation> = Retrying::new();
+    DELEGATION
+        .get(Instant::now(), DELEGATION_RETRY, || {
+            acquire(Path::new(SYSTEMD_RUN))
+        })
+        .map(|delegation| delegation.scope.as_path())
 }
 
 fn workers() -> &'static Mutex<HashMap<String, Arc<WorkerResources>>> {
@@ -406,11 +537,28 @@ fn workers() -> &'static Mutex<HashMap<String, Arc<WorkerResources>>> {
     WORKERS.get_or_init(Default::default)
 }
 
-/// The worker's resources, prepared once per worker (first spawn).
+/// The worker's resources, prepared once per worker (first spawn). The
+/// delegation (`systemd-run`) and the migration probe run outside the map
+/// lock (C4-c G); a concurrent first spawn keeps whichever was stored first.
 pub(crate) fn for_worker(worker_id: &str) -> Arc<WorkerResources> {
-    let mut map = workers().lock().unwrap_or_else(|e| e.into_inner());
-    map.entry(worker_id.to_owned())
-        .or_insert_with(|| Arc::new(WorkerResources::prepare_under(delegation(), worker_id)))
+    if let Some(known) = workers()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(worker_id)
+    {
+        return known.clone();
+    }
+    let root = delegation();
+    let root = match &root {
+        Ok(root) => Ok(*root),
+        Err(error) => Err(error.as_str()),
+    };
+    let prepared = Arc::new(WorkerResources::prepare_under(root, worker_id));
+    workers()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .entry(worker_id.to_owned())
+        .or_insert(prepared)
         .clone()
 }
 
@@ -420,7 +568,8 @@ fn kill_dir(dir: &Path) -> io::Result<bool> {
 
 /// Cancel: `1` → `w-<id>/cgroup.kill` (Linux ≥ 5.14), which also reaches
 /// descendants that left the process group. `Ok(false)`: the worker has no
-/// cgroup (rlimit fallback); the caller's pgid termination is the mechanism.
+/// cgroup (rlimit fallback); the caller's pidfd-checked group termination is
+/// the mechanism.
 pub fn kill_worker_cgroup(worker_id: &str) -> io::Result<bool> {
     let resources = workers()
         .lock()
@@ -492,10 +641,11 @@ mod tests {
         let resources = WorkerResources::prepare_under(Ok(&root.0), "w1");
         assert_eq!(
             resources.report(),
-            &ResourceReport {
+            ResourceReport {
                 resource_limit: "cgroup_v2",
                 cgroup_error: None,
                 cgroup_partial: vec![],
+                procs_limit: "cgroup_pids_max",
             }
         );
         assert_eq!(
@@ -515,14 +665,20 @@ mod tests {
         let resources = WorkerResources::prepare_under(Ok(&root.0), "w1");
         assert_eq!(resources.report().resource_limit, "cgroup_v2");
         assert_eq!(resources.report().cgroup_partial, ["memory", "cpu"]);
+        assert_eq!(resources.report().procs_limit, "cgroup_pids_max");
         assert_eq!(
             resources.rlimits,
             Rlimits {
-                address_space: true,
-                tasks: false,
+                data: true,
                 cpu: true
             }
         );
+        // C4-c D: a missing pids controller gets no rlimit substitute.
+        let (root, _dir) = fake(&["memory", "cpu"]);
+        let resources = WorkerResources::prepare_under(Ok(&root.0), "w1");
+        assert_eq!(resources.report().cgroup_partial, ["pids"]);
+        assert_eq!(resources.report().procs_limit, "none");
+        assert_eq!(resources.rlimits, Rlimits::default());
     }
 
     #[test]
@@ -533,10 +689,11 @@ mod tests {
         let resources = WorkerResources::prepare_under(Ok(&root.0), "w1");
         assert_eq!(
             resources.report(),
-            &ResourceReport {
+            ResourceReport {
                 resource_limit: "rlimit_fallback",
                 cgroup_error: Some("EACCES".into()),
                 cgroup_partial: vec![],
+                procs_limit: "none",
             }
         );
         assert_eq!(resources.rlimits, ALL_RLIMITS);
@@ -582,5 +739,111 @@ mod tests {
         assert!(kill_dir(&dir).unwrap());
         assert_eq!(fs::read_to_string(dir.join("cgroup.kill")).unwrap(), "1");
         assert!(!kill_worker_cgroup("never-prepared").unwrap());
+    }
+
+    /// A1 C4-c F: a cgroup that can no longer be opened for a child degrades
+    /// that child to the rlimits, and the report says so, with the errno.
+    #[test]
+    fn a_child_that_cannot_join_turns_the_report_into_rlimit_with_its_errno() {
+        let (root, dir) = fake(&["memory", "pids", "cpu"]);
+        let resources = WorkerResources::prepare_under(Ok(&root.0), "w1");
+        assert_eq!(resources.report().resource_limit, "cgroup_v2");
+        fs::remove_file(dir.join("cgroup.procs")).unwrap();
+        let child = resources.prepare_child();
+        assert!(child.procs.is_none());
+        assert_eq!(child.rlimits, ALL_RLIMITS);
+        assert_eq!(
+            resources.report(),
+            ResourceReport {
+                resource_limit: "rlimit_fallback",
+                cgroup_error: Some("ENOENT".into()),
+                cgroup_partial: vec![],
+                procs_limit: "none",
+            }
+        );
+    }
+
+    /// A1 C4-c E: under the fallback a child can reserve far more than
+    /// 4 GiB of address space (node/JVM/ASan style, `PROT_NONE`), while
+    /// writable private memory is still capped by `RLIMIT_DATA`.
+    #[test]
+    fn the_fallback_allows_large_reservations_but_caps_data() {
+        let resources = WorkerResources::prepare_under(Err("NO_USER_SYSTEMD"), "w1");
+        let child = resources.prepare_child();
+        // Only async-signal-safe calls between fork and _exit.
+        let pid = unsafe { libc::fork() };
+        assert!(pid >= 0);
+        if pid == 0 {
+            let map = |len: u64, prot| unsafe {
+                libc::mmap(
+                    std::ptr::null_mut(),
+                    len as usize,
+                    prot,
+                    libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
+                    -1,
+                    0,
+                ) != libc::MAP_FAILED
+            };
+            let code = if child.apply().is_err() {
+                10
+            } else if !map(6 << 30, libc::PROT_NONE) {
+                11
+            } else if map(
+                FALLBACK_DATA_BYTES + (1 << 30),
+                libc::PROT_READ | libc::PROT_WRITE,
+            ) {
+                12
+            } else {
+                0
+            };
+            unsafe { libc::_exit(code) };
+        }
+        let mut status = 0;
+        assert_eq!(unsafe { libc::waitpid(pid, &mut status, 0) }, pid);
+        assert!(libc::WIFEXITED(status), "{status}");
+        assert_eq!(
+            libc::WEXITSTATUS(status),
+            0,
+            "10 apply, 11 reserve, 12 data cap"
+        );
+    }
+
+    /// A1 C4-c G: a failed delegation is retried after the cooldown (not
+    /// cached for the process), a success is kept, and `acquire` (the
+    /// `systemd-run` call) runs with the lock released.
+    #[test]
+    fn a_failed_delegation_is_retried_after_the_cooldown_outside_the_lock() {
+        let cell: Retrying<u32> = Retrying::new();
+        let cooldown = Duration::from_secs(30);
+        let t0 = Instant::now();
+        let calls = std::cell::Cell::new(0);
+        let attempt = |result: Result<u32, String>| {
+            || {
+                calls.set(calls.get() + 1);
+                assert!(cell.slot.try_lock().is_ok(), "acquire ran under the lock");
+                result
+            }
+        };
+        assert_eq!(
+            cell.get(t0, cooldown, attempt(Err("NO_USER_SYSTEMD".into()))),
+            Err("NO_USER_SYSTEMD".into())
+        );
+        assert_eq!(calls.get(), 1);
+        // Within the cooldown: the cached error, no new attempt.
+        let early = cell.get(t0 + Duration::from_secs(5), cooldown, attempt(Ok(7)));
+        assert_eq!(early, Err("NO_USER_SYSTEMD".into()));
+        assert_eq!(calls.get(), 1);
+        // After it: tried again, and the success is kept.
+        assert_eq!(
+            cell.get(t0 + cooldown, cooldown, attempt(Ok(7))).copied(),
+            Ok(7)
+        );
+        assert_eq!(calls.get(), 2);
+        assert_eq!(
+            cell.get(t0 + cooldown * 9, cooldown, attempt(Ok(8)))
+                .copied(),
+            Ok(7)
+        );
+        assert_eq!(calls.get(), 2);
     }
 }

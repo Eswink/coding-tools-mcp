@@ -1149,6 +1149,13 @@ pub(crate) fn cancel(
             _ => return Err(state_error()),
         }
     };
+    // A1 C4-b/C4-c C (SPEC-A1 v5.5 §4.2): with a cgroup, `cgroup.kill` is the
+    // termination, first; it also reaches descendants that left the process
+    // group. The per-command kills below then only settle the bookkeeping;
+    // without a cgroup they are the path (group kill only while the leader's
+    // pidfd shows it unreaped).
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    let _ = coding_tools_local_agent::kill_worker_cgroup(id.as_str());
     // Killed outside the store lock: a KILL waits up to 1 s per session.
     let mut sources = store.background_sources(&id);
     let own = BackgroundSource::of(ctx);
@@ -1156,10 +1163,6 @@ pub(crate) fn cancel(
         sources.push(own);
     }
     let killed = sources.iter().map(|s| s.kill(id.as_str())).sum();
-    // A1 C4-b (SPEC-A1 v5.3 §4.2): `cgroup.kill` also reaches descendants that
-    // left the process group; without a cgroup the pgid kill above is the path.
-    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-    let _ = coding_tools_local_agent::kill_worker_cgroup(id.as_str());
     Ok((record, killed))
 }
 

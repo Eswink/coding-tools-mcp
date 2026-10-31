@@ -17,8 +17,8 @@ pub(crate) use linux::PreparedSandbox;
 mod resources;
 #[cfg(target_arch = "x86_64")]
 pub use resources::{
-    kill_worker_cgroup, release_worker_cgroup, ResourceReport, CPU_SECONDS, MEMORY_MAX_BYTES,
-    PIDS_MAX,
+    kill_worker_cgroup, release_worker_cgroup, ResourceReport, CPU_SECONDS, FALLBACK_DATA_BYTES,
+    MEMORY_MAX_BYTES, PIDS_MAX,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -157,8 +157,8 @@ impl LinuxSandbox {
     /// `worker_id` (`[A-Za-z0-9_-]{1,64}`): it joins `w-<worker_id>` in the
     /// host's delegated cgroup v2 scope (memory.max 4 GiB, pids.max 256) as the
     /// first `pre_exec` step, or, when no delegation/migration is possible,
-    /// runs under `RLIMIT_AS`/`RLIMIT_NPROC`/`RLIMIT_CPU`. Never fails: the
-    /// outcome is in `resource_report`.
+    /// runs under `RLIMIT_DATA` 8 GiB/`RLIMIT_CPU` with no process-count limit
+    /// (A1 C4-c D/E). Never fails: the outcome is in `resource_report`.
     pub fn with_worker_resources(mut self, worker_id: &str) -> Self {
         #[cfg(target_arch = "x86_64")]
         {
@@ -172,7 +172,7 @@ impl LinuxSandbox {
     /// The environment report for `with_worker_resources` policies.
     #[cfg(target_arch = "x86_64")]
     pub fn resource_report(&self) -> Option<ResourceReport> {
-        self.resources.as_deref().map(|r| r.report().clone())
+        self.resources.as_deref().map(|r| r.report())
     }
 
     pub(crate) fn prepare(

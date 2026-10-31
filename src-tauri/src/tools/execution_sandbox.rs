@@ -73,8 +73,10 @@ pub(crate) fn annotate(ctx: &ToolContext, result: &mut Value, child_started: boo
 }
 
 /// A1 C4-b (SPEC-A1 v5.3 §4.2): how a worker child's resources are limited:
-/// `resource_limit` (`cgroup_v2` | `rlimit_fallback`), `cgroup_error`, and
-/// `cgroup_partial` when only some controllers were delegated.
+/// `resource_limit` (`cgroup_v2` | `rlimit_fallback`), `cgroup_error`,
+/// `cgroup_partial` when only some controllers were delegated, and (A1 C4-c D)
+/// `procs_limit` (`cgroup_pids_max` | `none`). A child that failed to join
+/// turns the report into `rlimit_fallback` with its errno (C4-c F).
 pub(super) fn worker_resources(ctx: &ToolContext, result: &mut Value) {
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     if ctx.worker.is_some() {
@@ -86,6 +88,8 @@ pub(super) fn worker_resources(ctx: &ToolContext, result: &mut Value) {
             .and_then(|sandbox| sandbox.resource_report())
         {
             result["resource_limit"] = json!(report.resource_limit);
+            // A1 C4-c D: `none` in the fallback (no RLIMIT_NPROC substitute).
+            result["procs_limit"] = json!(report.procs_limit);
             if let Some(error) = report.cgroup_error {
                 result["cgroup_error"] = json!(error);
             }

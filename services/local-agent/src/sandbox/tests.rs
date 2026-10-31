@@ -240,7 +240,7 @@ mod worker_resources {
         root
     }
 
-    fn run(root: &Path, resources: Option<WorkerResources>, script: &str) -> Vec<String> {
+    fn run(root: &Path, resources: Option<Arc<WorkerResources>>, script: &str) -> Vec<String> {
         let mut command = std::process::Command::new("/bin/sh");
         command
             .args(["-c", script])
@@ -249,7 +249,7 @@ mod worker_resources {
             .env("PATH", "/usr/bin:/bin");
         if let Some(resources) = resources {
             let mut policy = LinuxSandbox::new(root).unwrap();
-            policy.resources = Some(Arc::new(resources));
+            policy.resources = Some(resources);
             let prepared = policy.prepare(Path::new("/bin/sh"), root).unwrap();
             unsafe {
                 command.pre_exec(move || prepared.apply());
@@ -264,7 +264,7 @@ mod worker_resources {
             .collect()
     }
 
-    const LIMITS: &str = "ulimit -v; ulimit -t";
+    const LIMITS: &str = "ulimit -v; ulimit -d; ulimit -t; ulimit -a | grep -i process | head -n 1";
 
     #[test]
     fn a_cgroup_worker_child_joins_w_id_first_and_gets_no_rlimit() {
@@ -276,7 +276,11 @@ mod worker_resources {
         assert_eq!(resources.report().resource_limit, "cgroup_v2");
         let procs = scope.join("w-w1/cgroup.procs");
         std::fs::write(&procs, b"").unwrap(); // drop the setup probe's pid
-        let child = run(&work, Some(resources), &format!("echo $$; {LIMITS}"));
+        let child = run(
+            &work,
+            Some(Arc::new(resources)),
+            &format!("echo $$; {LIMITS}"),
+        );
         let host = run(&work, None, LIMITS);
         assert_eq!(
             std::fs::read_to_string(&procs).unwrap(),
@@ -285,16 +289,20 @@ mod worker_resources {
         assert_eq!(child[1..], host[..]);
     }
 
+    /// A1 C4-c D/E: the fallback sets `RLIMIT_DATA` 8 GiB and `RLIMIT_CPU`,
+    /// leaves `RLIMIT_AS` and `RLIMIT_NPROC` exactly as the host has them, and
+    /// reports `procs_limit: "none"`.
     #[test]
-    fn a_fallback_worker_child_runs_under_as_nproc_and_cpu_rlimits() {
+    fn a_fallback_worker_child_runs_under_data_and_cpu_rlimits_only() {
         let dir = Directory::new();
         let resources = WorkerResources::prepare_under(Err("NO_USER_SYSTEMD"), "w1");
-        // dash: "process N", bash: "max user processes (-u) N".
-        let script = format!("{LIMITS}; ulimit -a | grep -i 'process'");
-        let child = run(&dir.0, Some(resources), &script);
-        assert_eq!(child[..2], ["4194304", "3600"]);
-        let nproc: u64 = child[2].split_whitespace().last().unwrap().parse().unwrap();
-        assert!(nproc > PIDS_MAX, "{nproc}");
+        assert_eq!(resources.report().procs_limit, "none");
+        let child = run(&dir.0, Some(Arc::new(resources)), LIMITS);
+        let host = run(&dir.0, None, LIMITS);
+        assert_eq!(child[0], host[0], "RLIMIT_AS must be the host's");
+        assert_eq!(child[1], (FALLBACK_DATA_BYTES >> 10).to_string());
+        assert_eq!(child[2], CPU_SECONDS.to_string());
+        assert_eq!(child[3], host[3], "RLIMIT_NPROC must be the host's");
     }
 
     #[test]
@@ -303,12 +311,25 @@ mod worker_resources {
         let work = dir.0.join("work");
         std::fs::create_dir(&work).unwrap();
         let scope = fake_cgroup(&dir.0);
-        let resources = WorkerResources::prepare_under(Ok(&scope), "w1");
+        let resources = Arc::new(WorkerResources::prepare_under(Ok(&scope), "w1"));
         assert_eq!(resources.report().resource_limit, "cgroup_v2");
         let procs = scope.join("w-w1/cgroup.procs");
         std::fs::remove_file(&procs).unwrap();
         std::os::unix::fs::symlink("/dev/full", &procs).unwrap(); // write(2) → ENOSPC
-        let child = run(&work, Some(resources), LIMITS);
-        assert_eq!(child, ["4194304", "3600"]);
+        let child = run(&work, Some(resources.clone()), LIMITS);
+        let host = run(&work, None, LIMITS);
+        assert_eq!(
+            child[1..3],
+            [
+                (FALLBACK_DATA_BYTES >> 10).to_string(),
+                CPU_SECONDS.to_string()
+            ]
+        );
+        assert_eq!((&child[0], &child[3]), (&host[0], &host[3]));
+        // A1 C4-c F: the refusal in the child reaches the report.
+        let report = resources.report();
+        assert_eq!(report.resource_limit, "rlimit_fallback");
+        assert_eq!(report.cgroup_error.as_deref(), Some("ENOSPC"));
+        assert_eq!(report.procs_limit, "none");
     }
 }

@@ -49,8 +49,8 @@ pub const SANDBOX_CHILD_PATH: &str = "/usr/bin:/bin";
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 pub use sandbox::{
-    kill_worker_cgroup, release_worker_cgroup, ResourceReport, CPU_SECONDS, MEMORY_MAX_BYTES,
-    PIDS_MAX,
+    kill_worker_cgroup, release_worker_cgroup, ResourceReport, CPU_SECONDS, FALLBACK_DATA_BYTES,
+    MEMORY_MAX_BYTES, PIDS_MAX,
 };
 #[cfg(target_os = "linux")]
 pub use sandbox::{LinuxSandbox, SandboxError, SandboxErrorKind};

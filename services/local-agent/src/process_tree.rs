@@ -11,7 +11,12 @@ pub(crate) use platform::ProcessTree;
 /// A1 C4-b (SPEC-A1 v5.3 §4.2): the group id plus, on Linux, a pidfd for the
 /// leader opened right after spawn (the leader is our unreaped child, so its
 /// pid cannot have been reused yet). The leader is signalled through the pidfd,
-/// never by a raw pid; the group itself is still terminated by `kill(-pgid)`.
+/// never by a raw pid. A1 C4-c C: the group is killed by `kill(-pgid)` only
+/// while that pidfd shows the leader unreaped (alive or a zombie), i.e. while
+/// `pgid` still names this group; once the leader is reaped there is no group
+/// kill on the old number. Worker descendants that escaped the group are the
+/// cgroup's job (`cgroup.kill` on cancel); in the rlimit fallback they survive
+/// (SPEC-A1 v5.5 known limitation).
 /// pidfds are host-side only: the sandboxed child's seccomp still denies
 /// `pidfd_*` (`sandbox/filter.rs`).
 #[cfg(unix)]
@@ -31,6 +36,31 @@ fn leader_pidfd(pid: libc::pid_t) -> Option<std::os::fd::OwnedFd> {
     {
         let _ = pid;
         None
+    }
+}
+
+/// A1 C4-c C: signal 0 through the pidfd succeeds while the leader exists
+/// (running or zombie) and fails with `ESRCH` once it has been reaped.
+#[cfg(unix)]
+fn leader_unreaped(fd: &std::os::fd::OwnedFd) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::fd::AsRawFd;
+        let result = unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                fd.as_raw_fd(),
+                0,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            )
+        };
+        result == 0 || io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = fd;
+        true
     }
 }
 
@@ -63,12 +93,22 @@ impl ProcessTree {
     }
 
     pub(crate) fn terminate(&mut self) -> io::Result<()> {
-        if let Some(leader) = self.1.take() {
-            signal_leader(&leader);
-        }
+        let leader = self.1.take();
         let Some(pgid) = self.0.take() else {
+            if let Some(leader) = &leader {
+                signal_leader(leader);
+            }
             return Ok(());
         };
+        if let Some(leader) = &leader {
+            // A1 C4-c C: checked before the group kill. A reaped leader means
+            // `pgid` may no longer be this group: never `kill(-pgid)` then.
+            if !leader_unreaped(leader) {
+                return Ok(());
+            }
+            signal_leader(leader);
+        }
+        // No pidfd (non-Linux, or a kernel before 5.3): the group kill alone.
         let result = unsafe { libc::kill(-pgid, libc::SIGKILL) };
         if result == 0 {
             return Ok(());
@@ -147,5 +187,84 @@ mod pidfd_tests {
         // After the reap the pidfd still names that exact process (now gone),
         // never whichever process may later be given the same number.
         assert_eq!(pidfd_target(&tree), Some(-1));
+    }
+
+    /// The pid recorded in `file` by a background `sleep` of the group.
+    fn straggler(file: &std::path::Path) -> libc::pid_t {
+        for _ in 0..200 {
+            if let Ok(text) = std::fs::read_to_string(file) {
+                if let Ok(pid) = text.trim().parse() {
+                    return pid;
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("no straggler pid in {file:?}");
+    }
+
+    /// Running (not gone, not a zombie awaiting its new parent).
+    fn running(pid: libc::pid_t) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|stat| {
+                stat.rsplit_once(") ")
+                    .map(|(_, rest)| !rest.starts_with('Z'))
+            })
+            .unwrap_or(false)
+    }
+
+    fn pid_file(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("ctm-c4c-{tag}-{}", std::process::id()))
+    }
+
+    /// A1 C4-c C: once the leader has been reaped, terminate sends nothing to
+    /// its old pgid, so a process now holding that group (here a leftover of
+    /// the same group, standing in for any reuse) is untouched.
+    #[tokio::test]
+    async fn a_reaped_leader_means_no_kill_on_its_old_pgid() {
+        let file = pid_file("reaped");
+        let script = format!("sleep 30 >/dev/null 2>&1 & echo $! > '{}'", file.display());
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", &script]);
+        let (mut child, mut tree) = spawn(&mut command).await.unwrap();
+        assert!(child.wait().await.unwrap().success()); // the leader is reaped
+        let pid = straggler(&file);
+        let _ = std::fs::remove_file(&file);
+        assert!(running(pid));
+        tree.terminate().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        let survived = running(pid);
+        // Our own leftover, by its pid.
+        unsafe { libc::kill(pid, libc::SIGKILL) };
+        assert!(survived, "terminate killed the reaped leader's old group");
+    }
+
+    /// A1 C4-c C: while the leader is alive the whole group is killed.
+    #[tokio::test]
+    async fn a_live_leader_means_the_whole_group_is_killed() {
+        let file = pid_file("live");
+        let script = format!(
+            "sleep 30 >/dev/null 2>&1 & echo $! > '{}'; exec sleep 30",
+            file.display()
+        );
+        let mut command = Command::new("/bin/sh");
+        command.args(["-c", &script]);
+        let (mut child, mut tree) = spawn(&mut command).await.unwrap();
+        let pid = straggler(&file);
+        let _ = std::fs::remove_file(&file);
+        tree.terminate().unwrap();
+        assert_eq!(child.wait().await.unwrap().signal(), Some(libc::SIGKILL));
+        let mut gone = false;
+        for _ in 0..100 {
+            if !running(pid) {
+                gone = true;
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        if !gone {
+            unsafe { libc::kill(pid, libc::SIGKILL) };
+        }
+        assert!(gone, "the group member survived terminate");
     }
 }

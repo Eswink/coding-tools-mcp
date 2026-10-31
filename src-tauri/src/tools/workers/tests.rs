@@ -984,19 +984,45 @@ fn worker_sandbox_refuses_git_commit() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");
     let tree = worker_tree(&f.ctx, &worker);
-    fs::write(tree.join("c4b-commit.txt"), "x\n").unwrap();
+    // A1 C4-c H: a real change to a tracked file, so `commit -a` has
+    // something to commit and can only fail because the sandbox refuses it.
+    let tracked = git(&tree, &["ls-files"]);
+    let tracked = tracked.lines().next().expect("a tracked file").to_owned();
+    let mut content = fs::read(tree.join(&tracked)).unwrap();
+    content.extend_from_slice(b"c4c\n");
+    fs::write(tree.join(&tracked), content).unwrap();
+    assert_eq!(
+        git(&tree, &["diff", "--name-only"]).trim_end(),
+        tracked,
+        "the change is visible to Git"
+    );
     let before = git(&tree, &["rev-parse", "HEAD"]);
     let script = concat!(
-        // Control: Git itself runs and can read the worktree in the sandbox.
-        "git log -1 --format=%H >/dev/null 2>&1 && printf read; ",
+        // Control: Git itself runs and sees the real change in the sandbox.
+        "git diff --quiet >/dev/null 2>&1 || printf dirty; ",
         "git -c user.name=t -c user.email=t@t commit --allow-empty -qm x >/dev/null 2>&1 ",
         "&& printf committed || printf refused; ",
         "git -c user.name=t -c user.email=t@t commit -aqm y >/dev/null 2>&1 ",
         "&& printf committed || printf refused"
     );
     let (stdout, stderr) = in_worker_sandbox(&f, &worker, script);
-    assert_eq!(stdout, "readrefusedrefused", "{stderr}");
+    assert_eq!(stdout, "dirtyrefusedrefused", "{stderr}");
     assert_eq!(git(&tree, &["rev-parse", "HEAD"]), before);
+    // Positive control: the same `commit -a` outside the sandbox succeeds,
+    // so the refusal above was the sandbox's, not "nothing to commit".
+    git(
+        &tree,
+        &[
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-aqm",
+            "y",
+        ],
+    );
+    assert_ne!(git(&tree, &["rev-parse", "HEAD"]), before);
 }
 
 /// A1 C4-b (SPEC-A1 v5.3 §4.2): a bound worker context limits its children
@@ -1024,7 +1050,7 @@ fn worker_context_children_run_under_reported_resource_limits() {
     assert_eq!(main, json!({}));
     let policy = worker_ctx.linux_sandbox.as_ref().clone().unwrap();
     let spec = ExecSpec::new(
-        vec!["/bin/sh".into(), "-c".into(), "ulimit -v; ulimit -t".into()],
+        vec!["/bin/sh".into(), "-c".into(), "ulimit -d; ulimit -t".into()],
         tree.canonicalize().unwrap(),
     )
     .unwrap()
@@ -1036,9 +1062,14 @@ fn worker_context_children_run_under_reported_resource_limits() {
     match report["resource_limit"].as_str() {
         Some("rlimit_fallback") => {
             assert!(report["cgroup_error"].is_string(), "{report}");
-            assert_eq!(limits, "4194304\n3600\n", "{report}");
+            // A1 C4-c D/E: RLIMIT_DATA 8 GiB (KiB here), no process limit.
+            assert_eq!(limits, "8388608\n3600\n", "{report}");
+            assert_eq!(report["procs_limit"], "none", "{report}");
         }
-        Some("cgroup_v2") => assert!(report.get("cgroup_error").is_none(), "{report}"),
+        Some("cgroup_v2") => {
+            assert!(report.get("cgroup_error").is_none(), "{report}");
+            assert!(report["procs_limit"].is_string(), "{report}");
+        }
         _ => panic!("no resource report: {report}"),
     }
 }

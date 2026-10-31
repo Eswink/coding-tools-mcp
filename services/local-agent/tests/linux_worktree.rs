@@ -211,11 +211,13 @@ async fn worker_resources_report_and_fallback_limits_reach_the_child() {
     let id = format!("itest-{}", std::process::id());
     let policy = layout.policy().with_worker_resources(&id);
     let report = policy.resource_report().unwrap();
-    let limits = probe(&layout, policy, "ulimit -v; ulimit -t").await;
+    let limits = probe(&layout, policy, "ulimit -d; ulimit -t").await;
     match report.resource_limit {
         "rlimit_fallback" => {
             assert!(report.cgroup_error.is_some(), "{report:?}");
-            assert_eq!(limits, ["4194304", "3600"]);
+            // A1 C4-c D/E: RLIMIT_DATA 8 GiB (KiB), RLIMIT_CPU, no process limit.
+            assert_eq!(limits, ["8388608", "3600"]);
+            assert_eq!(report.procs_limit, "none");
         }
         "cgroup_v2" => assert!(report.cgroup_error.is_none(), "{report:?}"),
         other => panic!("unexpected resource_limit {other}"),
