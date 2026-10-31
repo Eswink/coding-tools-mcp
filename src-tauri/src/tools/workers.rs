@@ -464,8 +464,12 @@ fn validate(doc: Document, host: &HostRoots) -> Result<Document, WorkerError> {
 /// (as cloud_host prepare does); an unopened or unavailable store projects none,
 /// which the gateway answers with the retryable WORKER_NOT_OWNED.
 pub(crate) fn projected_workers(host: &HostRoots, owner: &WorkerOwner, max: usize) -> Vec<String> {
-    let Ok(Some(store)) = WorkerStore::open_existing(host) else {
-        return Vec::new();
+    let store = match WorkerStore::open_existing(host) {
+        Ok(Some(store)) => store,
+        // Never opened: projecting must not create the store.
+        Ok(None) => return Vec::new(),
+        // An unreadable or invalid store document.
+        Err(_) => return Vec::new(),
     };
     let Ok(inner) = store.lock() else {
         return Vec::new();
@@ -763,6 +767,36 @@ impl WorkerStore {
         worktree_id: Option<&str>,
     ) -> Result<WorkerId, WorkerError> {
         self.inject_for_test(owner, worktree_id, WorkerState::Creating, now())
+    }
+    /// Test hook (A1 C8-1): poison the store mutex, so every `lock()` fails.
+    #[cfg(test)]
+    pub(crate) fn poison_for_test(self: &Arc<Self>) {
+        let store = self.clone();
+        let _ = std::thread::spawn(move || {
+            let _held = store.state.lock();
+            panic!("A1 C8-1: poisoning the worker store lock for a test");
+        })
+        .join();
+        assert!(self.state.is_poisoned());
+    }
+    /// Test hook (A1 C8-1): the store document of `host`'s main root.
+    #[cfg(test)]
+    pub(crate) fn document_path_for_test(host: &HostRoots) -> PathBuf {
+        namespace(host).join("auth.json")
+    }
+    /// Test hook (A1 C8-1): move a record to `state` without touching its worktree,
+    /// so a test can isolate the dispatch-time `ready` check in `enter_record`.
+    #[cfg(test)]
+    pub(crate) fn set_state_for_test(
+        &self,
+        owner: &WorkerOwner,
+        id: &WorkerId,
+        state: WorkerState,
+    ) -> Result<(), WorkerError> {
+        self.lock()?.update(owner, id, |r| {
+            r.state = state;
+            Ok(())
+        })
     }
 }
 impl Inner {

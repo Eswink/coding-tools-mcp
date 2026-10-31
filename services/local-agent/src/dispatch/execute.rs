@@ -108,6 +108,9 @@ async fn run_owned(
 }
 
 /// A1 C7 (nit4): the sandbox's group-cleanup report for this leader kind.
+/// A1 C8-1: this names the cleanup method that applies to the leader (holder
+/// `killpg`, `cgroup.kill` on cancel, or skipped); it is not a record of a
+/// cleanup that ran or of its result.
 #[cfg(target_arch = "x86_64")]
 fn group_cleanup(core: &Core, pty: bool) -> Value {
     json!(core.sandbox.group_cleanup(pty))

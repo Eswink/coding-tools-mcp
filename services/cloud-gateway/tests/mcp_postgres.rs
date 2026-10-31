@@ -10,7 +10,7 @@ use axum::{
 use coding_tools_cloud_gateway::{
     mcp::{routes, routes_with_observability, MODERN},
     observability::GatewayObservability,
-    projection::ProjectionDecision,
+    projection::{LocalLease, ProjectionDecision, WorkerClaim},
 };
 use common::identity;
 use http_body_util::BodyExt;
@@ -405,6 +405,69 @@ async fn online_call_enters_ledger_once_then_stops_before_local_side_effect() {
         c.assess(&h.a, "files.read").await.unwrap(),
         ProjectionDecision::Eligible
     );
+}
+
+/// A1 C8-1 (SPEC §3.3, business.rs worker checkpoint): a worker that is not in the
+/// conversation's projection is refused with WORKER_NOT_OWNED before any ledger row;
+/// a projected worker of the same conversation proceeds to the ledger like any call.
+#[tokio::test]
+async fn c8_worker_checkpoint_refuses_unowned_worker_before_ledger_and_admits_owned() {
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let app = routes(h.f.store.clone(), c.clone());
+    let session = channel_support::attach(&h, &c).await;
+    let owned = "b".repeat(32);
+    channel_support::project_workers(
+        &h,
+        &c,
+        &session,
+        1,
+        1,
+        LocalLease {
+            scopes: vec!["agents.manage".into(), "files.read".into()],
+            ..h.lease.clone()
+        },
+        vec![WorkerClaim {
+            id: owned.clone(),
+            conversation: h.lease.conversation.clone(),
+        }],
+    )
+    .await;
+    let ledger = || async {
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM ctm_request_ledger")
+            .fetch_one(&h.f.pool)
+            .await
+            .unwrap()
+    };
+    let call = |id: i64, worker: &str| {
+        message(
+            id,
+            "tools/call",
+            Some("host-session-A"),
+            json!({"name":"list_dir","arguments":{"worker_id":worker}}),
+        )
+    };
+    let refused = json_body(
+        app.clone()
+            .oneshot(request(token, &call(11, &"c".repeat(32))))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let data = &refused["result"]["structuredContent"];
+    assert_eq!(data["error"]["code"], "WORKER_NOT_OWNED", "{data}");
+    assert_eq!(data["error"]["retryable"], true, "{data}");
+    assert_eq!(ledger().await, 0);
+    let admitted = json_body(
+        app.oneshot(request(token, &call(12, &owned)))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let data = &admitted["result"]["structuredContent"];
+    assert_eq!(data["error"]["code"], "EXECUTION_NOT_CONNECTED", "{data}");
+    assert_eq!(ledger().await, 1);
 }
 
 #[tokio::test]

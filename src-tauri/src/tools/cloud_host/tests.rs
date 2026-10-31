@@ -788,6 +788,21 @@ fn c7_cloud_prepare_admits_only_ready_workers_and_does_not_cache_the_resolution(
             "{state:?}"
         );
     }
+    // A1 C8-1: the worktree still exists and only the state is wrong, so only
+    // the `ready` check in `enter_record` can refuse the stale prepared call.
+    let live = store
+        .inject_for_test(&owner, Some(&tree), WorkerState::Ready, now().unwrap())
+        .unwrap();
+    let prepared = worker_read(&f, &a, &json!(live.as_str()), "fixture.txt").unwrap();
+    store
+        .set_state_for_test(&owner, &live, WorkerState::Cancelled)
+        .unwrap();
+    assert!(
+        super::super::worktree_tools::workers::worktree_path(&f.host.context.host, &tree).is_dir()
+    );
+    let out = f.host.execute(prepared).unwrap();
+    assert_eq!(out["ok"], false, "non-ready worker call ran: {out}");
+    assert_eq!(out["error"]["code"], "WORKER_STATE", "{out}");
     let stale = worker_read(&f, &a, &json!(id), "fixture.txt").unwrap();
     let mut ctx = f.host.context.background_snapshot();
     ctx.remote_request = Some(f.host.request(&f.conversation()).unwrap());
@@ -803,7 +818,9 @@ fn c7_cloud_prepare_admits_only_ready_workers_and_does_not_cache_the_resolution(
         Some("WORKER_NOT_OWNED")
     );
     // The earlier prepare's resolution is not reused: dispatch re-resolves
-    // (SPEC §1.4.1 step 3) and its state check rejects with WORKER_STATE.
+    // (SPEC §1.4.1 step 3). Here discard removed the worktree, so the call is
+    // already stopped by `snapshot_target` (WORKER_STATE) even without the
+    // dispatch-time state check; the C8-1 case above isolates that check.
     let out = f.host.execute(stale).unwrap();
     assert_eq!(out["ok"], false, "stale worker call ran: {out}");
     assert_eq!(out["error"]["code"], "WORKER_STATE", "{out}");

@@ -83,7 +83,9 @@ mod tests {
     }
     #[test]
     fn c7_worker_id_cross_vector_is_fixed_on_both_codecs() {
-        // Same constant in the client and server canonical.rs (A1 C7).
+        // The expected digest is written out in both copies of canonical.rs
+        // (A1 C7): two files, locked byte-identical by the SHA-256 test
+        // c8_canonical_codec_copies_are_byte_identical (agent_wire_parity, A1 C8-1).
         let d = digest_json(&json!({"worker_id":"ab".repeat(16),"path":"fixture"}), 4096).unwrap();
         let hex: String = d.iter().map(|b| format!("{b:02x}")).collect();
         assert_eq!(

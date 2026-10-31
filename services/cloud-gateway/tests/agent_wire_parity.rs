@@ -229,3 +229,23 @@ fn c7_client_v2_claims_with_workers_verify_on_the_server() {
             .is_err()
     );
 }
+
+/// A1 C8-1: the agent and the gateway each compile their own copy of the
+/// canonical-JSON codec (two files, not one shared constant). This locks the
+/// two copies byte-identical by SHA-256, so the worker_id cross vectors and
+/// every arguments_hash keep meaning the same bytes on both sides.
+#[test]
+fn c8_canonical_codec_copies_are_byte_identical() {
+    const AGENT: &str = include_str!("../../cloud-agent/src/canonical.rs");
+    const GATEWAY: &str = include_str!("../src/admission/canonical.rs");
+    let digest = |text: &str| {
+        ring::digest::digest(&ring::digest::SHA256, text.as_bytes())
+            .as_ref()
+            .to_vec()
+    };
+    assert_eq!(
+        digest(AGENT),
+        digest(GATEWAY),
+        "services/cloud-agent/src/canonical.rs and services/cloud-gateway/src/admission/canonical.rs diverged"
+    );
+}

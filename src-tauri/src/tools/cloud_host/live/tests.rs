@@ -538,3 +538,85 @@ async fn c7_active_grant_projects_owner_workers_and_admission_ignores_the_list()
     assert!(waiter.join().unwrap(), "ack must release the waiting spawn");
     drop(session);
 }
+
+// A1 C8-1 (SPEC v5.6 §3.3): every failure on the worker-list path projects no
+// workers and leaves the grant projection itself unchanged: a store that was
+// never opened (and is not created by projecting), an unreadable store
+// document, and a store whose lock fails.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn c8_worker_projection_is_empty_when_the_store_is_unopened_unreadable_or_locked() {
+    use crate::tools::worktree_tools::workers::{manager, WorkerOwner, WorkerState, WorkerStore};
+    // Unopened: nothing projected, and projecting did not create the store.
+    let f = Fixture::new();
+    let v = f.approved();
+    let host = f.live.tools.context.host.clone();
+    let after = f.live.current().unwrap();
+    assert!(
+        after.workers().is_empty(),
+        "unopened: {:?}",
+        after.workers()
+    );
+    assert!(after.same_authority(&v));
+    assert!(!WorkerStore::registered_for_test(&host));
+    assert!(!WorkerStore::document_path_for_test(&host).exists());
+
+    // A store with an active owned worker projects it ...
+    let f = Fixture::new();
+    let v = f.approved();
+    let ctx = f.live.tools.context.clone();
+    for args in [
+        &["init", "-q"][..],
+        &[
+            "-c",
+            "user.name=F",
+            "-c",
+            "user.email=f@example.invalid",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "f",
+        ],
+    ] {
+        let out = std::process::Command::new("git")
+            .current_dir(&ctx.host.workspace_root)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {out:?}");
+    }
+    let owner =
+        WorkerOwner::from_request(&f.live.tools.request(&f.conversation()).unwrap()).unwrap();
+    let store = WorkerStore::open(&ctx.host, &manager(&ctx).unwrap()).unwrap();
+    let id = store
+        .inject_for_test(&owner, None, WorkerState::Ready, 100)
+        .unwrap();
+    let seen = f.live.current().unwrap();
+    assert_eq!(seen.workers().len(), 1);
+    assert_eq!(seen.workers()[0].id, id.as_str());
+
+    // ... and none once its lock fails.
+    store.poison_for_test();
+    let after = f.live.current().unwrap();
+    assert!(
+        after.workers().is_empty(),
+        "lock failed: {:?}",
+        after.workers()
+    );
+    assert!(after.same_authority(&v));
+
+    // Unreadable: the singleton is gone and the document on disk is garbage.
+    drop(store);
+    WorkerStore::evict_for_test(&ctx.host);
+    let doc = WorkerStore::document_path_for_test(&ctx.host);
+    assert!(doc.is_file());
+    std::fs::write(&doc, b"not a worker store document").unwrap();
+    let after = f.live.current().unwrap();
+    assert!(
+        after.workers().is_empty(),
+        "unreadable: {:?}",
+        after.workers()
+    );
+    assert!(after.same_authority(&v));
+    assert!(!WorkerStore::registered_for_test(&ctx.host));
+}

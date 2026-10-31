@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c8 commit 0 (gateway mcp_postgres C2b regressions + INVALID_ARGUMENTS message) on a1-c8 b8af8834, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c8 commit 1 (C7 nits: gateway worker checkpoint, state check, empty projection, runner e2e, canonical copies) on a1-c8 b8af8834, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ddcf6e61e6cdfdf421962e9973f6e1c9fd3f1b00",
-        "sha256": "f610c0e913c14f0be8f9d40db49aef7dd0b02a497713381d50bfbbe6a761e042"
+        "blob_sha": "a819a536fdc29c622206f47955193d7c0d0b4dba",
+        "sha256": "755a3ce6ce23348af2dd0f458c8674a77b07f15dc92832681876e490854790df"
       }
     },
     {
@@ -6160,8 +6160,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "386877afddc45de7d5dcb7b413e4ef32ff6ef9ae",
-        "sha256": "9db919d0ff04f79c5bab2e70ed4b783b6b7ee6d55602f241fe1a5e89c5f0377e"
+        "blob_sha": "f8ad3d3e0ec880e2aa7d3d4a8516ea59c2017fa9",
+        "sha256": "c8db209890c2134cb9e86b46c6788efbb880f4561d240d8bd148fa44c6c11308"
       }
     },
     {
@@ -6570,8 +6570,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "386877afddc45de7d5dcb7b413e4ef32ff6ef9ae",
-        "sha256": "9db919d0ff04f79c5bab2e70ed4b783b6b7ee6d55602f241fe1a5e89c5f0377e"
+        "blob_sha": "f8ad3d3e0ec880e2aa7d3d4a8516ea59c2017fa9",
+        "sha256": "c8db209890c2134cb9e86b46c6788efbb880f4561d240d8bd148fa44c6c11308"
       }
     },
     {
@@ -7190,8 +7190,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f26d0d8d835e4cf1512cb6c6745dcea1ff277499",
-        "sha256": "2409f42378adf73a7b03b32fdd4bc9ad2259c3e6c1f564c52a18ae5b890419a0"
+        "blob_sha": "cec1627ed5d533fb35fd290fae43240674783b18",
+        "sha256": "bcae96f54723107d0d464ea78fa43c89b628634dbb114e9910534d9faf82c8e8"
       }
     },
     {
@@ -7260,8 +7260,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "88579bffffa66216faf55534540e27ad815e7b02",
-        "sha256": "dffd5c4cabc7361aaff96e86b9a6112a7079d4f5869dacdbbebff960f0b8f754"
+        "blob_sha": "57aabfae4a3bcd56f9fefc953ab8bffcf31ac62b",
+        "sha256": "abef6b7a30b92df8f7d0478ad5558b2356308e30a6f7cca901898e807aa5531c"
       }
     },
     {
@@ -7400,8 +7400,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "dea32777283e1852ccb2f528e2f3dd756a976696",
-        "sha256": "a5f4b39f014cbd61ff4cfd78a43d4cd11ecda5bf49fb268c3a65e89f7a2d0c42"
+        "blob_sha": "63164059de8296655bea2538f406d1f502634c62",
+        "sha256": "c49e8d54d84c3c96c11e10ae280b0bd18c8a4f3e6b8e8d60052661b64cb2eb0f"
       }
     },
     {
@@ -7630,8 +7630,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "229d664fbb8aede94c2cb319380ae53535193597",
-        "sha256": "87857c12d07be54b88730f1edab761d48bc146516ff38eaaf75d2377a4b8a47a"
+        "blob_sha": "16e072b23701a9ff43ca665092708c66bdf787d7",
+        "sha256": "31ea9f70c931be3cfd0b5a1dabc019c84255a42b8fec3a510d9b9dd2ee9904e1"
       }
     },
     {
@@ -9914,8 +9914,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b301e274b78eb5696bef8fcd03e81cc260f4bd1c",
-        "sha256": "31001f965613bb2b0817c77b8a633031c66a4301b145bad62a5de3a6d298488a"
+        "blob_sha": "524366496743be9e890fb01e61d97ed414f571cf",
+        "sha256": "fbf564361017ddacbdc15013966fe08fb9ac8bdca3d65ed351022cd3999aaa67"
       }
     },
     {
@@ -9926,6 +9926,16 @@
         "mode": "100644",
         "blob_sha": "e9645b6c260d34fbab88c2a9d9a0fb6eecf4eb4c",
         "sha256": "af670591a588304a99c8b2c341178711a02300b570e68961c86653efb47cd2b2"
+      }
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/live/c8_projection_wss_tests.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "b9416b880344ac74dfdd418770d92ee6ca51eb3c",
+        "sha256": "521062c8e09e877ed7e02247d4b11448598b4402616582605234ab06531679c0"
       }
     },
     {
@@ -9954,8 +9964,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "727b5c5300c8540d1072cab988da0adbdba915eb",
-        "sha256": "097db244a14c5bf5d46c8555a358bf8c29a5b604a001b048e3b9a097dfebca67"
+        "blob_sha": "9ad6605d7208135b916bba7803bd2876c8096829",
+        "sha256": "46a1a466746d2d83c5a44009435f7c5cdffea42d54ecb64be1d092e2f2c95dc2"
       }
     },
     {
@@ -10024,8 +10034,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d1c5921955aac3e3034b08a27fbc7236a425d524",
-        "sha256": "27f88628c8195558228d5080ad6ce77b38b79f3d6130d21f5a34ef9100cebdb9"
+        "blob_sha": "18682810e7a071274566c663693e55f6640d630d",
+        "sha256": "bcf689b39fffd135a3ef1dfdcf2c3f46d69bf802a99eaaa1d2da393d7f86828f"
       }
     },
     {
@@ -10514,8 +10524,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f48dabc778581abbf2b99bae442eea9ea1912e4e",
-        "sha256": "7bb41424a8bbba1037edd55f82572fc965c4e6b7c3aa63393dd742281dc9b538"
+        "blob_sha": "07eef10ca086fd3851c2a98fa1635694a12130e3",
+        "sha256": "80db60fe24f0b1887cadafeb43cd6935919e98f79938dbbc72a41c6924f2de7e"
       }
     },
     {

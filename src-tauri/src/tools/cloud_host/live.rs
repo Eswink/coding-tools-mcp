@@ -396,5 +396,10 @@ mod tests;
 #[cfg(all(test, feature = "cloud-agent-integration-tests"))]
 mod wss_tests;
 
+/// A1 C8-1: runner tick -> real gateway ack -> spawn applied (beside the frozen
+/// wss_tests.rs, reusing its Harness).
+#[cfg(all(test, feature = "cloud-agent-integration-tests"))]
+mod c8_projection_wss_tests;
+
 #[cfg(test)]
 mod catalog_tests;
