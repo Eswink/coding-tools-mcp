@@ -838,7 +838,7 @@ fn a_failed_size_check_leaves_the_previous_integration_unsuperseded() {
     );
     let second_id = second["integration_id"]
         .as_str()
-        .expect(&second.to_string())
+        .unwrap_or_else(|| panic!("{second}"))
         .to_owned();
     let failed = confirm(&f.ctx, &second_id);
     assert_eq!(code(&failed), "INTEGRATE_UNSUPPORTED", "{failed}");
