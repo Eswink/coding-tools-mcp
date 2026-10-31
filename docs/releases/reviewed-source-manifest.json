@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9 commit 4 (test only: workspace_files reads the mode through a cfg(unix) file_mode helper so the src-tauri lib tests compile for x86_64-pc-windows-gnu again; no assertion changes) on a1-c9 27f8082e, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9n commit 1 (C9 nits 1/2/4/5/7: c8 projection test own 60 s state wait with state+timeline diagnostics; in-repo relay-leftover harness test; tagged-job-owner fail-closed branches byte-identical; clear-attention dialog bounded by count+bytes with 丢弃后无法恢复, hidden-count notice and full listing file, digest still over all entries; WORKER_STATE when the journal changes while the dialog is open) on a1-c9n d2f100f7, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6737efbd526acbbd35dcfaa8da6ed1927b9082b7",
-        "sha256": "424b31249475411c019f75665aa2cb73d5242612d759596ede112ee9ef790e72"
+        "blob_sha": "8f62425fde0983d49ec7f96fce2f698c881e61c6",
+        "sha256": "97b7c993ecf7c6c04870a762c1cb5d3d5f920585cc5f6884404498397a6f899d"
       }
     },
     {
@@ -9924,8 +9924,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "524366496743be9e890fb01e61d97ed414f571cf",
-        "sha256": "fbf564361017ddacbdc15013966fe08fb9ac8bdca3d65ed351022cd3999aaa67"
+        "blob_sha": "53ef9d96a9ee0983146517e18aef2389388a1cfd",
+        "sha256": "9d3c0aef1b45a3cbd2169983ec9967c8228c899737a865c87df3481c8e7fd987"
       }
     },
     {
@@ -9944,8 +9944,18 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b9416b880344ac74dfdd418770d92ee6ca51eb3c",
-        "sha256": "521062c8e09e877ed7e02247d4b11448598b4402616582605234ab06531679c0"
+        "blob_sha": "e079c64330c466d204ef3369762d2f72cbdb3397",
+        "sha256": "906a86465716a14a9cf7d6876e9523cd8bed49420c714d90a4307a302ef65c93"
+      }
+    },
+    {
+      "path": "src-tauri/src/tools/cloud_host/live/c9n_relay_leftover_tests.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ffe78295809ccf57b9e338c3cfe8b6c949757c4e",
+        "sha256": "f2e69f4b36f581cc5ca5ba3ab19f7b8b99e9b3d51424cc29d1c678869731d3b4"
       }
     },
     {
@@ -10564,8 +10574,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "eeaafa01a5da95a3250034844c5b317f0a48f645",
-        "sha256": "a38db6b5f0952ac25de238af9ee53aca62a7c881652120433b83d54f4ace6ba8"
+        "blob_sha": "653b7b7a4dcbb6375c831b3c7b21beb770dbe02c",
+        "sha256": "e87df282986ddb1427c0c4acd1d1986bce15882cff22dd752869251f7a8df6ff"
       }
     },
     {
@@ -10574,8 +10584,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "45973194152fe50891c083724799058c4039cd35",
-        "sha256": "f6ae8f5cc0f8612ab849632767fc7f644df83c810675d5973c8584fd045b7f5b"
+        "blob_sha": "d9f6b8fee3e482dbe5216dbc1c3ec2cf5aea44e9",
+        "sha256": "08f72c3c54d9fb3a5854a73a068705f453708c9cfcf5b71d1bdc1aa2549fcc8c"
       }
     },
     {
@@ -10634,8 +10644,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "513c7f0c282f9e9e49e513e6f17cc286cd19f38f",
-        "sha256": "b14c96720f30bd479a51fc526415764acf61ead96cfaf7919aa9c7004faa7fba"
+        "blob_sha": "8d192da3966bc4890317fe11714884a5b97c194f",
+        "sha256": "0804ddb48d19c9022c4fa9d8e6ee2f0d7a344555e55889a0d6e7913eb802b581"
       }
     },
     {

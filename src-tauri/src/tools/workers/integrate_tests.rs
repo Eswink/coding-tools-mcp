@@ -1649,6 +1649,7 @@ fn c9_clear_attention_lists_the_journal_and_resets_it_only_after_the_owner_appro
         card.summary,
         json!({
             "integration_id": "b".repeat(32),
+            "notice": integration::ATTENTION_NOTICE,
             "entries": ["m1.txt", "m2.txt", "gone.txt"],
             "entries_total": 3,
             "journal_after": "none",
@@ -1711,6 +1712,148 @@ fn c9_clear_attention_refuses_a_card_the_journal_no_longer_matches() {
     assert_eq!(code(&out), "OWNER_CONFIRMATION_REQUIRED", "{out}");
     assert_eq!(journal_of(&f.ctx), changed);
     assert_eq!(changed.state, JournalState::NeedsAttention);
+}
+
+/// The body `native_owner::confirm` would show for this card (the command wraps
+/// the card as `subagent_integration::clear_integration_attention` does).
+fn attention_body(card: &integration::AttentionConfirmation) -> String {
+    serde_json::to_string_pretty(&json!({
+        "operation": integration::ATTENTION_SCOPE,
+        "card": card.summary,
+    }))
+    .unwrap()
+}
+/// native_owner.rs:67 refuses a body over this many bytes (frozen side, not
+/// changed; the card must stay under it).
+const CONFIRM_BODY_LIMIT: usize = 65_536;
+type PathMaker = fn(usize) -> String;
+type JournalChange = fn(JournalDoc) -> JournalDoc;
+/// A `needs_attention` journal with `extra` more entries named by `path`.
+fn long_attention(f: &Fixture, extra: usize, path: impl Fn(usize) -> String) {
+    needs_attention(f);
+    set_journal(&f.ctx, |doc| {
+        let mut entries = doc.entries.clone();
+        for i in 0..extra {
+            entries.push(entry(
+                &path(i),
+                Some((b"a\n", false)),
+                Some((b"b\n", false)),
+            ));
+        }
+        JournalDoc { entries, ..doc }
+    });
+}
+
+/// C9n nit 5 (+ Grok 22:25): too many or too long paths are cut in the dialog;
+/// the body says how many are not shown and where the full list is, stays
+/// under the native limit, and an approval of the digest still clears all.
+#[test]
+fn c9n_clear_attention_truncates_a_long_list_and_the_approval_still_clears_every_entry() {
+    let makers: [(&str, PathMaker); 2] = [
+        ("long", |i| {
+            format!("{}/{}/{i:04}.txt", "p".repeat(150), "q".repeat(150))
+        }),
+        ("escaped", |i| format!("{}{i:04}", "\u{1}".repeat(400))),
+    ];
+    for (label, path) in makers {
+        let f = Fixture::new();
+        long_attention(&f, 297, path);
+        let total = journal_of(&f.ctx).entries.len();
+        assert_eq!(total, 300);
+        let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("{label}: prepare: {e}"));
+        let body = attention_body(&card);
+        assert!(
+            body.len() <= CONFIRM_BODY_LIMIT,
+            "{label}: body {} > {CONFIRM_BODY_LIMIT}",
+            body.len()
+        );
+        assert!(body.contains("丢弃后无法恢复"), "{label}");
+        let shown = card.summary["entries"].as_array().unwrap().len();
+        assert!(shown < total, "{label}: {shown}");
+        assert_eq!(card.summary["entries_total"], total, "{label}");
+        assert_eq!(card.summary["entries_not_shown"], total - shown, "{label}");
+        let listing = integration::attention_listing_path(&f.ctx.host);
+        let notice = card.summary["entries_not_shown_notice"].as_str().unwrap();
+        assert!(
+            notice.starts_with(&format!("还有 {} 条路径未显示。", total - shown)),
+            "{label}: {notice}"
+        );
+        assert!(
+            notice.contains(&listing.display().to_string()),
+            "{label}: {notice}"
+        );
+        let doc = journal_of(&f.ctx);
+        let text = fs::read_to_string(&listing).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), total + 1, "{label}");
+        assert!(lines[0].contains(&card.digest), "{label}");
+        for (line, e) in lines[1..].iter().zip(&doc.entries) {
+            assert_eq!(
+                serde_json::from_str::<String>(line).unwrap(),
+                e.path,
+                "{label}"
+            );
+        }
+        assert!(
+            !listing.starts_with(f.root.path()),
+            "never in the workspace"
+        );
+        let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+        assert_eq!(out["state"], "none", "{label}: {out}");
+        assert_eq!(out["entries_discarded"], total, "{label}: {out}");
+        assert!(journal_of(&f.ctx).entries.is_empty(), "{label}");
+    }
+}
+
+/// C9n nit 5 (Grok 22:25): changing an entry the dialog did not show (its
+/// content, same path) breaks the digest, so the approval of that card fails.
+#[test]
+fn c9n_clear_attention_refuses_when_a_hidden_entry_changed_after_the_dialog() {
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("{}/{i:04}.txt", "p".repeat(300)));
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    let shown = card.summary["entries"].as_array().unwrap().len();
+    assert!(shown < 299, "{shown}");
+    set_journal(&f.ctx, |doc| {
+        let mut entries = doc.entries.clone();
+        let last = entries.len() - 1;
+        let path = entries[last].path.clone();
+        entries[last] = entry(&path, Some((b"changed\n", false)), Some((b"b\n", false)));
+        JournalDoc { entries, ..doc }
+    });
+    let changed = journal_of(&f.ctx);
+    let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+    assert_eq!(code(&out), "OWNER_CONFIRMATION_REQUIRED", "{out}");
+    assert_eq!(journal_of(&f.ctx), changed, "nothing cleared");
+    assert_eq!(changed.state, JournalState::NeedsAttention);
+}
+
+/// C9n nit 7: the journal leaves `needs_attention` while the dialog is open
+/// (recovery moved it on / another window cleared it): the approval of the old
+/// card answers WORKER_STATE and changes nothing.
+#[test]
+fn c9n_clear_attention_answers_worker_state_when_the_journal_changed_while_the_dialog_was_open() {
+    let changes: [(&str, JournalChange); 2] = [
+        ("rolling_back", |doc| JournalDoc {
+            state: JournalState::RollingBack,
+            ..doc
+        }),
+        ("cleared", |doc| doc.idle()),
+    ];
+    for (label, change) in changes {
+        let f = Fixture::new();
+        needs_attention(&f);
+        let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("{label}: prepare: {e}"));
+        set_journal(&f.ctx, change);
+        let changed = journal_of(&f.ctx);
+        let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+        assert_eq!(code(&out), "WORKER_STATE", "{label}: {out}");
+        assert_eq!(
+            out["error"]["details"]["reason"], "not_needs_attention",
+            "{label}: {out}"
+        );
+        assert_eq!(journal_of(&f.ctx), changed, "{label}: nothing written");
+    }
 }
 
 #[test]

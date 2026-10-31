@@ -1398,8 +1398,69 @@ fn attention_journal(
     Ok((doc, digest))
 }
 
-/// Native, before the dialog: refuses unless the journal is `needs_attention`.
-/// Reads only; nothing is written.
+/// C9n nit 5: the dialog lists at most this many entry paths ...
+pub(crate) const ATTENTION_LISTED: usize = MAX_LISTED * 8;
+/// ... and at most this many bytes of them as JSON strings, so the dialog body
+/// stays far below the native confirm limit (`MAX_SUMMARY`, native_owner.rs:67)
+/// whatever the path lengths. The digest always binds every entry.
+pub(crate) const ATTENTION_LISTED_BYTES: usize = 16_384;
+/// Plain-language warning shown in the dialog body.
+pub(crate) const ATTENTION_NOTICE: &str = "丢弃后无法恢复：清除后合并日志回到空闲，暂存的原内容被删除，之后不能再用它们恢复文件。不会写入或还原任何工作区文件。";
+
+/// C9n nit 5: where the full entry list of a truncated dialog is written (one
+/// JSON string per line), in the app's own store root, never the workspace.
+pub(crate) fn attention_listing_path(host: &HostRoots) -> std::path::PathBuf {
+    host.store_root
+        .join("integration-attention")
+        .join(&host.workspace_id)
+        .join("clear-attention-entries.txt")
+}
+fn write_attention_listing(
+    host: &HostRoots,
+    doc: &JournalDoc,
+    digest: &str,
+) -> Result<std::path::PathBuf, WorkerError> {
+    let path = attention_listing_path(host);
+    let dir = path.parent().ok_or_else(super::unavailable)?;
+    std::fs::create_dir_all(dir).map_err(|_| super::unavailable())?;
+    let mut text = format!(
+        "# clear_integration_attention integration_id={} entries_total={} digest={digest}\n",
+        doc.integration_id.as_deref().unwrap_or(""),
+        doc.entries.len()
+    );
+    for e in &doc.entries {
+        text.push_str(&serde_json::to_string(&e.path).map_err(|_| super::unavailable())?);
+        text.push('\n');
+    }
+    let tmp = dir.join(format!(
+        ".clear-attention-entries.{}.tmp",
+        std::process::id()
+    ));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let written = options.open(&tmp).and_then(|mut f| {
+        use std::io::Write;
+        f.write_all(text.as_bytes())?;
+        f.sync_all()
+    });
+    written
+        .and_then(|()| std::fs::rename(&tmp, &path))
+        .map_err(|_| {
+            let _ = std::fs::remove_file(&tmp);
+            super::unavailable()
+        })?;
+    Ok(path)
+}
+
+/// Native, before the dialog: refuses unless the journal is `needs_attention`,
+/// and does not change a `needs_attention` journal. C9n nit 5: the listed paths are
+/// bounded by count and bytes; past either bound the body says how many are not
+/// shown and where the full list was written, and the digest still binds all.
 pub(crate) fn prepare_clear_attention(
     ctx: &ToolContext,
 ) -> Result<AttentionConfirmation, WorkerError> {
@@ -1407,23 +1468,42 @@ pub(crate) fn prepare_clear_attention(
     let mut inner = store.lock()?;
     let (doc, digest) = attention_journal(&mut inner, &ctx.host)?;
     drop(inner);
-    let paths: Vec<&str> = doc
-        .entries
-        .iter()
-        .take(MAX_LISTED * 8)
-        .map(|e| e.path.as_str())
-        .collect();
+    let mut paths: Vec<&str> = Vec::new();
+    let mut bytes = 0usize;
+    for e in doc.entries.iter().take(ATTENTION_LISTED) {
+        let cost = serde_json::to_string(&e.path)
+            .map_err(|_| super::unavailable())?
+            .len();
+        if bytes + cost > ATTENTION_LISTED_BYTES {
+            break;
+        }
+        bytes += cost;
+        paths.push(e.path.as_str());
+    }
+    let mut summary = json!({
+        "integration_id": doc.integration_id,
+        "notice": ATTENTION_NOTICE,
+        "entries": paths,
+        "entries_total": doc.entries.len(),
+        "journal_after": "none",
+        "pre_images": "discarded",
+        "workspace_files_written": false,
+    });
+    let hidden = doc.entries.len() - paths.len();
+    if hidden > 0 {
+        let listing = write_attention_listing(&ctx.host, &doc, &digest)?;
+        summary["entries_not_shown"] = json!(hidden);
+        summary["entries_not_shown_notice"] = json!(format!(
+            "还有 {hidden} 条路径未显示。完整清单（共 {} 条，每行一条 JSON 字符串）已写入本机文件：{}。批准摘要覆盖全部 {} 条。",
+            doc.entries.len(),
+            listing.display(),
+            doc.entries.len()
+        ));
+    }
     Ok(AttentionConfirmation {
         digest,
         title: "Clear the integration journal that needs attention".into(),
-        summary: json!({
-            "integration_id": doc.integration_id,
-            "entries": paths,
-            "entries_total": doc.entries.len(),
-            "journal_after": "none",
-            "pre_images": "discarded",
-            "workspace_files_written": false,
-        }),
+        summary,
     })
 }
 

@@ -1669,6 +1669,8 @@ fn c9_tagged_exec_tasks_are_worker_not_owned_for_every_caller_but_the_owner() {
                     out["error"]["message"], "Worker not found for this owner.",
                     "{name}: {out}"
                 );
+                assert_eq!(out["error"]["retryable"], false, "{name}: {out}");
+                assert_eq!(out["error"]["details"], json!({}), "{name}: {out}");
                 assert!(!out.to_string().contains(id), "{name} leaked: {out}");
             }
         }
@@ -1680,6 +1682,69 @@ fn c9_tagged_exec_tasks_are_worker_not_owned_for_every_caller_but_the_owner() {
         assert_eq!(cancelled["ok"], true, "{cancelled}");
         assert_eq!(cancelled["worker_id"], id, "{cancelled}");
     }
+}
+
+/// C9n nit 4: the fail-closed branches of `check_tagged_job_owner` other than a
+/// foreign record (malformed tag, no store, corrupt store) each answer exactly
+/// the cross-owner WORKER_NOT_OWNED, byte for byte.
+fn tagged_owner_check(ctx: &ToolContext, worker_id: &str) -> Value {
+    check_tagged_job_owner(ctx, worker_id)
+        .map(|()| json!({"ok": true, "allowed": true}))
+        .unwrap_or_else(crate::tools::workspace::tool_err)
+}
+fn foreign_owner_answer() -> Value {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req-l", "l");
+    let job = json!({"job_id": start_tagged(&f.ctx, worker.worker_id.as_str(), "c9n-4-ref")});
+    let out = exec_task(&remote(&f.ctx, "chat-b"), "get", &job);
+    let _ = exec_task(&f.ctx, "cancel", &job);
+    out
+}
+fn assert_not_owned_like(label: &str, out: &Value, reference: &Value) {
+    assert_eq!(out["ok"], false, "{label}: {out}");
+    assert_eq!(code(out), "WORKER_NOT_OWNED", "{label}: {out}");
+    assert_eq!(
+        out["error"]["message"], "Worker not found for this owner.",
+        "{label}: {out}"
+    );
+    assert_eq!(out["error"]["retryable"], false, "{label}: {out}");
+    assert_eq!(out["error"]["details"], json!({}), "{label}: {out}");
+    assert_eq!(out.to_string(), reference.to_string(), "{label}");
+}
+
+#[test]
+fn c9n_tagged_job_owner_fails_closed_on_a_malformed_tag() {
+    let reference = foreign_owner_answer();
+    let f = Fixture::new();
+    let _worker = spawn_ok(&f.ctx, "req", "w");
+    for tag in ["not-a-worker-id!", "", "../x"] {
+        let out = tagged_owner_check(&f.ctx, tag);
+        assert_not_owned_like(&format!("tag {tag:?}"), &out, &reference);
+    }
+}
+
+#[test]
+fn c9n_tagged_job_owner_fails_closed_when_the_store_is_missing() {
+    let reference = foreign_owner_answer();
+    let f = Fixture::new();
+    let auth = namespace(&f.ctx.host).join("auth.json");
+    assert!(!auth.exists(), "fixture starts without a store");
+    let out = tagged_owner_check(&f.ctx, &"f".repeat(32));
+    assert_not_owned_like("missing store", &out, &reference);
+    assert!(!auth.exists(), "the check creates no store");
+}
+
+#[test]
+fn c9n_tagged_job_owner_fails_closed_when_the_store_is_corrupt() {
+    let reference = foreign_owner_answer();
+    let f = Fixture::new();
+    let dir = namespace(&f.ctx.host);
+    fs::create_dir_all(&dir).unwrap();
+    let auth = dir.join("auth.json");
+    fs::write(&auth, b"corrupt").unwrap();
+    let out = tagged_owner_check(&f.ctx, &"f".repeat(32));
+    assert_not_owned_like("corrupt store", &out, &reference);
+    assert_eq!(fs::read(&auth).unwrap(), b"corrupt", "left as found");
 }
 
 #[test]

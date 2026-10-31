@@ -401,5 +401,10 @@ mod wss_tests;
 #[cfg(all(test, feature = "cloud-agent-integration-tests"))]
 mod c8_projection_wss_tests;
 
+/// A1 C9n nit 2: no relay of this worktree outlives the native fixture (Linux,
+/// where the fixture binds it with PR_SET_PDEATHSIG).
+#[cfg(all(test, feature = "cloud-agent-integration-tests", target_os = "linux"))]
+mod c9n_relay_leftover_tests;
+
 #[cfg(test)]
 mod catalog_tests;
