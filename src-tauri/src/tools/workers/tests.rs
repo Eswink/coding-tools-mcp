@@ -1592,6 +1592,125 @@ fn c8_worker_exec_task_summaries_show_the_worker_id_and_main_ones_do_not() {
     assert!(jobs[0].get("worker_id").is_none(), "{all}");
 }
 
+// ---------------------------------------------------------------------------
+// A1 C9-1 (C8 nits 2 + 3, SPEC-A1 v5.8 §2.3): get/cancel by job_id show the tag,
+// and a worker-tagged job is reachable only by the owner of that worker.
+// ---------------------------------------------------------------------------
+fn exec_task(ctx: &ToolContext, name: &str, args: &Value) -> Value {
+    let out = match name {
+        "get" => crate::tools::exec_tasks::get(ctx, args),
+        "cancel" => crate::tools::exec_tasks::cancel(ctx, args),
+        _ => unreachable!("{name}"),
+    };
+    out.unwrap_or_else(crate::tools::workspace::tool_err)
+}
+fn start_tagged(ctx: &ToolContext, id: &str, request_id: &str) -> Value {
+    let args = with_worker(id, json!({"cmd":"sleep 20","request_id":request_id}));
+    let started = route(ctx, "start_exec_task", &args, |worker_ctx, stripped| {
+        crate::tools::exec_tasks::start(worker_ctx, stripped)
+            .unwrap_or_else(crate::tools::workspace::tool_err)
+    })
+    .expect("worker_id present");
+    assert_eq!(started["ok"], true, "{started}");
+    assert_eq!(started["worker_id"], id, "{started}");
+    started["job_id"].clone()
+}
+
+#[test]
+fn c9_get_and_cancel_exec_task_show_the_worker_id_and_main_ones_do_not() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    let args = with_worker(id, json!({"cmd":"echo w","request_id":"c9-job-w"}));
+    let started = call_tool(&f.ctx, "start_exec_task", &args);
+    assert_eq!(started["ok"], true, "{started}");
+    let job = json!({"job_id": started["job_id"]});
+    let got = call_tool(&f.ctx, "get_exec_task", &job);
+    assert_eq!(got["ok"], true, "{got}");
+    assert_eq!(got["worker_id"], id, "{got}");
+    let cancelled = call_tool(&f.ctx, "cancel_exec_task", &job);
+    assert_eq!(cancelled["ok"], true, "{cancelled}");
+    assert_eq!(cancelled["worker_id"], id, "{cancelled}");
+
+    let main = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &json!({"cmd":"echo m","request_id":"c9-job-m"}),
+    );
+    assert_eq!(main["ok"], true, "{main}");
+    let job = json!({"job_id": main["job_id"]});
+    let got = call_tool(&f.ctx, "get_exec_task", &job);
+    assert_eq!(got["ok"], true, "{got}");
+    assert!(got.get("worker_id").is_none(), "{got}");
+    let cancelled = call_tool(&f.ctx, "cancel_exec_task", &job);
+    assert_eq!(cancelled["ok"], true, "{cancelled}");
+    assert!(cancelled.get("worker_id").is_none(), "{cancelled}");
+}
+
+#[test]
+fn c9_tagged_exec_tasks_are_worker_not_owned_for_every_caller_but_the_owner() {
+    let f = Fixture::new();
+    let chat_a = remote(&f.ctx, "chat-a");
+    let chat_b = remote(&f.ctx, "chat-b");
+    let local_worker = spawn_ok(&f.ctx, "req-l", "l");
+    let remote_worker = spawn_ok(&chat_a, "req-a", "a");
+    let cases = [
+        (local_worker.worker_id.as_str(), &f.ctx, [&chat_a, &chat_b]),
+        (remote_worker.worker_id.as_str(), &chat_a, [&f.ctx, &chat_b]),
+    ];
+    for (index, (id, owner, foreigners)) in cases.into_iter().enumerate() {
+        let job = json!({"job_id": start_tagged(owner, id, &format!("c9-own-{index}"))});
+        for foreign in foreigners {
+            for name in ["get", "cancel"] {
+                let out = exec_task(foreign, name, &job);
+                assert_eq!(out["ok"], false, "{name}: {out}");
+                assert_eq!(code(&out), "WORKER_NOT_OWNED", "{name}: {out}");
+                assert_eq!(
+                    out["error"]["message"], "Worker not found for this owner.",
+                    "{name}: {out}"
+                );
+                assert!(!out.to_string().contains(id), "{name} leaked: {out}");
+            }
+        }
+        let after = exec_task(owner, "get", &job);
+        assert_eq!(after["ok"], true, "{after}");
+        assert_eq!(after["cancel_requested"], false, "{after}");
+        assert_eq!(after["terminal"], false, "{after}");
+        let cancelled = exec_task(owner, "cancel", &job);
+        assert_eq!(cancelled["ok"], true, "{cancelled}");
+        assert_eq!(cancelled["worker_id"], id, "{cancelled}");
+    }
+}
+
+#[test]
+fn c9_untagged_exec_tasks_answer_every_caller_byte_identically() {
+    let f = Fixture::new();
+    let _worker = spawn_ok(&f.ctx, "req", "w");
+    let started = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &json!({"cmd":"echo c9","request_id":"c9-untagged"}),
+    );
+    assert_eq!(started["ok"], true, "{started}");
+    let job = json!({"job_id": started["job_id"]});
+    for _ in 0..100 {
+        if exec_task(&f.ctx, "get", &job)["terminal"] == true {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    let local = exec_task(&f.ctx, "get", &job);
+    assert_eq!(local["terminal"], true, "{local}");
+    let chat_b = remote(&f.ctx, "chat-b");
+    for name in ["get", "cancel"] {
+        let mine = exec_task(&f.ctx, name, &job);
+        let theirs = exec_task(&chat_b, name, &job);
+        assert_eq!(mine["ok"], true, "{name}: {mine}");
+        assert_eq!(mine.to_string(), theirs.to_string(), "{name}");
+        assert!(mine.get("worker_id").is_none(), "{name}: {mine}");
+    }
+}
+
 #[test]
 fn workers_cannot_manage_workers() {
     let f = Fixture::new();

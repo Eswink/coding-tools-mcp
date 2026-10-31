@@ -106,20 +106,65 @@ fn assert_tools_list_is_full_catalog(tools: &Value) {
     assert_eq!(names, EXPECTED_TOOL_NAMES);
 }
 /// A1 C8-0: a schema-valid value for a required argument, so a foreign call reaches
-/// the scope check instead of stopping at argument validation. Unknown patterns fail
-/// loudly instead of silently producing an invalid fixture.
-fn valid_fixture(property: &Value) -> Value {
-    match property["pattern"].as_str() {
-        None => json!("placeholder"),
+/// the scope check instead of stopping at argument validation. A1 C9-1 (C8 nit 5):
+/// anything this cannot satisfy (a non-string type, an unknown keyword or pattern,
+/// a length bound) panics with the field name instead of returning a placeholder.
+fn valid_fixture(field: &str, property: &Value) -> Value {
+    let kind = &property["type"];
+    if kind != "string" {
+        panic!("no fixture for required argument `{field}` of type {kind}");
+    }
+    for keyword in property.as_object().into_iter().flat_map(|o| o.keys()) {
+        if !["type", "description", "minLength", "maxLength", "pattern"].contains(&keyword.as_str())
+        {
+            panic!("no fixture for required argument `{field}` with keyword {keyword}");
+        }
+    }
+    let value = match property["pattern"].as_str() {
+        None => "placeholder".to_owned(),
         Some(pattern) => {
             let width = pattern
                 .strip_prefix("^[0-9a-f]{")
                 .and_then(|rest| rest.strip_suffix("}$"))
                 .and_then(|n| n.parse::<usize>().ok())
-                .unwrap_or_else(|| panic!("no fixture for pattern {pattern}"));
-            json!("a".repeat(width))
+                .unwrap_or_else(|| panic!("no fixture for `{field}` with pattern {pattern}"));
+            "a".repeat(width)
         }
+    };
+    let length = value.chars().count() as u64;
+    let min = property["minLength"].as_u64().unwrap_or(0);
+    let max = property["maxLength"].as_u64().unwrap_or(u64::MAX);
+    if !(min..=max).contains(&length) {
+        panic!("no fixture for `{field}`: length {length} outside {min}..={max}");
     }
+    json!(value)
+}
+#[test]
+fn c9_valid_fixture_panics_with_the_field_name_on_an_unknown_type() {
+    for (field, property) in [
+        ("count", json!({"type":"integer"})),
+        ("paths", json!({"type":"array","items":{"type":"string"}})),
+        ("untyped", json!({})),
+    ] {
+        let schema = property.clone();
+        let outcome = std::panic::catch_unwind(move || valid_fixture(field, &schema));
+        let message = match &outcome {
+            Ok(value) => format!("returned {value}"),
+            Err(payload) => payload
+                .downcast_ref::<String>()
+                .cloned()
+                .unwrap_or_default(),
+        };
+        assert!(outcome.is_err(), "{field} {property}: {message}");
+        assert!(
+            message.contains(&format!("`{field}`")),
+            "{field}: {message}"
+        );
+    }
+    let hex = json!({"type":"string","pattern":"^[0-9a-f]{32}$"});
+    assert_eq!(valid_fixture("job_id", &hex), json!("a".repeat(32)));
+    let text = json!({"type":"string","minLength":1,"maxLength":4096});
+    assert_eq!(valid_fixture("path", &text), json!("placeholder"));
 }
 fn request(token: &str, body: &Value) -> Request<Body> {
     let mut b = Request::builder()
@@ -618,7 +663,7 @@ async fn full_catalog_foreign_calls_never_disclose_offline_workspace_or_enter_le
         let mut arguments = json!({});
         if let Some(required) = spec.schema["required"].as_array() {
             for key in required.iter().filter_map(Value::as_str) {
-                arguments[key] = valid_fixture(&spec.schema["properties"][key]);
+                arguments[key] = valid_fixture(key, &spec.schema["properties"][key]);
             }
         }
         let body = message(

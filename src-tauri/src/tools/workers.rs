@@ -1537,6 +1537,34 @@ pub(crate) fn owned_worktrees(ctx: &ToolContext) -> Result<BTreeSet<String>, Wor
         .collect())
 }
 
+/// A1 C9-1 (SPEC-A1 v5.8 §2.3, C8 nit 3): implicit ownership of a worker-tagged
+/// exec task. `get_exec_task` / `cancel_exec_task` by job_id on a job tagged with
+/// a worker the caller does not own fail as WORKER_NOT_OWNED, indistinguishable
+/// from an unknown worker and without the worker_id. Every failure on the way
+/// (malformed tag, no store, corrupt store, foreign record) fails closed the same.
+pub(crate) fn check_tagged_job_owner(
+    ctx: &ToolContext,
+    worker_id: &str,
+) -> Result<(), WorkspaceError> {
+    let owned = || -> Result<(), WorkerError> {
+        let id = WorkerId::parse(worker_id).map_err(|_| not_owned())?;
+        let owner = WorkerOwner::from_context(ctx)?;
+        let store = WorkerStore::open_existing(&ctx.host)?.ok_or_else(not_owned)?;
+        let inner = store.lock()?;
+        inner.owned(&owner, &id).map(|_| ())
+    };
+    owned().map_err(|_| {
+        let error = not_owned();
+        WorkspaceError::ToolDetails {
+            code: error.code(),
+            message: error.message().into(),
+            category: "worker",
+            retryable: false,
+            details: json!({}),
+        }
+    })
+}
+
 /// Structured tool error for a worker failure. INTEGRATE_BUSY is retryable.
 /// A1 C2-ad (N2, v5 §1.7): legacy chat-v1 trees fill the shared slots; only a
 /// local (native UI) cleanup frees them.

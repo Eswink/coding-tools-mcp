@@ -368,9 +368,21 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
     ctx.sessions.remove(&session.session_id);
 }
 
+/// A1 C9-1 (SPEC-A1 v5.8 §2.3): a job tagged with a worker is reachable by
+/// job_id only for that worker's owner; untagged jobs take no extra step.
+fn tagged_job_owner(ctx: &ToolContext, job: &Job) -> Result<(), WorkspaceError> {
+    match job.worker_id.as_deref() {
+        Some(worker_id) => {
+            crate::tools::worktree_tools::workers::check_tagged_job_owner(ctx, worker_id)
+        }
+        None => Ok(()),
+    }
+}
+
 pub fn get(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     object(args, &["job_id", "stdout_cursor", "stderr_cursor", "limit"])?;
     let job = ctx.exec_tasks.get(text(args, "job_id")?)?;
+    tagged_job_owner(ctx, &job)?;
     let out = number(args, "stdout_cursor", 0, 0, u64::MAX)?;
     let err = number(args, "stderr_cursor", 0, 0, u64::MAX)?;
     let limit = number(args, "limit", 4096, 1, PAGE_BYTES)?;
@@ -408,6 +420,7 @@ pub fn cancel(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> 
             "Unknown process termination must be confirmed in the local desktop task panel, not by a remote tool"));
     }
     let job = ctx.exec_tasks.get(text(args, "job_id")?)?;
+    tagged_job_owner(ctx, &job)?;
     {
         let mut data = job.data.lock().expect("job state");
         if args.get("confirm_terminated") == Some(&Value::Bool(true)) {

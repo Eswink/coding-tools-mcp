@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c8 commit 2 (C8 body: worker_id in the tagged exec task summary) on a1-c8 b8af8834, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9 commit 1 (C8 nits: relay bound to the fixture lifetime, get/cancel worker_id assertions, implicit ownership of worker-tagged exec tasks, valid_fixture panics on unknown types) on a1-c9 647bea3b, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a27b6fef333f364c37135afad361cc87f6cb2d01",
-        "sha256": "37bc43d3ac3b20c3b6001f9e071d7e1ecd118b1565ff1e97ac6ad9073a4a7e3c"
+        "blob_sha": "049affde211a72bdeab639fc4b243b0f35951a95",
+        "sha256": "9450f7a4824bd42fa0c5108d49d75a2b4ea3f62428df4242bc7fadc6b7781046"
       }
     },
     {
@@ -6490,8 +6490,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e809b2f73f1d8745efd8badf354029e6758e8ebb",
-        "sha256": "8c5db1ef07f1220338afffaed1f9651e4afec8c2c868bb219d03beb9a046ecec"
+        "blob_sha": "c01355a559c6b79640bffa88c669f06c069544f0",
+        "sha256": "57c09c62ebe3e53b89d08dbd0ed3018893c72b8b8ae8a663428f02f65fc22060"
       }
     },
     {
@@ -7400,8 +7400,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "63164059de8296655bea2538f406d1f502634c62",
-        "sha256": "c49e8d54d84c3c96c11e10ae280b0bd18c8a4f3e6b8e8d60052661b64cb2eb0f"
+        "blob_sha": "e98251b7d463d038dfa817fef3751903965d7ee4",
+        "sha256": "b1afeee08f9bccc3b01b9eace2ea92e6b6d0ede60d017af08162a575effa52b5"
       }
     },
     {
@@ -10534,8 +10534,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "07eef10ca086fd3851c2a98fa1635694a12130e3",
-        "sha256": "80db60fe24f0b1887cadafeb43cd6935919e98f79938dbbc72a41c6924f2de7e"
+        "blob_sha": "a820cc309bebe15abdf767ea15000f4933a5dcfc",
+        "sha256": "f5258e5d9c144357a3e026014134017cf848b3dc6c2c8f902c36affb0f1a6088"
       }
     },
     {
@@ -10634,8 +10634,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "0fa2ee04b76bfab271673b46450c2463ba760994",
-        "sha256": "2ad9c5d917b02cba38c41bbc1915c19f82f3d1ffee62ae70ec31278c38c2ffc1"
+        "blob_sha": "513c7f0c282f9e9e49e513e6f17cc286cd19f38f",
+        "sha256": "b14c96720f30bd479a51fc526415764acf61ead96cfaf7919aa9c7004faa7fba"
       }
     },
     {
@@ -10724,8 +10724,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "e94d51abb5c0b94f3accfbd317d8b6a5a252e7ed",
-        "sha256": "ae43d57f9ee87835f6cbaaf0d8c9e05c77edbbdba1446b20200de31ea07660e6"
+        "blob_sha": "7036d7234ea38c7b0778f2e99fff214d171bf3a9",
+        "sha256": "7a389d9b140bc909aa6be02a3f646ee8c020169f8a23de6c2acccfd9b6945c23"
       }
     },
     {
