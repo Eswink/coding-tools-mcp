@@ -2306,3 +2306,87 @@ fn eight_legacy_trees_return_capacity_legacy_slots_until_one_is_cleaned_locally(
 
 #[path = "integrate_tests.rs"]
 mod integrate_tests;
+
+// ---------------------------------------------------------------------------
+// A1 C7-3 (SPEC v5.6 §3.3): spawn/discard mark the projection dirty; a cloud
+// spawn waits (bounded) for an acknowledged projection naming the worker.
+// ---------------------------------------------------------------------------
+/// Stands in for the live runner: on each dirty mark, "projects" the owner's
+/// workers exactly as NativeLiveHost::current does and acknowledges them.
+fn c7_fake_runner(
+    host: std::sync::Arc<HostRoots>,
+    owner: WorkerOwner,
+    mut rx: tokio::sync::watch::Receiver<u64>,
+    marks: usize,
+) -> std::thread::JoinHandle<usize> {
+    std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut seen = 0;
+        while seen < marks && std::time::Instant::now() < deadline {
+            if rx.has_changed().unwrap_or(false) {
+                rx.borrow_and_update();
+                seen += 1;
+                projection_bus::applied(&host, projected_workers(&host, &owner, 8));
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        seen
+    })
+}
+
+#[test]
+fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
+    let f = Fixture::new();
+    let chat = remote(&f.ctx, "conversation-a");
+    let spawn_via = |ctx: &ToolContext, id: &str| {
+        scoped(ctx, |c| {
+            subagent::call(c, "subagent_spawn", &json!({ "request_id": id }))
+        })
+    };
+    let local = spawn_via(&f.ctx, "l1");
+    assert_eq!(local["ok"], true, "{local}");
+    assert!(local.get("projection").is_none(), "{local}");
+
+    // No live session attached: answered at once, never a 3 s stall.
+    let t = std::time::Instant::now();
+    let out = spawn_via(&chat, "r1");
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["projection"], "pending", "{out}");
+    assert!(
+        t.elapsed() < std::time::Duration::from_secs(2),
+        "{:?}",
+        t.elapsed()
+    );
+
+    // Attached: the spawn's own dirty mark drives a projection naming it.
+    let owner = WorkerOwner::from_context(&chat).unwrap();
+    let rx = projection_bus::subscribe(&f.ctx.host);
+    let runner = c7_fake_runner(f.ctx.host.clone(), owner.clone(), rx, 2);
+    let t = std::time::Instant::now();
+    let out = spawn_via(&chat, "r2");
+    assert_eq!(out["projection"], "applied", "{out}");
+    assert!(
+        t.elapsed() < std::time::Duration::from_secs(3),
+        "{:?}",
+        t.elapsed()
+    );
+    let id = out["worker"]["worker_id"].as_str().unwrap().to_owned();
+    assert_eq!(
+        projected_workers(&f.ctx.host, &owner, 8)[0],
+        id,
+        "newest first"
+    );
+    assert!(!projected_workers(&f.ctx.host, &WorkerOwner::local(), 8).contains(&id));
+
+    // Discard is a second dirty mark, and the worker leaves the projected set.
+    let gone = scoped(&chat, |c| {
+        subagent::call(c, "subagent_discard", &json!({ "worker_id": id }))
+    });
+    assert_eq!(gone["ok"], true, "{gone}");
+    assert_eq!(
+        runner.join().unwrap(),
+        2,
+        "spawn and discard each mark dirty"
+    );
+    assert!(!projected_workers(&f.ctx.host, &owner, 8).contains(&id));
+}

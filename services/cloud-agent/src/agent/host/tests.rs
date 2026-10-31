@@ -716,9 +716,17 @@ async fn c7_worker_list_change_after_projection_does_not_invalidate_execution() 
         *s = s.clone().with_workers(vec![c7_worker(7, &conv)]).unwrap();
     }
     assert!(!f.host.state.lock().unwrap().eq(&p.snapshot));
-    let result = a.worker.execute_inner(&r, &f.peer, &p).await.unwrap();
-    assert_eq!(result["fixture"], "read-canary");
+    let result = a.worker.execute_inner(&r, &f.peer, &p).await;
+    assert_eq!(
+        result.map(|v| v["fixture"].clone()),
+        Ok(json!("read-canary")),
+        "a worker-list change must not invalidate the request"
+    );
     assert_eq!(f.host.calls.load(Ordering::SeqCst), 1);
+}
+#[test]
+fn c7_local_host_has_no_dirty_source_by_default() {
+    assert!(Fixture::simple().host.projection_dirty().is_none());
 }
 fn c7_sign(f: &Fixture, host: &HostAuthoritySnapshot) -> (Vec<u8>, Vec<u8>) {
     let cfg = AgentConfig::from_bytes(&f.config).unwrap();

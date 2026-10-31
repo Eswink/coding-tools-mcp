@@ -11,6 +11,9 @@ use crate::tools::{
 };
 use serde_json::{json, Map, Value};
 
+/// A1 C7-3: the bounded wait for an acknowledged projection naming a new worker.
+const PROJECTION_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+
 fn invalid(message: &'static str) -> WorkerError {
     super::invalid(message)
 }
@@ -108,7 +111,19 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
                 return Err(invalid("base must be HEAD."));
             }
             let (record, created) = spawn_and_complete(ctx, request_id, label)?;
-            Ok(json!({"worker": view(&record), "deduplicated": !created}))
+            let mut out = json!({"worker": view(&record), "deduplicated": !created});
+            // A1 C7-3 (SPEC v5.6 §3.3): a cloud caller learns whether the gateway
+            // already accepted a projection naming the worker (bounded 3 s wait;
+            // immediately "pending" with no live session). Native UI: no field.
+            if ctx.remote_request.is_some() {
+                let applied = super::projection_bus::wait_applied(
+                    &ctx.host,
+                    record.worker_id.as_str(),
+                    PROJECTION_WAIT,
+                );
+                out["projection"] = json!(if applied { "applied" } else { "pending" });
+            }
+            Ok(out)
         }
         "subagent_status" => {
             let obj = object(args, &["worker_id"], &[])?;

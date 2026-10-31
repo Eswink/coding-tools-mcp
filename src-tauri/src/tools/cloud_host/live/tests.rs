@@ -450,3 +450,91 @@ async fn history_validate_read_only_needs_no_write_authority_and_repair_cannot_f
     );
     assert!(f.live.admit(view, request).await.is_ok());
 }
+
+// A1 C7-3 (SPEC v5.6 §3.3): the live projection names the grant owner's active
+// workers; the list is not execution authority; an ack releases a waiting spawn.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn c7_active_grant_projects_owner_workers_and_admission_ignores_the_list() {
+    use crate::tools::worktree_tools::workers::{
+        manager, projection_bus, WorkerOwner, WorkerState, WorkerStore,
+    };
+    let f = Fixture::new();
+    let v = f.approved();
+    assert!(v.workers().is_empty());
+    let ctx = f.live.tools.context.clone();
+    for args in [
+        &["init", "-q"][..],
+        &[
+            "-c",
+            "user.name=F",
+            "-c",
+            "user.email=f@example.invalid",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "f",
+        ],
+    ] {
+        let out = std::process::Command::new("git")
+            .current_dir(&ctx.host.workspace_root)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {args:?}: {out:?}");
+    }
+    let store = WorkerStore::open(&ctx.host, &manager(&ctx).unwrap()).unwrap();
+    let owner =
+        WorkerOwner::from_request(&f.live.tools.request(&f.conversation()).unwrap()).unwrap();
+    let older = store
+        .inject_for_test(&owner, None, WorkerState::Ready, 100)
+        .unwrap();
+    let newer = store
+        .inject_for_test(&owner, None, WorkerState::Ready, 200)
+        .unwrap();
+    store
+        .inject_for_test(&owner, None, WorkerState::Failed, 300)
+        .unwrap();
+    store
+        .inject_for_test(&WorkerOwner::local(), None, WorkerState::Ready, 400)
+        .unwrap();
+
+    let after = f.live.current().unwrap();
+    let ids: Vec<&str> = after.workers().iter().map(|w| w.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [newer.as_str(), older.as_str()],
+        "owner's active, newest first"
+    );
+    assert!(after
+        .workers()
+        .iter()
+        .all(|w| w.conversation == f.conversation()));
+    assert!(after != v && after.same_authority(&v));
+
+    // Admission against the projection made before the spawn still holds.
+    let request = f.request(&v);
+    let permit = f.live.admit(v, request.clone()).await;
+    assert!(
+        permit.is_ok(),
+        "a worker-list change must not invalidate admission"
+    );
+    let (_tx, rx) = watch::channel(false);
+    let result = f.live.execute(permit.unwrap(), request, rx).await.unwrap();
+    assert_eq!(result["ok"], true, "{result}");
+
+    // An acknowledged projection naming the worker releases a waiting spawn.
+    let session = f
+        .live
+        .projection_dirty()
+        .expect("live host exposes its bus");
+    let host = ctx.host.clone();
+    let id = newer.as_str().to_owned();
+    let waiter = std::thread::spawn(move || {
+        projection_bus::wait_applied(&host, &id, Duration::from_secs(3))
+    });
+    std::thread::sleep(Duration::from_millis(100));
+    f.live.projection_applied(after).await.unwrap();
+    assert!(waiter.join().unwrap(), "ack must release the waiting spawn");
+    drop(session);
+}

@@ -459,6 +459,33 @@ fn validate(doc: Document, host: &HostRoots) -> Result<Document, WorkerError> {
     Ok(doc)
 }
 
+/// A1 C7-3 (SPEC v5.6 §3.3): the owner's active worker ids for the cloud
+/// projection, newest first, at most `max`. Only an already-open store is read
+/// (as cloud_host prepare does); an unopened or unavailable store projects none,
+/// which the gateway answers with the retryable WORKER_NOT_OWNED.
+pub(crate) fn projected_workers(host: &HostRoots, owner: &WorkerOwner, max: usize) -> Vec<String> {
+    let Ok(Some(store)) = WorkerStore::open_existing(host) else {
+        return Vec::new();
+    };
+    let Ok(inner) = store.lock() else {
+        return Vec::new();
+    };
+    let mut mine: Vec<&WorkerRecord> = inner
+        .doc
+        .workers
+        .iter()
+        .filter(|r| &r.owner == owner && r.state.active())
+        .collect();
+    // Records are appended in spawn order; reversing first keeps the later
+    // spawn first among equal (second-resolution) creation times.
+    mine.reverse();
+    mine.sort_by_key(|r| std::cmp::Reverse(r.created_at));
+    mine.into_iter()
+        .take(max)
+        .map(|r| r.worker_id.as_str().to_owned())
+        .collect()
+}
+
 impl WorkerStore {
     fn insert(
         registry: &mut HashMap<PathBuf, Arc<Self>>,
@@ -951,6 +978,8 @@ pub(crate) fn spawn(
                 return Err(error);
             }
             pending().insert(id.as_str().to_owned(), slot);
+            // A1 C7-3: the `creating` record is durable; project it now.
+            projection_bus::mark_dirty(&ctx.host);
             Ok((record, true))
         }
         Err(error) => {
@@ -1005,7 +1034,8 @@ pub(crate) fn complete_spawn(
         .ok()
         .and_then(|_| manager.main_fingerprint().ok());
     let mut inner = store.lock()?;
-    inner.update(&owner, &id, |record| {
+    let failed = built.is_err();
+    let out = inner.update(&owner, &id, |record| {
         record.last_activity_at = now();
         Ok(match built {
             Ok(item) => {
@@ -1020,7 +1050,12 @@ pub(crate) fn complete_spawn(
                 Err(error)
             }
         })
-    })?
+    })?;
+    if failed {
+        // A1 C7-3: a failed build leaves the projected set.
+        projection_bus::mark_dirty(&ctx.host);
+    }
+    out
 }
 
 /// A1 C2b (C1-c): spawn then complete_spawn with a Drop guard, so the reserved
@@ -1076,6 +1111,8 @@ impl Drop for SpawnCompletion<'_> {
                 });
             }
         }
+        // A1 C7-3: the abandoned `creating` record leaves the projected set.
+        projection_bus::mark_dirty(&self.ctx.host);
     }
 }
 /// Test-only early-return injection for the C1-c guard.
@@ -1218,6 +1255,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         record.last_activity_at = now();
         Ok(record.clone())
     })?;
+    // A1 C7-3: discarded leaves the projected set (pending_cleanup stays active).
+    projection_bus::mark_dirty(&ctx.host);
     if out.state == WorkerState::Discarded {
         store.flight().background.remove(&id);
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
@@ -1703,6 +1742,8 @@ pub(crate) mod integration;
 pub(crate) mod journal;
 #[path = "workers/mainfs.rs"]
 pub(crate) mod mainfs;
+#[path = "workers/projection_bus.rs"]
+pub(crate) mod projection_bus;
 #[path = "workers/recovery.rs"]
 pub(crate) mod recovery;
 

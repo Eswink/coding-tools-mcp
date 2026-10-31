@@ -25,6 +25,29 @@ fn ack_timeout() -> Duration {
     scaled(Duration::from_secs(10))
 }
 const MAX_PROJECTIONS: usize = 32;
+/// A1 C7-3 (SPEC v5.6 §3.3): a challenge is due when the periodic interval elapsed
+/// or the host marked its projection dirty, and none is in flight. A dirty mark
+/// seen while one is in flight stays pending and fires on the first free tick.
+/// Sending consumes the mark; the snapshot is read after it, so it is included.
+fn projection_due(
+    interval: bool,
+    in_flight: bool,
+    dirty: &mut Option<tokio::sync::watch::Receiver<u64>>,
+) -> bool {
+    if in_flight {
+        return false;
+    }
+    let marked = dirty
+        .as_ref()
+        .is_some_and(|d| d.has_changed().unwrap_or(false));
+    if !(interval || marked) {
+        return false;
+    }
+    if let Some(d) = dirty.as_mut() {
+        d.borrow_and_update();
+    }
+    true
+}
 struct PendingProjection {
     seq: i64,
     sent: Instant,
@@ -159,6 +182,7 @@ pub(super) async fn session<H: LocalHost>(
     let mut ticks = tokio::time::interval(Duration::from_millis(200));
     ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut incoming_budget = (Instant::now(), 0u32);
+    let mut dirty = worker.host.projection_dirty();
     loop {
         tokio::select! {
             _=ticks.tick()=>{
@@ -175,7 +199,8 @@ pub(super) async fn session<H: LocalHost>(
                     let n=send_control(&mut socket,&mut seq,&mut next_send,|seq|ControlMessage::Heartbeat{seq}).await?;
                     hb=Some((n,Instant::now()));heartbeat_at=Instant::now();
                 }
-                if projection_at.elapsed()>=scaled(Duration::from_secs(4)) && challenge.is_none() && pending.is_none() {
+                if projection_due(projection_at.elapsed()>=scaled(Duration::from_secs(4)),
+                    challenge.is_some() || pending.is_some(), &mut dirty) {
                     let n=send_control(&mut socket,&mut seq,&mut next_send,|seq|ControlMessage::ProjectionChallenge{seq}).await?;
                     challenge=Some((n,Instant::now()));projection_at=Instant::now();
                 }
@@ -313,5 +338,58 @@ struct NativeConnection<H: LocalHost> {
 impl<H: LocalHost> Drop for NativeConnection<H> {
     fn drop(&mut self) {
         self.host.disconnected(&self.peer);
+    }
+}
+
+#[cfg(test)]
+mod c7_tests {
+    use super::projection_due;
+    use tokio::sync::watch;
+
+    #[test]
+    fn c7_dirty_projection_skips_the_interval_once_and_waits_for_the_in_flight_one() {
+        let (tx, rx) = watch::channel(0u64);
+        let mut dirty = Some(rx);
+        assert!(
+            !projection_due(false, false, &mut dirty),
+            "clean, interval not elapsed"
+        );
+        tx.send_modify(|n| *n += 1);
+        assert!(
+            projection_due(false, false, &mut dirty),
+            "dirty skips the interval"
+        );
+        assert!(
+            !projection_due(false, false, &mut dirty),
+            "the mark is consumed"
+        );
+        tx.send_modify(|n| *n += 1);
+        assert!(
+            !projection_due(false, true, &mut dirty),
+            "still one in flight"
+        );
+        assert!(
+            projection_due(false, false, &mut dirty),
+            "fires once the flight ends"
+        );
+        tx.send_modify(|n| *n += 1);
+        assert!(projection_due(true, false, &mut dirty), "interval send");
+        assert!(
+            !projection_due(false, false, &mut dirty),
+            "interval send consumed the mark"
+        );
+        drop(tx);
+        assert!(
+            !projection_due(false, false, &mut dirty),
+            "closed bus is clean"
+        );
+        assert!(projection_due(true, false, &mut dirty));
+    }
+    #[test]
+    fn c7_without_a_dirty_source_only_the_interval_triggers() {
+        let mut none = None;
+        assert!(!projection_due(false, false, &mut none));
+        assert!(!projection_due(true, true, &mut none));
+        assert!(projection_due(true, false, &mut none));
     }
 }

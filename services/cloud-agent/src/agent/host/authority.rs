@@ -39,6 +39,12 @@ pub trait LocalHost: Send + Sync + 'static {
     fn authorization(&self, _request: crate::approval::ApprovalRequest) -> HostFuture<Value> {
         Box::pin(async { Err(AgentError::LocalAuthority) })
     }
+    /// A1 C7-3 (SPEC v5.6 §3.3): a local change to the projected worker list. The
+    /// runner sends a projection challenge on its next tick when this changed,
+    /// skipping the periodic interval (still one challenge in flight).
+    fn projection_dirty(&self) -> Option<watch::Receiver<u64>> {
+        None
+    }
     fn required_scope(&self, tool: &str, arguments: &Value) -> Option<&'static str>;
     fn snapshot(&self) -> HostFuture<HostAuthoritySnapshot>;
     fn admit(
@@ -130,7 +136,8 @@ impl HostAuthoritySnapshot {
     }
     /// Execution authority equality: every field except the pre-filter worker list, so a
     /// spawn/discard between projection and completion cannot invalidate a request.
-    fn same_authority(&self, other: &Self) -> bool {
+    /// Public so native admission (src-tauri live host) uses the same rule.
+    pub fn same_authority(&self, other: &Self) -> bool {
         self.epoch == other.epoch
             && self.revision == other.revision
             && self.generation == other.generation
