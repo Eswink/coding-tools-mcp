@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre O13 decided (agents.manage UI default checked; grant still needs request + explicit local approval) on a1-c7pre 0a7c5974, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre manifest-only fix (M regenerated: commit 4 recorded reviewed-source-manifest.json as 0 bytes) on a1-c7pre 35c2de86, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "505f0b2efb74c521361a1bab4a637f6edd25d9bb",
-        "sha256": "e5f5ef385296366a5a773059b1f226d2850063c2a6cd5c8ae83058b89301564e"
+        "blob_sha": "e4a03d045fc0e394a1417b782f1dd8e4840b5c87",
+        "sha256": "79b4d7428f31e037580c460fabb3b83d340e9cd7c23a8e06c365fbb277b37157"
       }
     },
     {
