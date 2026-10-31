@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c6s agents.manage grant path (gateway admission+wire, local scope default unchecked, chat_native_v8) + C4-c (pidfd-gated leader terminate, group kill only through a live group holder, no RLIMIT_NPROC, RLIMIT_DATA 8G, honest rlimit report, delegation retry) on a1-c4b 2b2205ef, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre rc080 DEPTH_LIMIT 128 -> 256 (255/256/257 fixed-chain boundary, never-skip HEAD admission, headroom 16/15 fixture) on a1-c6s bc5a60c6, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8b47f3ea8e8b3fa1c494b807557caa8c9a9db881",
-        "sha256": "3257620e5f3e49ee0f91f4cf72b122e6cc9a4ffb60d3667da1264ce4f0703b26"
+        "blob_sha": "bb7b6ac695204825fcfb655cc91c9b3ae30760ef",
+        "sha256": "281facfda292e7cfd17bae8a50575cbe04d480d0c120bbcf61b26bef3f0f8b8d"
       }
     },
     {
@@ -5104,8 +5104,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6e09ef020dac467bb24033f53ef84cc054456cbe",
-        "sha256": "53274329e93de677bceebca4e024c01189e0dceec8ba9d8e74711e68764ef422"
+        "blob_sha": "f849a7be9247527da58c21de9f6ecbeb6cb5d39a",
+        "sha256": "cb701f35f8ba2d55645446e3f283723eb62b2469648f6e86649129f83a985a18"
       }
     },
     {
@@ -5114,8 +5114,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1d341a228c71bec853f3520b1c6cc4f4c54f84dc",
-        "sha256": "a047e6fee6f38895e4bc584457bcc7f78172d729ae868ccb621e7f9f561ed364"
+        "blob_sha": "85efba9ddcf02aca09645b7036531419342c478a",
+        "sha256": "200c95dcd9a5e780a6f23ec08eccfc8ba744810a07c00b27ea979194725f15e7"
       }
     },
     {

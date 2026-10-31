@@ -40,9 +40,10 @@ MODES = (('100644', 'blob'), ('100755', 'blob'))
 PROFILE_CAP = 200
 # Required budget for a tip = first-parent distance tip -> main merge dffc3c6b (d)
 # + 1 (the merge row itself) + 13 (second parent d6a45088 is 13 first-parent steps below M)
-# + headroom; i.e. a tip is admitted iff d + 14 <= DEPTH_LIMIT. 128 leaves the C2-ad
-# line (d = 53 after this change) 61 commits; self-tests fail once headroom < 16.
-DEPTH_LIMIT = 128
+# + headroom; i.e. a tip is admitted iff d + 14 <= DEPTH_LIMIT. 128 left the C2-ad
+# line (d = 53 then) 61 commits; A1 C7pre raises it to 256 (need 112 at this change,
+# headroom 128 -> 144); self-tests fail once headroom < 16.
+DEPTH_LIMIT = 256
 DELTA_PATHS = 600
 DELTA_LINES = 40000
 

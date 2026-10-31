@@ -51,6 +51,16 @@ def required_budget(ref, root=ROOT):
 HEADROOM_WARN = 16
 
 
+def assert_headroom(test, ref, root=ROOT):
+    """Fail (never skip) unless ref is admitted with at least HEADROOM_WARN commits to spare."""
+    need = required_budget(ref, root)
+    test.assertIsNotNone(need, '%s not admitted within DEPTH_LIMIT %d' % (ref, rc080.DEPTH_LIMIT))
+    test.assertGreaterEqual(rc080.DEPTH_LIMIT - need, HEADROOM_WARN,
+                            'rc080 depth headroom %d < %d (need %d of %d)'
+                            % (rc080.DEPTH_LIMIT - need, HEADROOM_WARN, need, rc080.DEPTH_LIMIT))
+    return need
+
+
 class Rc080TopologyProfileTests(unittest.TestCase):
     def test_anchor_identity_is_admitted(self):
         self.assertEqual(select(rc080.M), entries(rc080.M))
@@ -76,11 +86,11 @@ class Rc080TopologyProfileTests(unittest.TestCase):
     def test_head_is_admitted_when_m_is_an_ancestor(self):
         """The only HEAD-dependent test: never skips. M ancestor of HEAD => must be admitted."""
         head = git('rev-parse', 'HEAD').decode().strip()
-        if is_ancestor(rc080.M, head):
-            self.assertEqual(select(head), entries(head), 'rc080 must admit HEAD (M is an ancestor)')
-            self.assertIsNone(rc070.select(head, ROOT, git, entries, None, p.R, p.R_TREE, p.R_DOCUMENTS))
-        else:
-            self.assertIsNone(select(head))
+        # A1 C7pre: a HEAD that does not descend from M fails here instead of
+        # passing on the fall-through branch.
+        self.assertTrue(is_ancestor(rc080.M, head), 'rc080 M %s is not an ancestor of HEAD %s' % (rc080.M, head))
+        self.assertEqual(select(head), entries(head), 'rc080 must admit HEAD (M is an ancestor)')
+        self.assertIsNone(rc070.select(head, ROOT, git, entries, None, p.R, p.R_TREE, p.R_DOCUMENTS))
 
     def test_head_depth_headroom_is_at_least_16(self):
         head = git('rev-parse', 'HEAD').decode().strip()
@@ -88,11 +98,7 @@ class Rc080TopologyProfileTests(unittest.TestCase):
         # rc080 depth to measure, so the headroom check fails instead of returning.
         self.assertTrue(is_ancestor(rc080.M, head),
                         'rc080 M %s is not an ancestor of HEAD %s; depth headroom unmeasurable' % (rc080.M, head))
-        need = required_budget(head)
-        self.assertIsNotNone(need, 'HEAD not admitted within DEPTH_LIMIT %d' % rc080.DEPTH_LIMIT)
-        self.assertGreaterEqual(rc080.DEPTH_LIMIT - need, HEADROOM_WARN,
-                                'rc080 depth headroom %d < %d (need %d of %d)'
-                                % (rc080.DEPTH_LIMIT - need, HEADROOM_WARN, need, rc080.DEPTH_LIMIT))
+        assert_headroom(self, head)
 
 
 class Rc080NegativeCases(unittest.TestCase):
@@ -191,7 +197,8 @@ class Rc080DepthBudgetTests(unittest.TestCase):
         cls.repo = Path(cls.tmp.name) / 'repo'
         subprocess.check_call(['git', 'clone', '-q', '--shared', '--no-checkout', str(ROOT), str(cls.repo)])
         cls.tree = git('rev-parse', rc080.M + '^{tree}', root=cls.repo).decode().strip()
-        cls.chain = cls.build(rc080.M, cls.limit + 4, 'chain')
+        # fixed length: the absolute 255/256/257 cases must exist whatever DEPTH_LIMIT is
+        cls.chain = cls.build(rc080.M, max(cls.limit, 257) + 4, 'chain')
 
     @classmethod
     def tearDownClass(cls):
@@ -213,8 +220,33 @@ class Rc080DepthBudgetTests(unittest.TestCase):
     def depth(self, ref):
         return rc080.topology(ref, self.repo, git, p.R)
 
-    def test_depth_limit_is_128(self):
-        self.assertEqual(rc080.DEPTH_LIMIT, 128)
+    def outcome(self, ref):
+        """Admitted depth, or the rejection reason; compared with assertEqual so a wrong limit is an assertion."""
+        try:
+            return self.depth(ref)
+        except AssertionError as error:
+            return 'rejected: %s' % error
+
+    def test_depth_limit_is_256(self):
+        self.assertEqual(rc080.DEPTH_LIMIT, 256)
+
+    def test_depth_255_is_admitted(self):
+        self.assertEqual(self.outcome(self.chain[255]), 255)
+
+    def test_depth_256_is_admitted(self):
+        # topology only: the synthetic chain carries M's tree, which predates the rc080 paths
+        self.assertEqual(self.outcome(self.chain[256]), 256)
+
+    def test_depth_257_is_rejected(self):
+        self.assertEqual(self.outcome(self.chain[257]), 'rejected: rc080_not_descendant')
+        self.assertIsNone(rc080.select(self.chain[257], self.repo, git, entries, None, p.R, p.R_TREE,
+                                       p.R_DOCUMENTS))
+
+    def test_headroom_16_passes_and_15_fails_on_the_fixture(self):
+        self.assertEqual(assert_headroom(self, self.chain[self.limit - HEADROOM_WARN], self.repo),
+                         self.limit - HEADROOM_WARN)
+        with self.assertRaisesRegex(AssertionError, 'rc080 depth headroom 15 < 16'):
+            assert_headroom(self, self.chain[self.limit - HEADROOM_WARN + 1], self.repo)
 
     def test_depth_equal_to_limit_is_admitted(self):
         self.assertEqual(self.depth(self.chain[self.limit]), self.limit)
