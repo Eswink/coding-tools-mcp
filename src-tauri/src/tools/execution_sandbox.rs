@@ -76,17 +76,19 @@ pub(crate) fn annotate(ctx: &ToolContext, result: &mut Value, child_started: boo
 /// `resource_limit` (`cgroup_v2` | `rlimit_fallback`), `cgroup_error`,
 /// `cgroup_partial` when only some controllers were delegated, and (A1 C4-c D)
 /// `procs_limit` (`cgroup_pids_max` | `none`). A child that failed to join
-/// turns the report into `rlimit_fallback` with its errno (C4-c F).
+/// turns the report into `rlimit_fallback` with its errno (C4-c F). A1 C7:
+/// `group_cleanup` (`holder_killpg` | `cgroup_kill_on_cancel` | `skipped_unsafe`).
 pub(super) fn worker_resources(ctx: &ToolContext, result: &mut Value) {
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     if ctx.worker.is_some() {
-        if let Some(report) = ctx
-            .linux_sandbox
-            .as_ref()
-            .as_ref()
-            .ok()
-            .and_then(|sandbox| sandbox.resource_report())
+        let sandbox = ctx.linux_sandbox.as_ref().as_ref().ok();
+        if let Some((sandbox, report)) =
+            sandbox.and_then(|sandbox| Some((sandbox, sandbox.resource_report()?)))
         {
+            // A1 C7 (nit4): how the child's group is cleaned. Legacy tty=true
+            // is a bounded pipe session (process_group + holder), never a PTY,
+            // so every src-tauri worker child is a piped leader.
+            result["group_cleanup"] = json!(sandbox.group_cleanup(false));
             result["resource_limit"] = json!(report.resource_limit);
             // A1 C4-c D: `none` in the fallback (no RLIMIT_NPROC substitute).
             result["procs_limit"] = json!(report.procs_limit);

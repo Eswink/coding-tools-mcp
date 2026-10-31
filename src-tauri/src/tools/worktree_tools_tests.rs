@@ -504,6 +504,52 @@ fn remote_subagent_lifecycle_runs_through_the_chat_permit_once_agents_manage_is_
     assert_eq!(cancelled["worker"]["state"], "cancelled", "{cancelled}");
 }
 
+/// A1 C7 (nit4): end to end through the chat permit, a worker's exec result
+/// carries the worker sandbox's group cleanup (a piped leader: legacy tty is
+/// a pipe session), equal to its resource report; main-root exec has none.
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+fn remote_worker_exec_reports_group_cleanup_end_to_end() {
+    let f = Fixture::shared(false);
+    let ctx = f.session(
+        "conversation-a",
+        &[
+            "workspace.read",
+            "files.read",
+            "files.write",
+            "exec.run",
+            "task.manage",
+        ],
+    );
+    grant_agents_manage(&ctx);
+    let spawned = call_tool(
+        &ctx,
+        "subagent_spawn",
+        &json!({"request_id":"c7-gc","label":"w"}),
+    );
+    assert_eq!(spawned["ok"], true, "{spawned}");
+    let id = spawned["worker"]["worker_id"].as_str().unwrap().to_owned();
+    let run = call_tool(
+        &ctx,
+        "exec_command",
+        &json!({"cmd":"git status --short","worker_id": id}),
+    );
+    assert_eq!(run["ok"], true, "{run}");
+    assert_eq!(run["sandbox_enforced"], true, "{run}");
+    assert_eq!(run["sandbox_required"], true, "{run}");
+    let expected = coding_tools_local_agent::LinuxSandbox::new(f.root.path())
+        .unwrap()
+        .with_worker_resources(&id)
+        .resource_report()
+        .unwrap()
+        .group_cleanup;
+    assert_eq!(run["group_cleanup"], expected, "{run}");
+    assert!(run["resource_limit"].is_string(), "{run}");
+    let main = call_tool(&ctx, "exec_command", &json!({"cmd":"git status --short"}));
+    assert_eq!(main["sandbox_required"], true, "{main}");
+    assert!(main.get("group_cleanup").is_none(), "{main}");
+}
+
 #[test]
 fn worktree_list_shows_legacy_chat_root_trees_and_create_counts_them() {
     // A1 C3 (steering 2): pre-C1-b trees under `<store>/chat-v1/<key>` are listed
@@ -561,7 +607,7 @@ fn worktree_list_shows_legacy_chat_root_trees_and_create_counts_them() {
 
 #[test]
 fn agents_manage_is_granted_only_through_request_and_explicit_local_approval() {
-    // A1 C6-grant (SPEC v5.4 §3.1, O13 pending): the normal path end to end.
+    // A1 C6-grant (SPEC v5.4 §3.1; O13 decided in C7pre: UI default only): the normal path end to end.
     let f = Fixture::shared(false);
     let ctx = f.session("conversation-a", &["files.read"]);
     let req = ctx.remote_request.as_ref().unwrap().clone();

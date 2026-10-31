@@ -182,6 +182,24 @@ impl LinuxSandbox {
         self.resources.as_deref().map(|r| r.pty_report())
     }
 
+    /// A1 C7 (nit4): how a leader started under this policy has its group
+    /// cleaned: `pty` leaders use `pty_resource_report`, piped leaders
+    /// `resource_report`. A policy without worker resources has no cgroup, so
+    /// it reports the holder fallback or `"skipped_unsafe"`. Production callers
+    /// (local-agent dispatch, src-tauri worker exec) put this in their output.
+    #[cfg(target_arch = "x86_64")]
+    pub fn group_cleanup(&self, pty: bool) -> &'static str {
+        let report = if pty {
+            self.pty_resource_report()
+        } else {
+            self.resource_report()
+        };
+        report.map_or_else(
+            || resources::group_cleanup(crate::process_tree::host_holds_groups(), false, pty),
+            |r| r.group_cleanup,
+        )
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,

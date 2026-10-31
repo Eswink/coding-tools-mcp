@@ -333,3 +333,32 @@ mod worker_resources {
         assert_eq!(report.procs_limit, "none");
     }
 }
+
+/// A1 C7 (nit4): `group_cleanup` is the report's value for each leader kind,
+/// and the no-cgroup fallback for a policy without worker resources.
+#[test]
+fn group_cleanup_uses_the_pty_or_piped_report() {
+    let root = Directory::new();
+    let plain = LinuxSandbox::new(&root.0).unwrap();
+    let holds = crate::process_tree::host_holds_groups();
+    assert_eq!(plain.group_cleanup(true), "skipped_unsafe");
+    assert_eq!(
+        plain.group_cleanup(false),
+        if holds {
+            "holder_killpg"
+        } else {
+            "skipped_unsafe"
+        }
+    );
+    let worker = plain.with_worker_resources("c7-group-cleanup");
+    assert_eq!(
+        worker.group_cleanup(true),
+        worker.pty_resource_report().unwrap().group_cleanup
+    );
+    assert_eq!(
+        worker.group_cleanup(false),
+        worker.resource_report().unwrap().group_cleanup
+    );
+    drop(worker);
+    release_worker_cgroup("c7-group-cleanup");
+}

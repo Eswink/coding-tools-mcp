@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre manifest-only fix (M regenerated: commit 4 recorded reviewed-source-manifest.json as 0 bytes) on a1-c7pre 35c2de86, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7 commit 1 (Grok nits on d42714ba: O13 comments, group_cleanup production wiring) on a1-c7 d42714ba, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e4a03d045fc0e394a1417b782f1dd8e4840b5c87",
-        "sha256": "79b4d7428f31e037580c460fabb3b83d340e9cd7c23a8e06c365fbb277b37157"
+        "blob_sha": "e1b1cf80067f6b7ede06ddda886b19456bdeccd6",
+        "sha256": "1d7d3c1a134cf794cac3b2744fdfc6fe5ec6ac92e41a92ddf163c95f8a390da2"
       }
     },
     {
@@ -7630,8 +7630,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b7652b9a8f4d120d9c871885ca2808686117acb1",
-        "sha256": "98150ae72b4277ef63fd9ec780d6ccba8815aac8d427d8cad0d30cc5f7500f86"
+        "blob_sha": "229d664fbb8aede94c2cb319380ae53535193597",
+        "sha256": "87857c12d07be54b88730f1edab761d48bc146516ff38eaaf75d2377a4b8a47a"
       }
     },
     {
@@ -7660,8 +7660,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fa5d0e7748e8c09e9771783e4a64f3b1e48958a0",
-        "sha256": "6b9a2b21d7948bd0c51920e774a5b4004b945d7a9b8eb76c68ba56bbd300e00e"
+        "blob_sha": "06e66e5a3098c5e0ba372474484779482e491647",
+        "sha256": "1f2cee7a1f62c4569b2be51e2e1972e3226763a0bf06f96b6fb5e5bbd3013eef"
       }
     },
     {
@@ -7900,8 +7900,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e22fa90c6aded3cde6307422118e7f978c61e7d1",
-        "sha256": "96cb7d0a5b4ea7990b83bd13c9c8019ca4c8feb1300738905dbdbf2f13192245"
+        "blob_sha": "93fdb4e893cc2fca3b46186ce71d52dbf6cc456f",
+        "sha256": "0c0ee37ab748865a3dcb7e699d125ca3c108979b49fcaa1401bffd23442e13b6"
       }
     },
     {
@@ -7910,8 +7910,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7113b6efd9c73a0f92e9ebe31dfb7cb704c67dff",
-        "sha256": "5314f91843a198dd2f5321d504955b579f9f5179c56d7aa35387fe83ff175159"
+        "blob_sha": "79b8df8feac6cc8412c6b04bf160716fad2f8926",
+        "sha256": "db519b39285389e241fafe60ef3d3a6a46c0984eef8ba3c3e00bbc8ba5c6d9f1"
       }
     },
     {
@@ -7920,8 +7920,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cef3369b57022e5b39d77c0972388e93d9bcde0b",
-        "sha256": "42f0653c2b4feddd935dac71fac0d4fe89997ec388653af5e44cf71970927493"
+        "blob_sha": "b09ce13b308d917e435c37effd9e3f52b61f32b7",
+        "sha256": "57ac87865e390242630e0d2aaf71cdb7f0d0053f09e85c20fb66007493fa4768"
       }
     },
     {
@@ -8662,8 +8662,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "bfe252c664156693548dab7e00a075f41fdc0ec7",
-        "sha256": "4921743d4654daba93ed4696e447fcf4097b0fbb9bb872926372fd25651f4321"
+        "blob_sha": "28a21c94900287921cbf75a47e37192e97e22cd1",
+        "sha256": "e8d1072a0662ef5aeee52932071e2da2c1280d2dc8c918289c543ab8c43e4fef"
       }
     },
     {
@@ -10090,8 +10090,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e00f9ca4d068d142b6d04599c2056cae1d6aee4e",
-        "sha256": "3568601a94f5c733652020a7f5ae08a40804e961718913962c685e0278078cbb"
+        "blob_sha": "99e8ce5bce6d91438d082f728c0f38750c40395d",
+        "sha256": "3cd43e6db967fe4742686765d00501a6ecaa6299ff82e70fa970bbb2550ff8fa"
       }
     },
     {
@@ -10604,8 +10604,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "48d6368c53e436eebba13a2a67c7ace52f596636",
-        "sha256": "2de5227586017e145527bef65536f8e8b2097a25b1628eb001a358624a26c3f1"
+        "blob_sha": "667395443ea55fe84010ca856875150ef6c5e9df",
+        "sha256": "1988bcc2b24ad325c6c899e629e04d98cd5efc2dd469359a4c3a5163df15f2b4"
       }
     },
     {
@@ -10638,8 +10638,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2fcb0de6e1459cf5200cba0b182e1932b1063a5b",
-        "sha256": "ad52f090d484789b8b0a21e34a0ddf8400b13f126587eb2ff1ba9c99b2ab26b5"
+        "blob_sha": "5f08d6a2fcc4470a4ca4556816a363647ec5ba48",
+        "sha256": "7efaa672f5d04aae3121360e3f8b179c174c689f9199894db7a87b35323368e7"
       }
     },
     {

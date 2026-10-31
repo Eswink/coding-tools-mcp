@@ -65,7 +65,7 @@ pub struct ResourceReport {
 /// cannot run the group holder, with or without a cgroup. A1 C7pre: a `pty`
 /// leader calls `setsid`, so its holder cannot join the group (`EPERM`,
 /// `GroupCleanup::SkippedNoHolder`) and there is no group kill on any host.
-fn group_cleanup(holds: bool, cgroup: bool, pty: bool) -> &'static str {
+pub(super) fn group_cleanup(holds: bool, cgroup: bool, pty: bool) -> &'static str {
     match (holds && !pty, cgroup) {
         (true, _) => "holder_killpg",
         (false, true) => "cgroup_kill_on_cancel",

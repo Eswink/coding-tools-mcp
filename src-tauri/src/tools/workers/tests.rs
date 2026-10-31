@@ -1049,6 +1049,12 @@ fn worker_context_children_run_under_reported_resource_limits() {
     crate::tools::execution_sandbox::worker_resources(&f.ctx, &mut main);
     assert_eq!(main, json!({}));
     let policy = worker_ctx.linux_sandbox.as_ref().clone().unwrap();
+    // A1 C7 (nit4): the piped leader's group cleanup is the report's value.
+    assert_eq!(
+        report["group_cleanup"],
+        policy.resource_report().unwrap().group_cleanup,
+        "{report}"
+    );
     let spec = ExecSpec::new(
         vec!["/bin/sh".into(), "-c".into(), "ulimit -d; ulimit -t".into()],
         tree.canonicalize().unwrap(),
