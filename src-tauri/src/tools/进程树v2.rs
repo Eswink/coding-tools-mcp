@@ -496,8 +496,10 @@ mod pidfd_tests {
             if exe.as_deref() == Some(program.as_path()) && sleeping() {
                 std::thread::sleep(std::time::Duration::from_millis(20));
                 let again = fds_of(pid);
-                if again.is_some() && again == last && sleeping() {
-                    return again.unwrap();
+                if let Some(fds) = &again {
+                    if last.as_ref() == Some(fds) && sleeping() {
+                        return fds.clone();
+                    }
                 }
                 last = again;
             } else {

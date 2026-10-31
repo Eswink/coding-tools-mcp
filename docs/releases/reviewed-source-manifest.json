@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre C6 nits (holder settle before /proc fd read, group-kill source scan incl. killpg/nix, fallback holder kill after an Ok group kill, PTY worker reports no group holder) on a1-c7pre 71b02131, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre clippy fix (settled_fds: if let instead of is_some+unwrap, test-only) on a1-c7pre 2b9e377a, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cc67a4fdcf0e366acde9ad5f46ca08c8095576bc",
-        "sha256": "84017b00cc947a607a573c53f5d4612e738e1dba61e8852d693f9278296aad85"
+        "blob_sha": "2197defc07d42dbf1d120d53cf729dedf7fbf343",
+        "sha256": "bb69aa0e81ee21dc12ea9463556184acc49ee7d231d5290cf201fd9ae82630d4"
       }
     },
     {
@@ -7790,8 +7790,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ff977e8a9003cf632962257117498605573e2930",
-        "sha256": "6e671219b8647d5701186c630e6c2b04eee48682d78a436178d10eaa4501ef21"
+        "blob_sha": "197f3dcc8fd4aaee27372b85e7722e4926556cc2",
+        "sha256": "56a1fb98ed66de2027326c521084435e9fcdc6eced3aca2c8a00acdf8ed44a84"
       }
     },
     {
@@ -10792,8 +10792,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "719574af7c0568b85daf63fb2532a2b316cc41ff",
-        "sha256": "b40116f134512b510c58d940ebe8a42afdf0777a4065e23a32b474e007697a65"
+        "blob_sha": "be3afe4d94cce3861f25a68bfff812a3218828eb",
+        "sha256": "aa332921a91d6647f9c5ca9e365c2bc3f5ba6b9e58f3175fde9e62e3bc056404"
       }
     },
     {
