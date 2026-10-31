@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9 commit 3 (test only: the double-click UI test sends both clicks before releasing the first, so a missing busy guard fails by assertion instead of hanging) on a1-c9 ebd10c70, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9 commit 4 (test only: workspace_files reads the mode through a cfg(unix) file_mode helper so the src-tauri lib tests compile for x86_64-pc-windows-gnu again; no assertion changes) on a1-c9 27f8082e, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a07c1ace648a990ea859ff16a7b9957619483a9f",
-        "sha256": "335dcd99d7191a0a60db8a7cd4843148b73c772fbc7c7660e857123c9de06263"
+        "blob_sha": "6737efbd526acbbd35dcfaa8da6ed1927b9082b7",
+        "sha256": "424b31249475411c019f75665aa2cb73d5242612d759596ede112ee9ef790e72"
       }
     },
     {
@@ -10564,8 +10564,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a6cfadf41ec6f46581b839a6a4da314de127d20c",
-        "sha256": "f29f07f1fdeb6c6d26a3f9ffe95e4cfb26f06b49f25caf66e37f14ca2173fb98"
+        "blob_sha": "eeaafa01a5da95a3250034844c5b317f0a48f645",
+        "sha256": "a38db6b5f0952ac25de238af9ee53aca62a7c881652120433b83d54f4ace6ba8"
       }
     },
     {

@@ -1532,7 +1532,6 @@ fn head_moving_while_the_dialog_is_open_writes_nothing() {
 
 /// Every workspace file outside `.git`: path, bytes and mode.
 fn workspace_files(root: &Path) -> Vec<(String, Vec<u8>, u32)> {
-    use std::os::unix::fs::PermissionsExt;
     fn walk(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>, u32)>) {
         let mut names: Vec<_> = fs::read_dir(dir)
             .unwrap()
@@ -1550,16 +1549,27 @@ fn workspace_files(root: &Path) -> Vec<(String, Vec<u8>, u32)> {
             }
             let meta = fs::symlink_metadata(&path).unwrap();
             if meta.is_dir() {
-                out.push((format!("{rel}/"), Vec::new(), meta.permissions().mode()));
+                out.push((format!("{rel}/"), Vec::new(), file_mode(&meta)));
                 walk(root, &path, out);
             } else {
-                out.push((rel, fs::read(&path).unwrap(), meta.permissions().mode()));
+                out.push((rel, fs::read(&path).unwrap(), file_mode(&meta)));
             }
         }
     }
     let mut out = Vec::new();
     walk(root, root, &mut out);
     out
+}
+fn file_mode(meta: &fs::Metadata) -> u32 {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        meta.permissions().mode()
+    }
+    #[cfg(not(unix))]
+    {
+        u32::from(meta.permissions().readonly())
+    }
 }
 /// A journal left `needs_attention` by recovery (row 3), as in the C5 test.
 fn needs_attention(f: &Fixture) {

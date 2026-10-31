@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "76d0a0e5ecdc4a941f32e803a724bf0d06215f2e",
-   "bytes": 429189,
+   "blob": "ce17f0994fda2b9e77286651eeaad8e3df6b470f",
+   "bytes": 429179,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "8bc1424676e206194671a273ce3301c55e85decbffd1bfc79d7b95daa41d1077"
+   "sha256": "4ef80e4b174d79b7f0d9c3306c19f66d6fffd0b436265bd6c0095265166ee455"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -11301,11 +11301,11 @@
    "sha256": "b664dd70f4db9d5e0bf111dc7abc7a19143e8b73762686171b72155c1f902046"
   },
   {
-   "blob": "a6cfadf41ec6f46581b839a6a4da314de127d20c",
-   "bytes": 68733,
+   "blob": "eeaafa01a5da95a3250034844c5b317f0a48f645",
+   "bytes": 68910,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/integrate_tests.rs",
-   "sha256": "f29f07f1fdeb6c6d26a3f9ffe95e4cfb26f06b49f25caf66e37f14ca2173fb98"
+   "sha256": "a38db6b5f0952ac25de238af9ee53aca62a7c881652120433b83d54f4ace6ba8"
   },
   {
    "blob": "45973194152fe50891c083724799058c4039cd35",
