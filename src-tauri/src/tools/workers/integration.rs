@@ -1458,9 +1458,13 @@ fn write_attention_listing(
 }
 
 /// Native, before the dialog: refuses unless the journal is `needs_attention`,
-/// and does not change a `needs_attention` journal. C9n nit 5: the listed paths are
-/// bounded by count and bytes; past either bound the body says how many are not
-/// shown and where the full list was written, and the digest still binds all.
+/// and does not change a `needs_attention` journal. It is not read-only (C9n
+/// nit 6; C9 said "Reads only; nothing is written"): when no journal exists yet,
+/// `journal_rw` -> `Journal::open` creates and saves a fresh idle journal before
+/// the state check refuses, and a truncated list writes the listing file below.
+/// C9n nit 5: the listed paths are bounded by count and bytes; past either
+/// bound the body says how many are not shown and where the full list was
+/// written, and the digest still binds all.
 pub(crate) fn prepare_clear_attention(
     ctx: &ToolContext,
 ) -> Result<AttentionConfirmation, WorkerError> {

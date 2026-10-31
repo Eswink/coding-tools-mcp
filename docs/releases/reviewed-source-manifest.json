@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9n commit 1 (C9 nits 1/2/4/5/7: c8 projection test own 60 s state wait with state+timeline diagnostics; in-repo relay-leftover harness test; tagged-job-owner fail-closed branches byte-identical; clear-attention dialog bounded by count+bytes with 丢弃后无法恢复, hidden-count notice and full listing file, digest still over all entries; WORKER_STATE when the journal changes while the dialog is open) on a1-c9n d2f100f7, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9n commit 2 (comments only: C9n nit 6 prepare_clear_attention is not read-only, it creates a fresh journal when none exists; C9n nit 3 WORKER_NOT_OWNED vs EXEC_TASK_NOT_FOUND reveals that a job exists, low risk with UUIDv4 job ids) on a1-c9n 1a066a62, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8f62425fde0983d49ec7f96fce2f698c881e61c6",
-        "sha256": "97b7c993ecf7c6c04870a762c1cb5d3d5f920585cc5f6884404498397a6f899d"
+        "blob_sha": "61343ec84f6a9bf56ea0a5cec5e15128148a1f0d",
+        "sha256": "f538c8c297bd91d09bfb4ad5150d60ad04be6f0e4c72c6fc3b8e56fce1039647"
       }
     },
     {
@@ -10544,8 +10544,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a820cc309bebe15abdf767ea15000f4933a5dcfc",
-        "sha256": "f5258e5d9c144357a3e026014134017cf848b3dc6c2c8f902c36affb0f1a6088"
+        "blob_sha": "930cdb4bcb7633a8b4b34306d97401fb41ed5975",
+        "sha256": "7f93e7d4f40d265875dedbe25ebc4293be59c0a464ab26de9e628db881d69e6d"
       }
     },
     {
@@ -10584,8 +10584,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d9f6b8fee3e482dbe5216dbc1c3ec2cf5aea44e9",
-        "sha256": "08f72c3c54d9fb3a5854a73a068705f453708c9cfcf5b71d1bdc1aa2549fcc8c"
+        "blob_sha": "ff3831b71c5df99a447e397bc0a50ed39b54a514",
+        "sha256": "78d1b10603bf1ada832e060ba9c7297ea975ad5ea8be3f769e605f183c10b5f5"
       }
     },
     {

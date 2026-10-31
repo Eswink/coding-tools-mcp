@@ -1542,6 +1542,11 @@ pub(crate) fn owned_worktrees(ctx: &ToolContext) -> Result<BTreeSet<String>, Wor
 /// a worker the caller does not own fail as WORKER_NOT_OWNED, indistinguishable
 /// from an unknown worker and without the worker_id. Every failure on the way
 /// (malformed tag, no store, corrupt store, foreign record) fails closed the same.
+/// C9n nit 3: it is still distinguishable from EXEC_TASK_NOT_FOUND, so a caller
+/// who holds a job_id learns that this job exists (not its worker or owner).
+/// Accepted as low risk: job_ids are UUIDv4 (122 random bits, guessing is
+/// impractical) and `list_exec_tasks` shows a tagged job only in its own
+/// worker's context (SPEC-A1 v5.10).
 pub(crate) fn check_tagged_job_owner(
     ctx: &ToolContext,
     worker_id: &str,
