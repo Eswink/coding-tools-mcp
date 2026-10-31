@@ -53,6 +53,22 @@ pub struct ResourceReport {
     pub cgroup_partial: Vec<&'static str>,
     /// `"cgroup_pids_max"`, or `"none"` (fallback, or no pids controller).
     pub procs_limit: &'static str,
+    /// A1 C6s: how the leader's group is cleaned. `"holder_killpg"`: one
+    /// `kill(-pgid)` after the group's holder was confirmed alive. Where this
+    /// host cannot run the holder there is no group kill: `"cgroup_kill_on_cancel"`
+    /// (leftovers stay in `w-<id>` until the worker's `cgroup.kill`), or
+    /// `"skipped_unsafe"` (no cgroup: residual risk, leftovers survive).
+    pub group_cleanup: &'static str,
+}
+
+/// A1 C6s: `ResourceReport::group_cleanup` for a host that can (`holds`) or
+/// cannot run the group holder, with or without a cgroup.
+fn group_cleanup(holds: bool, cgroup: bool) -> &'static str {
+    match (holds, cgroup) {
+        (true, _) => "holder_killpg",
+        (false, true) => "cgroup_kill_on_cancel",
+        (false, false) => "skipped_unsafe",
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -219,6 +235,7 @@ impl WorkerResources {
                 cgroup_error: Some(error),
                 cgroup_partial: Vec::new(),
                 procs_limit: "none",
+                group_cleanup: group_cleanup(crate::process_tree::host_holds_groups(), false),
             },
             migration: None,
         }
@@ -285,6 +302,7 @@ impl WorkerResources {
                 cgroup_error: None,
                 cgroup_partial: partial,
                 procs_limit,
+                group_cleanup: group_cleanup(crate::process_tree::host_holds_groups(), true),
             },
             migration: Some(Arc::new(migration)),
         }
@@ -646,6 +664,7 @@ mod tests {
                 cgroup_error: None,
                 cgroup_partial: vec![],
                 procs_limit: "cgroup_pids_max",
+                group_cleanup: "holder_killpg",
             }
         );
         assert_eq!(
@@ -657,6 +676,16 @@ mod tests {
         let probe = fs::read_to_string(dir.join("cgroup.procs")).unwrap();
         assert!(probe.trim_end().parse::<u32>().unwrap() > 1, "{probe:?}");
         assert_eq!(resources.rlimits, Rlimits::default());
+    }
+
+    /// A1 C6s: without the group holder there is no group kill;
+    /// the report names the cgroup's `cgroup.kill` or the residual risk.
+    #[test]
+    fn group_cleanup_reports_the_fallback_or_the_residual_risk() {
+        assert_eq!(group_cleanup(true, true), "holder_killpg");
+        assert_eq!(group_cleanup(true, false), "holder_killpg");
+        assert_eq!(group_cleanup(false, true), "cgroup_kill_on_cancel");
+        assert_eq!(group_cleanup(false, false), "skipped_unsafe");
     }
 
     #[test]
@@ -694,6 +723,7 @@ mod tests {
                 cgroup_error: Some("EACCES".into()),
                 cgroup_partial: vec![],
                 procs_limit: "none",
+                group_cleanup: "holder_killpg",
             }
         );
         assert_eq!(resources.rlimits, ALL_RLIMITS);
@@ -759,6 +789,7 @@ mod tests {
                 cgroup_error: Some("ENOENT".into()),
                 cgroup_partial: vec![],
                 procs_limit: "none",
+                group_cleanup: "holder_killpg",
             }
         );
     }

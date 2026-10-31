@@ -212,6 +212,8 @@ async fn worker_resources_report_and_fallback_limits_reach_the_child() {
     let policy = layout.policy().with_worker_resources(&id);
     let report = policy.resource_report().unwrap();
     let limits = probe(&layout, policy, "ulimit -d; ulimit -t").await;
+    // A1 C6s: this host runs the group holder (no kernel feature needed).
+    assert_eq!(report.group_cleanup, "holder_killpg", "{report:?}");
     match report.resource_limit {
         "rlimit_fallback" => {
             assert!(report.cgroup_error.is_some(), "{report:?}");
