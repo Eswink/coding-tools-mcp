@@ -1565,6 +1565,34 @@ fn worker_exec_tasks_are_tagged_and_listed_per_worker() {
 }
 
 #[test]
+fn c8_worker_exec_task_summaries_show_the_worker_id_and_main_ones_do_not() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    let args = with_worker(id, json!({"cmd":"echo w","request_id":"c8-job-w"}));
+    let started = call_tool(&f.ctx, "start_exec_task", &args);
+    assert_eq!(started["ok"], true, "{started}");
+    assert_eq!(started["worker_id"], id, "{started}");
+    let again = call_tool(&f.ctx, "start_exec_task", &args);
+    assert_eq!(again["deduplicated"], true, "{again}");
+    assert_eq!(again["worker_id"], id, "{again}");
+    let listed = call_tool(&f.ctx, "list_exec_tasks", &with_worker(id, json!({})));
+    assert_eq!(listed["jobs"][0]["worker_id"], id, "{listed}");
+
+    let main = call_tool(
+        &f.ctx,
+        "start_exec_task",
+        &json!({"cmd":"echo m","request_id":"c8-job-m"}),
+    );
+    assert_eq!(main["ok"], true, "{main}");
+    assert!(main.get("worker_id").is_none(), "{main}");
+    let all = call_tool(&f.ctx, "list_exec_tasks", &json!({}));
+    let jobs = all["jobs"].as_array().unwrap();
+    assert_eq!(jobs.len(), 1, "{all}");
+    assert!(jobs[0].get("worker_id").is_none(), "{all}");
+}
+
+#[test]
 fn workers_cannot_manage_workers() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");

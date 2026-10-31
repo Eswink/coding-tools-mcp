@@ -118,7 +118,7 @@ impl Job {
 
     pub fn summary(&self) -> Value {
         let d = self.data.lock().expect("job state");
-        json!({
+        let mut summary = json!({
             "job_id": self.id, "request_id": self.request_id, "status": d.status.label(),
             "accepted": true, "terminal": d.status.terminal(), "cancel_requested": d.cancel_requested,
             "created_at": self.created_at, "completed_at": d.completed_at, "timestamp_unit": "unix_ms",
@@ -133,7 +133,13 @@ impl Job {
             "cancellation_scope": "process_tree",
             "next_action": if d.status.terminal() { "read remaining output; do not resubmit automatically" }
                            else { "get_exec_task with this job_id; a running task is not an error" },
-        })
+        });
+        // A1 C8 (SPEC §2.3, §7 C8 row): a worker-tagged job shows its tag. The key
+        // is added only when tagged, so an untagged summary is byte-identical.
+        if let Some(worker_id) = &self.worker_id {
+            summary["worker_id"] = json!(worker_id);
+        }
+        summary
     }
 
     pub fn finish(&self, status: Status, mut result: Value) {

@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c8 commit 1 (C7 nits: gateway worker checkpoint, state check, empty projection, runner e2e, canonical copies) on a1-c8 b8af8834, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c8 commit 2 (C8 body: worker_id in the tagged exec task summary) on a1-c8 b8af8834, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a819a536fdc29c622206f47955193d7c0d0b4dba",
-        "sha256": "755a3ce6ce23348af2dd0f458c8674a77b07f15dc92832681876e490854790df"
+        "blob_sha": "a27b6fef333f364c37135afad361cc87f6cb2d01",
+        "sha256": "37bc43d3ac3b20c3b6001f9e071d7e1ecd118b1565ff1e97ac6ad9073a4a7e3c"
       }
     },
     {
@@ -9869,6 +9869,16 @@
       }
     },
     {
+      "path": "src-tauri/src/tools/c8_exec_summary_tests.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "5240bf58d626b57e6b4e4b9f00cb1f7e3520d1f9",
+        "sha256": "9bb7a4298ebdf904ae53935d13c8de06be35386c7bbf1914446f7a889857d91b"
+      }
+    },
+    {
       "path": "src-tauri/src/tools/cloud_host.rs",
       "status": "A",
       "before": null,
@@ -10624,8 +10634,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b46327474b6c4c8e7ab27b4c107b79d9d2605634",
-        "sha256": "02d0a8575481d1ab7d1ea5d98dd8caaad70c73d96494f95a2645a01b7df5da67"
+        "blob_sha": "0fa2ee04b76bfab271673b46450c2463ba760994",
+        "sha256": "2ad9c5d917b02cba38c41bbc1915c19f82f3d1ffee62ae70ec31278c38c2ffc1"
       }
     },
     {
@@ -10714,8 +10724,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "6ac30d523ad8a20ac0892829c74e1c091d36a9d3",
-        "sha256": "a67edfd43119e466fae18626d2813fa802093559a9fdfecc64b6118683f54bcc"
+        "blob_sha": "e94d51abb5c0b94f3accfbd317d8b6a5a252e7ed",
+        "sha256": "ae43d57f9ee87835f6cbaaf0d8c9e05c77edbbdba1446b20200de31ea07660e6"
       }
     },
     {
@@ -10756,8 +10766,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "260b89edea64c5e29d92555206f22cad789d41ab",
-        "sha256": "3a998c278509feadfe49306ac2e6879fb5e5f3229a6791078187221320b79281"
+        "blob_sha": "58b9c8e0bec06c68b62f686cfd66974620010a9f",
+        "sha256": "38c56082428b09f23cfce4324c6cc7bf8d1b5261c13d7feccada655a1ce1d5ff"
       }
     },
     {

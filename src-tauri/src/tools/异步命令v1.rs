@@ -450,6 +450,11 @@ mod transport_tests;
 #[path = "持久任务回归v2.rs"]
 mod durable_tests;
 
+/// A1 C8: worker_id in the exec task summary (tagged only).
+#[cfg(test)]
+#[path = "c8_exec_summary_tests.rs"]
+mod c8_exec_summary_tests;
+
 #[cfg(test)]
 #[path = "任务恢复传输v2.rs"]
 mod recovery_transport_tests;
