@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9 commit 2 (local-only clear_integration_attention behind a native owner confirm; one list_pending_integrations scan per profile load with the needs_attention notice) on a1-c9 4d2d14b1, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9 commit 3 (test only: the double-click UI test sends both clicks before releasing the first, so a missing busy guard fails by assertion instead of hanging) on a1-c9 ebd10c70, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6278c82354fd101740ff0c1ceed0f7fdb52d8754",
-        "sha256": "eccea149c41adfb3edfbf1900f59dc6762c764efbc351157ecca45e7752ec08e"
+        "blob_sha": "a07c1ace648a990ea859ff16a7b9957619483a9f",
+        "sha256": "335dcd99d7191a0a60db8a7cd4843148b73c772fbc7c7660e857123c9de06263"
       }
     },
     {
@@ -11812,8 +11812,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "70fd3d2ecc16cab24ac3d5b6e108586dde4f1c05",
-        "sha256": "0f808a46c11d937e4d9a5d3a94e3bb07d7fd22bba7f028c759f378886ad2d951"
+        "blob_sha": "b34fd4025901789dd34642e1b041fb2793e8a760",
+        "sha256": "df5d0b81dcc5f733bf10b46600838d9f48933bcd556b03ed21294f47338cf3c6"
       }
     },
     {

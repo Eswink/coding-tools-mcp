@@ -55,7 +55,7 @@ test('a journal that no longer needs attention hides the button; other refusals 
 });
 test('double clicks reach the native command once',async()=>{
   const pending=deferred();const s=setup(cmd=>cmd==='list_pending_integrations'?Promise.resolve(sticky):pending.promise);
-  await s.controller.load();const one=s.controller.clear();await s.controller.clear();pending.resolve(cleared);await one;
+  await s.controller.load();const one=s.controller.clear();const two=s.controller.clear();pending.resolve(cleared);await Promise.all([one,two]);
   assert.equal(commands(s).filter(c=>c==='clear_integration_attention').length,1);
 });
 test('an unconfirmed clear is redacted and locked against retry',async()=>{
