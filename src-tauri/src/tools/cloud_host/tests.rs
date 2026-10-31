@@ -749,3 +749,62 @@ fn cloud_worker_paths_are_checked_against_the_worktree_and_then_fail_closed_on_s
         )
         .is_ok());
 }
+
+/// A1 C7-4 (SPEC §3.5 steps 3-4 and "not cached"): the prepare-time worker
+/// resolution only admits a `ready` worker, even when the record names a live
+/// worktree, and a resolution made by an earlier prepare is not reused.
+#[test]
+fn c7_cloud_prepare_admits_only_ready_workers_and_does_not_cache_the_resolution() {
+    use crate::tools::worktree_tools::workers::{
+        discard, WorkerId, WorkerOwner, WorkerState, WorkerStore,
+    };
+    let f = Fixture::new();
+    f.approve(&["files.read"]);
+    let (id, _) = spawn_worker(&f, &f.conversation());
+    let a = grant_agents_manage(&f);
+    let store = WorkerStore::open_existing(&f.host.context.host)
+        .unwrap()
+        .unwrap();
+    let owner = WorkerOwner::from_request(&f.host.request(&f.conversation()).unwrap()).unwrap();
+    let tree = store
+        .ready_worktree(&owner, &WorkerId::parse(&id).unwrap())
+        .unwrap();
+    for state in [
+        WorkerState::Creating,
+        WorkerState::Cancelled,
+        WorkerState::Failed,
+        WorkerState::PendingCleanup,
+        WorkerState::Discarded,
+        WorkerState::IntegratePending,
+        WorkerState::Integrated,
+    ] {
+        // Same owner, same live worktree: only the state differs.
+        let other = store
+            .inject_for_test(&owner, Some(&tree), state, now().unwrap())
+            .unwrap();
+        assert_eq!(
+            worker_read(&f, &a, &json!(other.as_str()), "fixture.txt").err(),
+            Some("WORKER_NOT_OWNED"),
+            "{state:?}"
+        );
+    }
+    let stale = worker_read(&f, &a, &json!(id), "fixture.txt").unwrap();
+    let mut ctx = f.host.context.background_snapshot();
+    ctx.remote_request = Some(f.host.request(&f.conversation()).unwrap());
+    let mut gone = None;
+    super::super::root_work::dispatch(&ctx, |c| {
+        gone = Some(discard(c, &id).unwrap().state);
+        Value::Null
+    })
+    .unwrap();
+    assert_eq!(gone, Some(WorkerState::Discarded));
+    assert_eq!(
+        worker_read(&f, &a, &json!(id), "fixture.txt").err(),
+        Some("WORKER_NOT_OWNED")
+    );
+    // The earlier prepare's resolution is not reused: dispatch re-resolves
+    // (SPEC §1.4.1 step 3) and its state check rejects with WORKER_STATE.
+    let out = f.host.execute(stale).unwrap();
+    assert_eq!(out["ok"], false, "stale worker call ran: {out}");
+    assert_eq!(out["error"]["code"], "WORKER_STATE", "{out}");
+}

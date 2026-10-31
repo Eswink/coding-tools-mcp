@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7 commit 3 (dirty projection trigger + native workers projection + remote spawn bounded wait, SPEC v5.6 §3.3) on a1-c7 1f777e56, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7 commit 4 (cloud_host prepare worker resolution test, SPEC v5.6 §3.5) on a1-c7 b47457c2, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e0052fdde4cb31bebfddc5c4786a06c193bb5c72",
-        "sha256": "56ca785854959726ac000da093ebaa8a83a9f241f81443316af1f601810c042a"
+        "blob_sha": "ae5dca384b7967e07e5bbde7abac11d344ecf887",
+        "sha256": "d3ebb651e4d721ffb65aa41e44a977ff9b3982881342be8c7dffb8d261136cfc"
       }
     },
     {
@@ -10024,8 +10024,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a205a38451d361518b1f64ecdf24246c0c952f0a",
-        "sha256": "28d7c2ae127464c9f53a43bd1ef7668dda2c172ca0d5d8fcbb43c964f8bd334d"
+        "blob_sha": "d1c5921955aac3e3034b08a27fbc7236a425d524",
+        "sha256": "27f88628c8195558228d5080ad6ce77b38b79f3d6130d21f5a34ef9100cebdb9"
       }
     },
     {
