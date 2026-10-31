@@ -99,6 +99,34 @@ impl Fixture {
     }
 }
 
+/// A1 C6-grant: widen this conversation's grant with agents.manage through the
+/// normal path (local revoke -> remote request_chat_authorization -> local
+/// approve); there is no test seam that injects the scope any more.
+fn grant_agents_manage(ctx: &ToolContext) {
+    let req = ctx.remote_request.as_ref().expect("remote session");
+    let current = req.service.status(req);
+    assert_eq!(current["authorization"]["status"], "active", "{current}");
+    let old = current["authorization"]["id"].as_str().unwrap().to_owned();
+    let mut scopes: Vec<String> = current["authorization"]["scopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_owned())
+        .collect();
+    scopes.push("agents.manage".into());
+    req.service.revoke(&req.profile, Some(&old));
+    let v = call_tool(
+        ctx,
+        "request_chat_authorization",
+        &json!({ "scopes": scopes }),
+    );
+    assert_eq!(v["ok"], true, "{v}");
+    assert_eq!(v["authorization"]["status"], "pending", "{v}");
+    let id = v["authorization"]["id"].as_str().unwrap();
+    assert_ne!(id, old);
+    req.service.decide(&req.profile, id, true, &scopes).unwrap();
+}
+
 #[test]
 fn public_dispatch_create_list_remove_is_idempotent_and_preserves_original() {
     let f = Fixture::new(false);
@@ -395,9 +423,7 @@ fn remote_calls_without_agents_manage_are_rejected_before_any_worker_state() {
     assert!(!f.ctx.host.store_root.join("agents-v1").exists());
     // With the scope held, the same calls fail with the unified argument code
     // (error.code, as on the cloud path), still before any worker state.
-    f.request
-        .service
-        .grant_pending_scope_for_test(&f.request.profile, "agents.manage");
+    grant_agents_manage(&ctx);
     for (name, args) in [
         (
             "read_file",
@@ -419,8 +445,8 @@ fn remote_calls_without_agents_manage_are_rejected_before_any_worker_state() {
 
 #[test]
 fn remote_subagent_lifecycle_runs_through_the_chat_permit_once_agents_manage_is_granted() {
-    // C2-c: end to end through the permit. The schemas are exposed, the call is
-    // denied without agents.manage and allowed once the (pending) scope is held.
+    // C2-c / C6-grant: end to end through the permit. The schemas are exposed,
+    // the call is denied without agents.manage and allowed once it is granted.
     let tools = crate::tools::list_tools();
     let spawn = tools
         .iter()
@@ -441,9 +467,7 @@ fn remote_subagent_lifecycle_runs_through_the_chat_permit_once_agents_manage_is_
         "{denied}"
     );
 
-    f.request
-        .service
-        .grant_pending_scope_for_test(&f.request.profile, "agents.manage");
+    grant_agents_manage(&ctx);
     let spawned = call_tool(
         &ctx,
         "subagent_spawn",
@@ -470,9 +494,7 @@ fn remote_subagent_lifecycle_runs_through_the_chat_permit_once_agents_manage_is_
     assert_eq!(status["workers"][0]["worker_id"], id.as_str(), "{status}");
     // Another conversation cannot see or manage it.
     let other = f.session("conversation-b", &["files.read", "files.write"]);
-    f.request
-        .service
-        .grant_pending_scope_for_test(&f.request.profile, "agents.manage");
+    grant_agents_manage(&other);
     let foreign = call_tool(&other, "subagent_status", &json!({"worker_id": id}));
     assert_eq!(foreign["error"]["code"], "WORKER_NOT_OWNED", "{foreign}");
     let discarded = call_tool(&ctx, "subagent_discard", &json!({"worker_id": id}));
@@ -535,4 +557,104 @@ fn worktree_list_shows_legacy_chat_root_trees_and_create_counts_them() {
     }
     let listed = call_tool(&f.ctx, "worktree_list", &json!({}));
     assert_eq!(listed["worktrees"].as_array().unwrap().len(), 8, "{listed}");
+}
+
+#[test]
+fn agents_manage_is_granted_only_through_request_and_explicit_local_approval() {
+    // A1 C6-grant (SPEC v5.4 §3.1, O13 pending): the normal path end to end.
+    let f = Fixture::shared(false);
+    let ctx = f.session("conversation-a", &["files.read"]);
+    let req = ctx.remote_request.as_ref().unwrap().clone();
+    let service = req.service.clone();
+    let old = service.status(&req)["authorization"]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    service.revoke(&req.profile, Some(&old));
+    // The default request never asks for the sensitive scope.
+    let default = call_tool(&ctx, "request_chat_authorization", &json!({}));
+    assert_eq!(default["ok"], true, "{default}");
+    assert!(
+        !default["authorization"]["scopes"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("agents.manage")),
+        "{default}"
+    );
+    service.revoke(&req.profile, default["authorization"]["id"].as_str());
+    // 1) Requested but the owner approves a subset without it: still denied.
+    let asked = call_tool(
+        &ctx,
+        "request_chat_authorization",
+        &json!({"scopes":["files.read","files.write","agents.manage"]}),
+    );
+    assert_eq!(asked["authorization"]["status"], "pending", "{asked}");
+    let id = asked["authorization"]["id"].as_str().unwrap().to_owned();
+    service
+        .decide(
+            &req.profile,
+            &id,
+            true,
+            &["files.read".to_string(), "files.write".to_string()],
+        )
+        .unwrap();
+    let denied = call_tool(&ctx, "subagent_spawn", &json!({"request_id":"r1"}));
+    assert_eq!(
+        denied["error"]["message"], "INSUFFICIENT_CHAT_SCOPE",
+        "{denied}"
+    );
+    assert!(!f.ctx.host.store_root.join("agents-v1").exists());
+    // 2) The active subset cannot be widened in place: re-request returns it.
+    let again = call_tool(
+        &ctx,
+        "request_chat_authorization",
+        &json!({"scopes":["files.read","files.write","agents.manage"]}),
+    );
+    assert_eq!(again["authorization"]["id"], id.as_str(), "{again}");
+    assert_eq!(again["authorization"]["status"], "active", "{again}");
+    assert!(!again["authorization"]["scopes"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("agents.manage")));
+    // 3) Revoke, request again and approve including agents.manage: allowed.
+    service.revoke(&req.profile, Some(&id));
+    let asked = call_tool(
+        &ctx,
+        "request_chat_authorization",
+        &json!({"scopes":["files.read","files.write","agents.manage"]}),
+    );
+    let id = asked["authorization"]["id"].as_str().unwrap().to_owned();
+    let all: Vec<String> = ["files.read", "files.write", "agents.manage"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    service.decide(&req.profile, &id, true, &all).unwrap();
+    let spawned = call_tool(
+        &ctx,
+        "subagent_spawn",
+        &json!({"request_id":"r1","label":"w"}),
+    );
+    assert_eq!(spawned["ok"], true, "{spawned}");
+    // 4) A scope that was not requested can never be approved (no widening).
+    let other = f.session("conversation-b", &["files.read"]);
+    let oreq = other.remote_request.as_ref().unwrap();
+    let oid = service.status(oreq)["authorization"]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    service.revoke(&oreq.profile, Some(&oid));
+    let asked = call_tool(
+        &other,
+        "request_chat_authorization",
+        &json!({"scopes":["files.read"]}),
+    );
+    let pending = asked["authorization"]["id"].as_str().unwrap();
+    assert!(service
+        .decide(
+            &oreq.profile,
+            pending,
+            true,
+            &["files.read".to_string(), "agents.manage".to_string()],
+        )
+        .is_err());
 }

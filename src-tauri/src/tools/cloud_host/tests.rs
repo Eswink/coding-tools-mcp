@@ -616,10 +616,38 @@ fn worker_read(
     )
 }
 
+/// A1 C6-grant: widen the conversation's grant through the normal path
+/// (local revoke -> remote request_chat_authorization incl. agents.manage ->
+/// local approve). An active grant can never be widened in place.
 fn grant_agents_manage(f: &Fixture) -> NativeAuthority {
+    let snapshot = f.host.authorizer.snapshot(&f.profile);
+    let active: Vec<_> = snapshot["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["status"] == "active")
+        .collect();
+    assert_eq!(active.len(), 1, "{snapshot}");
+    let old = active[0]["id"].as_str().unwrap().to_owned();
+    let mut scopes: Vec<String> = active[0]["scopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_owned())
+        .collect();
+    scopes.push("agents.manage".into());
+    f.host.authorizer.revoke(&f.profile, Some(&old));
+    let v = f
+        .host
+        .request_authorization(&f.conversation(), &json!({ "scopes": scopes }));
+    assert_eq!(v["ok"], true, "{v}");
+    assert_eq!(v["authorization"]["status"], "pending", "{v}");
+    let id = v["authorization"]["id"].as_str().unwrap();
+    assert_ne!(id, old);
     f.host
         .authorizer
-        .grant_pending_scope_for_test(&f.profile, "agents.manage");
+        .decide(&f.profile, id, true, &scopes)
+        .unwrap();
     f.host.authority(&f.conversation()).unwrap()
 }
 
