@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre rc080 DEPTH_LIMIT 128 -> 256 (255/256/257 fixed-chain boundary, never-skip HEAD admission, headroom 16/15 fixture) on a1-c6s bc5a60c6, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7pre C6 nits (holder settle before /proc fd read, group-kill source scan incl. killpg/nix, fallback holder kill after an Ok group kill, PTY worker reports no group holder) on a1-c7pre 71b02131, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bb7b6ac695204825fcfb655cc91c9b3ae30760ef",
-        "sha256": "281facfda292e7cfd17bae8a50575cbe04d480d0c120bbcf61b26bef3f0f8b8d"
+        "blob_sha": "cc67a4fdcf0e366acde9ad5f46ca08c8095576bc",
+        "sha256": "84017b00cc947a607a573c53f5d4612e738e1dba61e8852d693f9278296aad85"
       }
     },
     {
@@ -7790,8 +7790,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d1b027387a3e4e621f8aafb6b80545cc35cdd239",
-        "sha256": "d7faf50306234c77bb47b92d42142f2030ff56ed53c9706db30d5580916f4f44"
+        "blob_sha": "ff977e8a9003cf632962257117498605573e2930",
+        "sha256": "6e671219b8647d5701186c630e6c2b04eee48682d78a436178d10eaa4501ef21"
       }
     },
     {
@@ -7900,8 +7900,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "50ad2d0a9c7830fa56c626399feb6a7c9f7fa0cf",
-        "sha256": "b5de436c96dfc3f25c2e8147b33f981737d6151236a8bc976123e40b966eeae1"
+        "blob_sha": "e22fa90c6aded3cde6307422118e7f978c61e7d1",
+        "sha256": "96cb7d0a5b4ea7990b83bd13c9c8019ca4c8feb1300738905dbdbf2f13192245"
       }
     },
     {
@@ -7910,8 +7910,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c0b4f0108814165b54957030e6c25576feafd7d4",
-        "sha256": "2592429a0c17c9f3286661228a7c24e89d7d839ad1b802350d2d80377916fbc3"
+        "blob_sha": "7113b6efd9c73a0f92e9ebe31dfb7cb704c67dff",
+        "sha256": "5314f91843a198dd2f5321d504955b579f9f5179c56d7aa35387fe83ff175159"
       }
     },
     {
@@ -10792,8 +10792,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "e675e335972b335f7134a0419a2502eef6e5d5b8",
-        "sha256": "516e6f865ac65cbe1cf09fcdcf2f5a7cbc72249d5a27324b040e47cacd80daf5"
+        "blob_sha": "719574af7c0568b85daf63fb2532a2b316cc41ff",
+        "sha256": "b40116f134512b510c58d940ebe8a42afdf0777a4065e23a32b474e007697a65"
       }
     },
     {

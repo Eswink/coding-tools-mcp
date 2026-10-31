@@ -239,10 +239,12 @@ impl GroupHold {
         self.cleanup = if result.is_ok() {
             GroupCleanup::KilledWithHolder
         } else {
-            // Our own unreaped child, by its pid.
-            let _ = holder.kill();
             GroupCleanup::KillFailed
         };
+        // A1 C7pre: whether or not the group kill reached it, our own
+        // unreaped child, by its pid, so the reap below cannot block (a zombie
+        // or an already-killed holder makes this a no-op; ESRCH is ignored).
+        let _ = holder.kill();
         let _ = holder.wait();
         result
     }
@@ -455,6 +457,101 @@ mod pidfd_tests {
         tree.2.holder.as_ref().expect("a holder").id() as libc::pid_t
     }
 
+    /// The sorted `(fd, target)` list of `pid`, read whole (`None` if any
+    /// entry vanished mid-read).
+    fn fds_of(pid: libc::pid_t) -> Option<Vec<(String, String)>> {
+        let mut fds = Vec::new();
+        for entry in std::fs::read_dir(format!("/proc/{pid}/fd")).ok()? {
+            let entry = entry.ok()?;
+            let target = std::fs::read_link(entry.path()).ok()?;
+            fds.push((
+                entry.file_name().to_string_lossy().into_owned(),
+                target.display().to_string(),
+            ));
+        }
+        fds.sort();
+        Some(fds)
+    }
+
+    /// A1 C7pre: the holder's fds once it has settled into its sleep: `exe`
+    /// is the holder program, the state is `S`, and two reads 20 ms apart
+    /// agree. Before that its `ld.so` may still hold library fds open. Bounded
+    /// (5 s); past the deadline the last read is returned as is, so the
+    /// caller's assertion (unchanged) decides.
+    fn settled_fds(pid: libc::pid_t) -> Vec<(String, String)> {
+        let program = std::fs::canonicalize(HOLDER_PROGRAM).unwrap();
+        let sleeping = || {
+            std::fs::read_to_string(format!("/proc/{pid}/stat"))
+                .ok()
+                .and_then(|stat| {
+                    stat.rsplit_once(") ")
+                        .map(|(_, rest)| rest.starts_with('S'))
+                })
+                .unwrap_or(false)
+        };
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut last = fds_of(pid);
+        loop {
+            let exe = std::fs::read_link(format!("/proc/{pid}/exe")).ok();
+            if exe.as_deref() == Some(program.as_path()) && sleeping() {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                let again = fds_of(pid);
+                if again.is_some() && again == last && sleeping() {
+                    return again.unwrap();
+                }
+                last = again;
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                last = fds_of(pid);
+            }
+            if std::time::Instant::now() >= deadline {
+                return last.unwrap_or_default();
+            }
+        }
+    }
+
+    /// A1 C7pre: the injected group kill that reports success but reaches
+    /// nothing (neither the group nor its holder).
+    fn kill_nothing(_: libc::pid_t) -> io::Result<()> {
+        Ok(())
+    }
+
+    /// A1 C7pre: after a group kill that returned `Ok` but missed the holder,
+    /// `terminate` still kills and reaps the holder by its pid instead of
+    /// blocking in its reap.
+    #[tokio::test]
+    async fn an_ok_group_kill_that_missed_the_holder_still_reaps_it() {
+        let mut command = Command::new("/bin/sleep");
+        command.arg("30");
+        command.kill_on_drop(true);
+        command.process_group(0);
+        let mut child = command.spawn().unwrap();
+        let pid = child.id().unwrap() as libc::pid_t;
+        let mut tree = ProcessTree::held_with(pid, spawn_holder, kill_nothing);
+        let holder = holder_pid(&tree);
+        let (done, finished) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let ok = tree.terminate().is_ok();
+            let _ = done.send((ok, tree.group_cleanup()));
+        });
+        let outcome = finished.recv_timeout(std::time::Duration::from_secs(10));
+        if outcome.is_err() {
+            // Our own holder child, by its pid, so the blocked reap returns.
+            unsafe { libc::kill(holder, libc::SIGKILL) };
+        }
+        worker.join().unwrap();
+        assert_eq!(
+            outcome.ok(),
+            Some((true, GroupCleanup::KilledWithHolder)),
+            "terminate blocked on a holder the group kill missed"
+        );
+        assert!(
+            !std::path::Path::new(&format!("/proc/{holder}")).exists(),
+            "the holder was not reaped"
+        );
+        assert_eq!(child.wait().await.unwrap().signal(), Some(libc::SIGKILL));
+    }
+
     /// A1 C4-c C: once the leader has been reaped, terminate sends nothing to
     /// its old pgid, so a process now holding that group (here a leftover of
     /// the same group, standing in for any reuse) is untouched. (A1 C6s: on a
@@ -545,18 +642,7 @@ mod pidfd_tests {
         let leader = child.id().unwrap() as libc::pid_t;
         let holder = holder_pid(&tree);
         assert_eq!(unsafe { libc::getpgid(holder) }, leader);
-        let mut fds: Vec<(String, String)> = std::fs::read_dir(format!("/proc/{holder}/fd"))
-            .unwrap()
-            .map(|entry| {
-                let entry = entry.unwrap();
-                let target = std::fs::read_link(entry.path()).unwrap();
-                (
-                    entry.file_name().to_string_lossy().into_owned(),
-                    target.display().to_string(),
-                )
-            })
-            .collect();
-        fds.sort();
+        let fds = settled_fds(holder);
         let null = |fd: &str| (fd.to_string(), "/dev/null".to_string());
         assert_eq!(fds, vec![null("0"), null("1"), null("2")]);
         let cmdline = std::fs::read(format!("/proc/{holder}/cmdline")).unwrap();
@@ -651,6 +737,22 @@ mod pidfd_tests {
             .next()
             .unwrap();
         assert_eq!(code.matches(concat!("libc::", "kill(-")).count(), 1);
+        // A1 C7pre: no other spelling of a group kill either: `killpg`
+        // (libc or nix), or nix's `kill` on a negated pid; comments aside,
+        // the only `kill(-` is the one above.
+        let calls: String = code
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("//"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        for spelling in [
+            concat!("kill", "pg("),
+            concat!("Pid::from_raw(", "-"),
+            concat!("signal::", "kill("),
+        ] {
+            assert_eq!(calls.matches(spelling).count(), 0, "{spelling}");
+        }
+        assert_eq!(calls.matches(concat!("kill", "(-")).count(), 1);
         let body = code.split("fn kill_held_group(").nth(1).unwrap();
         let first = body.find(concat!("libc::", "kill(-")).unwrap();
         assert!(first < 120, "the group kill is not kill_held_group's");

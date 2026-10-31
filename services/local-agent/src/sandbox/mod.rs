@@ -175,6 +175,13 @@ impl LinuxSandbox {
         self.resources.as_deref().map(|r| r.report())
     }
 
+    /// A1 C7pre: the environment report for a PTY worker under this policy:
+    /// its session-leader group has no holder, so no group kill is reported.
+    #[cfg(target_arch = "x86_64")]
+    pub fn pty_resource_report(&self) -> Option<ResourceReport> {
+        self.resources.as_deref().map(|r| r.pty_report())
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,

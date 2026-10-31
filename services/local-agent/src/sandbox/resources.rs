@@ -62,9 +62,11 @@ pub struct ResourceReport {
 }
 
 /// A1 C6s: `ResourceReport::group_cleanup` for a host that can (`holds`) or
-/// cannot run the group holder, with or without a cgroup.
-fn group_cleanup(holds: bool, cgroup: bool) -> &'static str {
-    match (holds, cgroup) {
+/// cannot run the group holder, with or without a cgroup. A1 C7pre: a `pty`
+/// leader calls `setsid`, so its holder cannot join the group (`EPERM`,
+/// `GroupCleanup::SkippedNoHolder`) and there is no group kill on any host.
+fn group_cleanup(holds: bool, cgroup: bool, pty: bool) -> &'static str {
+    match (holds && !pty, cgroup) {
         (true, _) => "holder_killpg",
         (false, true) => "cgroup_kill_on_cancel",
         (false, false) => "skipped_unsafe",
@@ -235,7 +237,11 @@ impl WorkerResources {
                 cgroup_error: Some(error),
                 cgroup_partial: Vec::new(),
                 procs_limit: "none",
-                group_cleanup: group_cleanup(crate::process_tree::host_holds_groups(), false),
+                group_cleanup: group_cleanup(
+                    crate::process_tree::host_holds_groups(),
+                    false,
+                    false,
+                ),
             },
             migration: None,
         }
@@ -302,7 +308,7 @@ impl WorkerResources {
                 cgroup_error: None,
                 cgroup_partial: partial,
                 procs_limit,
-                group_cleanup: group_cleanup(crate::process_tree::host_holds_groups(), true),
+                group_cleanup: group_cleanup(crate::process_tree::host_holds_groups(), true, false),
             },
             migration: Some(Arc::new(migration)),
         }
@@ -317,6 +323,18 @@ impl WorkerResources {
             }
             _ => self.report.clone(),
         }
+    }
+
+    /// A1 C7pre: the report for a PTY worker: as `report`, except that its
+    /// group is never held (see `group_cleanup`).
+    pub(crate) fn pty_report(&self) -> ResourceReport {
+        let mut report = self.report();
+        report.group_cleanup = group_cleanup(
+            crate::process_tree::host_holds_groups(),
+            report.resource_limit == "cgroup_v2",
+            true,
+        );
+        report
     }
 
     /// Opened in the parent for each child. A cgroup that can no longer be
@@ -682,10 +700,35 @@ mod tests {
     /// the report names the cgroup's `cgroup.kill` or the residual risk.
     #[test]
     fn group_cleanup_reports_the_fallback_or_the_residual_risk() {
-        assert_eq!(group_cleanup(true, true), "holder_killpg");
-        assert_eq!(group_cleanup(true, false), "holder_killpg");
-        assert_eq!(group_cleanup(false, true), "cgroup_kill_on_cancel");
-        assert_eq!(group_cleanup(false, false), "skipped_unsafe");
+        assert_eq!(group_cleanup(true, true, false), "holder_killpg");
+        assert_eq!(group_cleanup(true, false, false), "holder_killpg");
+        assert_eq!(group_cleanup(false, true, false), "cgroup_kill_on_cancel");
+        assert_eq!(group_cleanup(false, false, false), "skipped_unsafe");
+    }
+
+    /// A1 C7pre: a PTY worker's group has no holder (its leader is a session
+    /// leader), so even on a holding host the report names no group kill.
+    #[test]
+    fn a_pty_worker_reports_no_group_holder() {
+        for holds in [true, false] {
+            assert_eq!(group_cleanup(holds, true, true), "cgroup_kill_on_cancel");
+            assert_eq!(group_cleanup(holds, false, true), "skipped_unsafe");
+        }
+        let (root, _dir) = fake(&["memory", "pids", "cpu"]);
+        let resources = WorkerResources::prepare_under(Ok(&root.0), "w1");
+        assert_eq!(resources.report().group_cleanup, "holder_killpg");
+        let pty = resources.pty_report();
+        assert_eq!(pty.group_cleanup, "cgroup_kill_on_cancel");
+        assert_eq!(
+            ResourceReport {
+                group_cleanup: "holder_killpg",
+                ..pty
+            },
+            resources.report()
+        );
+        let fallback = WorkerResources::prepare_under(Err("NO_USER_SYSTEMD"), "w1");
+        assert_eq!(fallback.report().group_cleanup, "holder_killpg");
+        assert_eq!(fallback.pty_report().group_cleanup, "skipped_unsafe");
     }
 
     #[test]
