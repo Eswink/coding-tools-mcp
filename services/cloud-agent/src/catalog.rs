@@ -17,10 +17,9 @@ pub struct ToolSpec {
     pub schema: Value,
 }
 
+/// A1 C6: a regular LOCAL_SCOPES member (the C2b pending set is gone); it is
+/// only ever held after an explicit local approval that ticks it.
 const AGENTS_MANAGE: &str = "agents.manage";
-/// Scopes the catalog may declare that no grant can carry yet (A1 C2b): every
-/// remote call needing one fails closed until C6 makes it grantable (O13).
-pub const PENDING_SCOPES: &[&str] = &[AGENTS_MANAGE];
 
 pub fn tools() -> &'static [ToolSpec] {
     static TOOLS: OnceLock<Vec<ToolSpec>> = OnceLock::new();

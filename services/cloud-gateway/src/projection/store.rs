@@ -15,6 +15,10 @@ impl ConversationBinding {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+    #[cfg(test)]
+    pub(crate) fn for_test(value: String) -> Self {
+        Self(value)
+    }
 }
 impl std::fmt::Debug for ConversationBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

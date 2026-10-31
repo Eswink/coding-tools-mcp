@@ -13,11 +13,11 @@ fn complete_catalog_is_closed_unique_and_has_only_native_scopes() {
     );
     for spec in specs {
         assert!(!spec.scopes.is_empty());
-        // Declared scopes are grantable LOCAL_SCOPES or the reviewed pending set
-        // (agents.manage), which no grant can carry until C6 (fail-closed).
-        assert!(spec.scopes.iter().all(|s| {
-            crate::grant::LOCAL_SCOPES.contains(&s.as_str()) || PENDING_SCOPES.contains(&s.as_str())
-        }));
+        // A1 C6: every declared scope (agents.manage included) is grantable.
+        assert!(spec
+            .scopes
+            .iter()
+            .all(|s| crate::grant::LOCAL_SCOPES.contains(&s.as_str())));
         assert_eq!(spec.schema["type"], "object");
         assert_eq!(spec.schema["additionalProperties"], false);
         for forbidden in [
@@ -220,11 +220,13 @@ const WORKER_ID_TOOLS: [&str; 22] = [
 ];
 
 #[test]
-fn agents_manage_is_declared_but_never_grantable_in_c2b() {
-    assert_eq!(PENDING_SCOPES, ["agents.manage"]);
-    for scope in PENDING_SCOPES {
-        assert!(!crate::grant::LOCAL_SCOPES.contains(scope));
-    }
+fn agents_manage_is_grantable_since_c6() {
+    let scopes = crate::grant::LOCAL_SCOPES;
+    assert_eq!(scopes.len(), 10);
+    assert_eq!(scopes.last(), Some(&"agents.manage"));
+    assert!(tools()
+        .iter()
+        .any(|t| t.scopes.iter().any(|s| s == "agents.manage")));
 }
 
 #[test]

@@ -251,7 +251,7 @@ pub fn catalog() -> Vec<Value> {
     let empty = json!({"type":"object","properties":{},"additionalProperties":false});
     let mut result = vec![
         tool("auth_status", "Return only this conversation's authorization class. OAuth never grants local execution authority.", empty, true),
-        tool("request_chat_authorization", "Request pending local desktop approval for this conversation. Only the local owner can approve; never retry offline authorization or reconnect OAuth to bypass it.", json!({"type":"object","properties":{"scopes":{"type":"array","minItems":1,"maxItems":9,"uniqueItems":true,"items":{"type":"string","enum":coding_tools_cloud_agent::grant::LOCAL_SCOPES}}},"additionalProperties":false}), false),
+        tool("request_chat_authorization", "Request pending local desktop approval for this conversation. Only the local owner can approve; never retry offline authorization or reconnect OAuth to bypass it.", json!({"type":"object","properties":{"scopes":{"type":"array","minItems":1,"maxItems":coding_tools_cloud_agent::grant::LOCAL_SCOPES.len(),"uniqueItems":true,"items":{"type":"string","enum":coding_tools_cloud_agent::grant::LOCAL_SCOPES}}},"additionalProperties":false}), false),
     ];
     result.extend(coding_tools_cloud_agent::catalog::tools().iter().map(|spec| {
         json!({"name":spec.name,
@@ -376,6 +376,19 @@ mod tests {
             params: Map::new(),
         };
         assert!(validate_version(&list, &HeaderMap::new()).is_err());
+    }
+    #[test]
+    fn request_authorization_schema_allows_exactly_the_ten_local_scopes() {
+        // A1 C6 / NB-d (protocol.rs:254): maxItems follows LOCAL_SCOPES (9 -> 10).
+        let tool = catalog()
+            .into_iter()
+            .find(|t| t["name"] == "request_chat_authorization")
+            .unwrap();
+        let scopes = &tool["inputSchema"]["properties"]["scopes"];
+        assert_eq!(scopes["maxItems"], 10);
+        let listed: Vec<_> = scopes["items"]["enum"].as_array().unwrap().iter().collect();
+        assert_eq!(listed.len(), 10);
+        assert!(listed.iter().any(|s| *s == "agents.manage"));
     }
     #[test]
     fn catalog_is_stable_and_side_effect_free() {

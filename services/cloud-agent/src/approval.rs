@@ -182,6 +182,25 @@ mod tests {
         );
     }
     #[test]
+    fn request_may_ask_for_agents_manage_and_all_ten_scopes_but_not_eleven() {
+        use crate::grant::LOCAL_SCOPES;
+        assert_eq!(LOCAL_SCOPES.len(), 10);
+        for args in [
+            json!({"scopes":["agents.manage"]}),
+            json!({"scopes":["files.read","agents.manage"]}),
+            json!({"scopes":LOCAL_SCOPES}),
+            // Old clients that never ask for it stay valid.
+            json!({"scopes":&LOCAL_SCOPES[..9]}),
+        ] {
+            validate_arguments(ApprovalMethod::Request, &args).unwrap();
+        }
+        let mut eleven = LOCAL_SCOPES.to_vec();
+        eleven.push("agents.admin");
+        for args in [json!({"scopes":eleven}), json!({"scopes":["agents.admin"]})] {
+            assert!(validate_arguments(ApprovalMethod::Request, &args).is_err());
+        }
+    }
+    #[test]
     fn strict_binding_covers_peer_deadline_method_and_canonical_arguments() {
         let r = request();
         r.validate_at(&r.binding.peer, 100).unwrap();

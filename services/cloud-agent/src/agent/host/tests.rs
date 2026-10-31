@@ -216,6 +216,27 @@ fn host_state_is_redacted_and_validates_shape() {
     .is_err());
 }
 #[test]
+fn host_snapshot_accepts_ten_scope_grants_with_agents_manage() {
+    // A1 C6 / NB-d (authority.rs:140-141): the 10-scope set is valid, the old
+    // 9-scope set stays valid, an unknown scope or an 11th entry is rejected.
+    use crate::grant::LOCAL_SCOPES;
+    assert_eq!(LOCAL_SCOPES.len(), 10);
+    let f = Fixture::simple();
+    let s = f.host.state.lock().unwrap().clone();
+    let with = |scopes: &[&str]| {
+        let mut g = s.grant.clone().unwrap();
+        g.scopes = scopes.iter().map(|x| (*x).to_owned()).collect();
+        HostAuthoritySnapshot::new(1, 1, 1, s.phase, s.execution, Some(g), None)
+    };
+    assert!(with(LOCAL_SCOPES).is_ok());
+    assert!(with(&LOCAL_SCOPES[..9]).is_ok());
+    assert!(with(&["agents.manage"]).is_ok());
+    assert!(with(&["agents.admin"]).is_err());
+    let mut eleven = LOCAL_SCOPES.to_vec();
+    eleven.push("files.read");
+    assert!(with(&eleven).is_err());
+}
+#[test]
 fn initialization_is_explicit_and_never_overwrites() {
     let f = Fixture::simple();
     assert!(matches!(f.agent(false), Err(AgentError::Journal)));

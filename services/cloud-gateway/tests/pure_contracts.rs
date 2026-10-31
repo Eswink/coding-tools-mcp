@@ -191,3 +191,22 @@ fn malformed_or_oversized_grants_fail_closed() {
         Err(IdentityError::InvalidProof)
     );
 }
+#[test]
+fn signed_ten_scope_grant_allows_agents_manage() {
+    // A1 C6 (grant.rs verify_grant): 10 scopes are accepted, agents.manage is allowed.
+    let scopes = coding_tools_cloud_gateway::grant::LOCAL_SCOPES;
+    assert_eq!(scopes.len(), 10);
+    let (key, d, mut c) = signed();
+    c.scopes = scopes.iter().map(|s| (*s).to_owned()).collect();
+    let payload = serde_json::to_vec(&c).unwrap();
+    let signature = key.sign(&grant_message(&payload).unwrap());
+    let g = verify_grant(&identity(), &d, &payload, signature.as_ref(), 150).unwrap();
+    assert!(g.allows("agents.manage", &c.conversation, 3, 150));
+    assert!(g.allows("files.read", &c.conversation, 3, 150));
+    // A grant that did not tick agents.manage never allows it.
+    let (key, d, c) = signed();
+    let payload = serde_json::to_vec(&c).unwrap();
+    let signature = key.sign(&grant_message(&payload).unwrap());
+    let g = verify_grant(&identity(), &d, &payload, signature.as_ref(), 150).unwrap();
+    assert!(!g.allows("agents.manage", &c.conversation, 3, 150));
+}

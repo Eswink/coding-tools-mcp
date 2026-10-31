@@ -215,3 +215,20 @@ fn payload_bounds_and_debug_do_not_expose_authority_material() {
     assert!(!debug.contains(&c.challenge));
     assert!(!debug.contains(&c.grant.unwrap().conversation));
 }
+#[test]
+fn ten_scope_grants_with_agents_manage_verify_and_eleven_do_not() {
+    // A1 C6 (claims.rs:162-178): the full 10-scope set (agents.manage included)
+    // verifies; an older 9-scope grant still verifies; 11 entries never do.
+    let scopes = coding_tools_cloud_gateway::grant::LOCAL_SCOPES;
+    assert_eq!(scopes.len(), 10);
+    let (_, _, c) = sample();
+    let mut v = serde_json::to_value(&c).unwrap();
+    for set in [scopes, &scopes[..9], &["agents.manage"][..]] {
+        v["grant"]["scopes"] = json!(set);
+        assert!(check_value(&v), "{set:?}");
+    }
+    let mut eleven = scopes.to_vec();
+    eleven.push("agents.admin");
+    v["grant"]["scopes"] = json!(eleven);
+    assert!(!check_value(&v));
+}

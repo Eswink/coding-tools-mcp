@@ -105,3 +105,17 @@ fn client_server_strict_codecs_reject_added_authority_fields() {
         assert!(serde_json::from_value::<server::channel::ControlMessage>(bad).is_err());
     }
 }
+#[test]
+fn client_server_both_accept_agents_manage_bindings() {
+    // A1 C6 / NB-d (agent_wire_parity.rs:65): both ends carry the same 10 scopes
+    // and accept an agents.manage execution binding identically.
+    assert_eq!(server::grant::LOCAL_SCOPES.len(), 10);
+    assert!(client::grant::LOCAL_SCOPES.contains(&"agents.manage"));
+    let mut value = request();
+    value["binding"]["scope"] = json!("agents.manage");
+    value["binding"]["tool"] = json!("subagent_status");
+    let a: client::execution::ExecutionRequest = serde_json::from_value(value.clone()).unwrap();
+    let b: server::execution::ExecutionRequest = serde_json::from_value(value).unwrap();
+    a.validate_at(&a.binding.peer, 100).unwrap();
+    b.validate_at(&b.binding.peer, 100).unwrap();
+}
