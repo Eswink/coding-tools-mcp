@@ -253,6 +253,7 @@ pub fn run() {
             commands::subagent_integration::reject_subagent_integration,
             commands::subagent_integration::confirm_subagent_rollback,
             commands::subagent_integration::reject_subagent_rollback,
+            commands::subagent_integration::clear_integration_attention,
             commands::workspace_snapshots::snapshot_list,
             commands::workspace_snapshots::snapshot_capture,
             commands::workspace_snapshots::snapshot_plan_restore,

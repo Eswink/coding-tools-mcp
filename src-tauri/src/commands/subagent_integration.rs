@@ -152,3 +152,35 @@ pub async fn reject_subagent_rollback(
     .await?;
     Ok(value(out))
 }
+
+/// C9 (SPEC-A1 §0.9 nit 1): local only, not in the MCP tool table. Refuses
+/// unless the journal is `needs_attention`; the native dialog lists the
+/// journal's integration_id and entry paths, and only an approval for that
+/// digest sets the journal back to `none` and drops the pre-images. No
+/// workspace file is written. `None` when the owner cancelled.
+#[tauri::command]
+pub async fn clear_integration_attention(app: AppHandle, id: String) -> AppResult<Option<Value>> {
+    let state = app.state::<AppState>();
+    let ctx = context(&state, &id)?;
+    let card = match native(ctx.clone(), integration::prepare_clear_attention).await? {
+        Ok(card) => card,
+        Err(e) => return Ok(Some(error_value(&e))),
+    };
+    let summary = json!({"operation": integration::ATTENTION_SCOPE, "card": card.summary});
+    let Some(approval) = confirm(
+        &app,
+        integration::ATTENTION_SCOPE,
+        &card.title,
+        summary,
+        &card.digest,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
+    let out = native(ctx, move |c| {
+        integration::apply_clear_attention(c, &card, &approval)
+    })
+    .await?;
+    Ok(Some(value(out)))
+}

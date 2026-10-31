@@ -1527,3 +1527,199 @@ fn head_moving_while_the_dialog_is_open_writes_nothing() {
         IntegrationState::Committed
     );
 }
+
+// ---- C9-2: clear_integration_attention (SPEC-A1 §0.9 nit 1) ----
+
+/// Every workspace file outside `.git`: path, bytes and mode.
+fn workspace_files(root: &Path) -> Vec<(String, Vec<u8>, u32)> {
+    use std::os::unix::fs::PermissionsExt;
+    fn walk(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>, u32)>) {
+        let mut names: Vec<_> = fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .collect();
+        names.sort();
+        for path in names {
+            let rel = path
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            if rel == ".git" {
+                continue;
+            }
+            let meta = fs::symlink_metadata(&path).unwrap();
+            if meta.is_dir() {
+                out.push((format!("{rel}/"), Vec::new(), meta.permissions().mode()));
+                walk(root, &path, out);
+            } else {
+                out.push((rel, fs::read(&path).unwrap(), meta.permissions().mode()));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, root, &mut out);
+    out
+}
+/// A journal left `needs_attention` by recovery (row 3), as in the C5 test.
+fn needs_attention(f: &Fixture) {
+    let root = f.root.path();
+    crashed(
+        &f.ctx,
+        JournalState::RollingBack,
+        vec![
+            entry("m1.txt", Some((b"a\n", false)), Some((b"b\n", false))),
+            entry("m2.txt", Some((b"a\n", false)), Some((b"b\n", false))),
+            entry("gone.txt", Some((b"g\n", false)), None),
+        ],
+    );
+    write(root, "m1.txt", b"b\n");
+    write(root, "m2.txt", b"owner\n");
+    assert_eq!(recover(&f.ctx)["state"], "needs_attention");
+}
+fn attention_card(ctx: &ToolContext) -> Result<integration::AttentionConfirmation, Value> {
+    scoped(ctx, integration::prepare_clear_attention).map_err(|e| error_value(&e))
+}
+fn clear_attention(
+    ctx: &ToolContext,
+    card: &integration::AttentionConfirmation,
+    scope: &'static str,
+) -> Value {
+    let approval = OwnerApproval::for_test(scope, &card.digest);
+    as_value(scoped(ctx, |c| {
+        integration::apply_clear_attention(c, card, &approval)
+    }))
+}
+
+#[test]
+fn c9_clear_attention_refuses_unless_the_journal_needs_attention() {
+    let f = Fixture::new();
+    let fresh = attention_card(&f.ctx)
+        .map(|c| c.summary)
+        .unwrap_or_else(|e| e);
+    assert_eq!(code(&fresh), "WORKER_STATE", "{fresh}");
+    assert_eq!(
+        fresh["error"]["details"],
+        json!({"reason": "not_needs_attention", "journal": "none"}),
+        "{fresh}"
+    );
+    for state in [
+        JournalState::Prepared,
+        JournalState::RollingBack,
+        JournalState::Committed,
+    ] {
+        crashed(
+            &f.ctx,
+            state,
+            vec![entry("m.txt", Some((b"a\n", false)), Some((b"b\n", false)))],
+        );
+        let before = journal_of(&f.ctx);
+        let out = attention_card(&f.ctx)
+            .map(|c| c.summary)
+            .unwrap_or_else(|e| e);
+        assert_eq!(code(&out), "WORKER_STATE", "{state:?}: {out}");
+        assert_eq!(
+            out["error"]["details"]["reason"], "not_needs_attention",
+            "{out}"
+        );
+        assert_eq!(journal_of(&f.ctx), before, "{state:?}");
+    }
+}
+
+#[test]
+fn c9_clear_attention_lists_the_journal_and_resets_it_only_after_the_owner_approves() {
+    let f = Fixture::new();
+    let root = f.root.path();
+    needs_attention(&f);
+    let before = journal_of(&f.ctx);
+    let files = workspace_files(root);
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert_eq!(card.digest.len(), 64);
+    assert_eq!(
+        card.summary,
+        json!({
+            "integration_id": "b".repeat(32),
+            "entries": ["m1.txt", "m2.txt", "gone.txt"],
+            "entries_total": 3,
+            "journal_after": "none",
+            "pre_images": "discarded",
+            "workspace_files_written": false,
+        })
+    );
+    assert_eq!(journal_of(&f.ctx), before, "prepare writes nothing");
+    // An approval for another scope or another digest changes nothing.
+    let wrong_scope = clear_attention(&f.ctx, &card, integration::ROLLBACK_SCOPE);
+    assert_eq!(
+        code(&wrong_scope),
+        "OWNER_CONFIRMATION_REQUIRED",
+        "{wrong_scope}"
+    );
+    let mut forged = card.clone();
+    forged.digest = "f".repeat(64);
+    let wrong_digest = clear_attention(&f.ctx, &forged, integration::ATTENTION_SCOPE);
+    assert_eq!(
+        code(&wrong_digest),
+        "OWNER_CONFIRMATION_REQUIRED",
+        "{wrong_digest}"
+    );
+    assert_eq!(journal_of(&f.ctx), before);
+    // The owner approved exactly this card.
+    let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+    assert_eq!(
+        out,
+        json!({
+            "integration_id": "b".repeat(32),
+            "state": "none",
+            "entries_discarded": 3,
+            "workspace_files_written": false,
+        })
+    );
+    let after = journal_of(&f.ctx);
+    assert_eq!(after.state, JournalState::None);
+    assert!(after.entries.is_empty(), "pre-images discarded");
+    assert_eq!(after.integration_id, None);
+    assert_eq!(after.journal_epoch, before.journal_epoch);
+    assert_eq!(workspace_files(root), files, "no workspace file written");
+    // Done once: the card is gone and recovery has nothing to do.
+    let again = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+    assert_eq!(code(&again), "WORKER_STATE", "{again}");
+    assert_eq!(recover(&f.ctx), json!({"state": "none", "journal": "none"}));
+    assert_eq!(workspace_files(root), files);
+}
+
+#[test]
+fn c9_clear_attention_refuses_a_card_the_journal_no_longer_matches() {
+    let f = Fixture::new();
+    needs_attention(&f);
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    set_journal(&f.ctx, |doc| JournalDoc {
+        entries: doc.entries[..2].to_vec(),
+        ..doc
+    });
+    let changed = journal_of(&f.ctx);
+    let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+    assert_eq!(code(&out), "OWNER_CONFIRMATION_REQUIRED", "{out}");
+    assert_eq!(journal_of(&f.ctx), changed);
+    assert_eq!(changed.state, JournalState::NeedsAttention);
+}
+
+#[test]
+fn c9_clear_attention_is_not_an_mcp_tool() {
+    for profile in [
+        "full",
+        "read-only",
+        "advanced",
+        "compat-readonly-all",
+        "core",
+    ] {
+        let names = crate::tools::registry::exposed_tool_names(profile);
+        assert!(!names.contains(&"clear_integration_attention"), "{profile}");
+        let listed = crate::tools::registry::list_tools_for_profile(profile);
+        assert!(
+            listed
+                .iter()
+                .all(|t| t["name"] != "clear_integration_attention"),
+            "{profile}"
+        );
+    }
+}

@@ -1354,3 +1354,101 @@ pub(crate) fn reject_rollback(
     })?;
     Ok(json!({"integration_id": integration_id, "state": "integrated"}))
 }
+
+// ---- C9-2: the owner clears `needs_attention` (SPEC §0.9 nit 1, §5.1) ----
+
+/// The native confirm scope and digest domain of clearing `needs_attention`.
+/// Local only: a Tauri command, never an MCP tool.
+pub(crate) const ATTENTION_SCOPE: &str = "clear_integration_attention";
+const ATTENTION_DOMAIN: &str = "clear_integration_attention/v1";
+
+/// What the owner saw in the native dialog: the journal's integration_id and
+/// the paths of its entries, bound to the journal epoch and entry bytes.
+#[derive(Clone, Debug)]
+pub(crate) struct AttentionConfirmation {
+    pub(crate) digest: String,
+    pub(crate) title: String,
+    pub(crate) summary: Value,
+}
+fn no_attention(state: JournalState) -> WorkerError {
+    integrate_error(
+        "WORKER_STATE",
+        "The integration journal does not need attention.",
+    )
+    .with_details(json!({"reason": "not_needs_attention", "journal": state}))
+}
+/// The journal when it is `needs_attention`, with its digest.
+fn attention_journal(
+    inner: &mut Inner,
+    host: &HostRoots,
+) -> Result<(JournalDoc, String), WorkerError> {
+    let doc = journal_rw(inner, host)?.doc().clone();
+    if doc.state != JournalState::NeedsAttention {
+        return Err(no_attention(doc.state));
+    }
+    let integration_id = doc.integration_id.clone().ok_or_else(super::unavailable)?;
+    let entries = serde_json::to_vec(&doc.entries).map_err(|_| super::unavailable())?;
+    let bound = json!([
+        ATTENTION_DOMAIN,
+        integration_id,
+        doc.journal_epoch,
+        sha_hex(&entries)
+    ]);
+    let digest = sha_hex(bound.to_string().as_bytes());
+    Ok((doc, digest))
+}
+
+/// Native, before the dialog: refuses unless the journal is `needs_attention`.
+/// Reads only; nothing is written.
+pub(crate) fn prepare_clear_attention(
+    ctx: &ToolContext,
+) -> Result<AttentionConfirmation, WorkerError> {
+    let (_, store) = open(ctx)?;
+    let mut inner = store.lock()?;
+    let (doc, digest) = attention_journal(&mut inner, &ctx.host)?;
+    drop(inner);
+    let paths: Vec<&str> = doc
+        .entries
+        .iter()
+        .take(MAX_LISTED * 8)
+        .map(|e| e.path.as_str())
+        .collect();
+    Ok(AttentionConfirmation {
+        digest,
+        title: "Clear the integration journal that needs attention".into(),
+        summary: json!({
+            "integration_id": doc.integration_id,
+            "entries": paths,
+            "entries_total": doc.entries.len(),
+            "journal_after": "none",
+            "pre_images": "discarded",
+            "workspace_files_written": false,
+        }),
+    })
+}
+
+/// Native, after the owner approved this digest: the journal goes back to
+/// `none` (same epoch) and its pre-images are dropped. No workspace file is
+/// read or written; the worker records are left as they are.
+pub(crate) fn apply_clear_attention(
+    ctx: &ToolContext,
+    confirmation: &AttentionConfirmation,
+    approval: &OwnerApproval,
+) -> Result<Value, WorkerError> {
+    if !approval.validates(ATTENTION_SCOPE, &confirmation.digest) {
+        return Err(confirmation_required());
+    }
+    let (_, store) = open(ctx)?;
+    let mut inner = store.lock()?;
+    let (doc, digest) = attention_journal(&mut inner, &ctx.host)?;
+    if digest != confirmation.digest {
+        return Err(confirmation_required());
+    }
+    journal_rw(&mut inner, &ctx.host)?.write(doc.idle())?;
+    Ok(json!({
+        "integration_id": doc.integration_id,
+        "state": "none",
+        "entries_discarded": doc.entries.len(),
+        "workspace_files_written": false,
+    }))
+}

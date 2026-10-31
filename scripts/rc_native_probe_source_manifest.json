@@ -1,5 +1,5 @@
 {
- "entries": 1962,
+ "entries": 1966,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "d4a09136428be18a14b45c41606cde29d913f2d1",
-   "bytes": 427835,
+   "blob": "25fcd834e5daa035a9ccf1bec9e9fdbd6bc30d61",
+   "bytes": 427949,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "d115ee4c2cce1c21c779329c609246beaec088959f273cef7896f0e9bec5b460"
+   "sha256": "ce06cfcea53f1eb5426b21f1d268ba7a74d6de94ddab50fe75b243e1b9d08ab8"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -10202,11 +10202,11 @@
    "sha256": "6b2e1b656fa97572c83eeaf21cc4f95f7f56a061557b2511b78df98e3d696308"
   },
   {
-   "blob": "0043ffa3dbcb6b833c9192971da8512f2c754e4b",
-   "bytes": 4901,
+   "blob": "74f2bb2e3644e617f4de63710cb1180d9a0b4539",
+   "bytes": 6079,
    "mode": "100644",
    "path": "src-tauri/src/commands/subagent_integration.rs",
-   "sha256": "1f04022fc4faa5a8c525babcf635fa668b1a59a372778a7359c2fbb1bcabe855"
+   "sha256": "a8286dc566831adbc0016da19f4990cdc327285233c0d91fe38d82b3f9bd237b"
   },
   {
    "blob": "36221f7e4cfd8cf76208b1d22f9453574de9d66e",
@@ -10573,11 +10573,11 @@
    "sha256": "7a4a48858cd9a934d5b01b47b6ca23e26ee8e7b67c2e1b223a83ffae77794ab8"
   },
   {
-   "blob": "dfca9126aaa0c3c4e9c8df94b99e7a9c85969838",
-   "bytes": 14057,
+   "blob": "3024126d7062785ce3a16b4fd0ad694c680b45ae",
+   "bytes": 14130,
    "mode": "100644",
    "path": "src-tauri/src/lib.rs",
-   "sha256": "15652222fb01ddf1d44787823f65e06d8c239f05ad2f9929229ac09c02c50b37"
+   "sha256": "78271b52742094d73127ab4374924ce5dc3b9a8aa3aae3b0a95d43dc37b032fe"
   },
   {
    "blob": "efa08cf32b22297c42784a2efd5d6d335be25976",
@@ -11301,18 +11301,18 @@
    "sha256": "b664dd70f4db9d5e0bf111dc7abc7a19143e8b73762686171b72155c1f902046"
   },
   {
-   "blob": "49577119b61f644fa6f9374b057b7c28e0399153",
-   "bytes": 61865,
+   "blob": "a6cfadf41ec6f46581b839a6a4da314de127d20c",
+   "bytes": 68733,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/integrate_tests.rs",
-   "sha256": "b6f1024263441335451a2599c4896e6b83ab01d9497d9e3a9ea7782ed3b945bc"
+   "sha256": "f29f07f1fdeb6c6d26a3f9ffe95e4cfb26f06b49f25caf66e37f14ca2173fb98"
   },
   {
-   "blob": "4e59a1852debe6a374d11a2d83c28d2c9e293f37",
-   "bytes": 49343,
+   "blob": "45973194152fe50891c083724799058c4039cd35",
+   "bytes": 52890,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/integration.rs",
-   "sha256": "8c7036d1f0f7b468b30fbf8a69cc52b2cb69ff6fc46417741c6b67f4b7495d55"
+   "sha256": "f6ae8f5cc0f8612ab849632767fc7f644df83c810675d5973c8584fd045b7f5b"
   },
   {
    "blob": "9164a99efee2696a1ac05d2dda6891e439d4c529",
@@ -11945,6 +11945,13 @@
    "sha256": "012d9ff377cda32cb7da46bd09ee7ceb944638ad8cd84f4586987a2017e70151"
   },
   {
+   "blob": "dd77ce9509160a8126aa9e41d5f03594ca8d0453",
+   "bytes": 2113,
+   "mode": "100644",
+   "path": "src/lib/components/IntegrationAttention.svelte",
+   "sha256": "3c727c2d09eab736406d804ae6115253315f0dd3671ac4082b99c1f180119295"
+  },
+  {
    "blob": "470669cdd0aff38c778cd1cddb54d861df313086",
    "bytes": 2263,
    "mode": "100644",
@@ -12134,6 +12141,13 @@
    "sha256": "70ec981c907f915a511f726170d2d16d2558aa7362db2ea0fccb852a1b2677e5"
   },
   {
+   "blob": "864990ca6309f8f40461cb8efa60d02de57f9a8e",
+   "bytes": 2669,
+   "mode": "100644",
+   "path": "src/lib/integration-attention.ts",
+   "sha256": "6e650d63b3e47399f553f86112fb6f3db13e9138937853d671c574f3e5bf04c3"
+  },
+  {
    "blob": "0604813b688b8529cad2a6e3d42ce32add6b631b",
    "bytes": 5717,
    "mode": "100644",
@@ -12316,11 +12330,11 @@
    "sha256": "5c9dbfd72abae42d5726bd6492adbf95b968c3fa1030eb5b758ecce458bb5605"
   },
   {
-   "blob": "7e71f4e221a9eb38679d3ae01de3ecda2c2eb279",
-   "bytes": 23301,
+   "blob": "b4044d05a930a5e630336ba1d3fcd7f166d894f8",
+   "bytes": 23439,
    "mode": "100644",
    "path": "src/routes/workspace/[id]/+page.svelte",
-   "sha256": "472d019f37723eaa10c5c69089831b02258374e232c1866a9c560ef3f0aec155"
+   "sha256": "ba4720bce85a2084c9862872de853a39df0278f2e6be8fbb03f2b7f40c187002"
   },
   {
    "blob": "6da31117633bc5aa62e9c7e7d8f31ac4afff82e4",
@@ -12643,6 +12657,20 @@
    "mode": "100644",
    "path": "tests/glib-variant-regression/src/lib.rs",
    "sha256": "d50e74384151b8fce56b6759e7be85f7789991e42bae9c42b52cf4f0be67e5ac"
+  },
+  {
+   "blob": "f7f611d47e0069c5c06ee3e3a5c624418b1d9272",
+   "bytes": 4231,
+   "mode": "100644",
+   "path": "tests/integration-attention-browser.py",
+   "sha256": "c28e8574550736658b3dda32ea9f0496859c05cbb39355390c5d36d706fd91dd"
+  },
+  {
+   "blob": "70fd3d2ecc16cab24ac3d5b6e108586dde4f1c05",
+   "bytes": 6547,
+   "mode": "100644",
+   "path": "tests/integration-attention-ui.test.mjs",
+   "sha256": "0f808a46c11d937e4d9a5d3a94e3bb07d7fd22bba7f028c759f378886ad2d951"
   },
   {
    "blob": "2687fff4d8de1cbe7bc23a6afa4e9d71070e7a8a",
