@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c4b sandbox hardening (umask 077, host pidfd leaders, per-worker cgroup v2 with rlimit fallback) + config.worktree and commit-in-sandbox tests + C5 nits (supersede after journal write, status survives corrupt journal, doc comment) on a1-c5 209bcfea, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c6 agents.manage grant path (gateway admission+wire, local scope default unchecked, chat_native_v8) + C4-c (pidfd-gated terminate, no RLIMIT_NPROC, RLIMIT_DATA 8G, honest rlimit report, delegation retry) on a1-c4b 2b2205ef, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -3611,6 +3611,26 @@
       }
     },
     {
+      "path": "scripts/chat_native_v8/聊天授权原生回归v8.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "9ecd279bbb670972bc47ca8f7cd7b9d7fd7fab08",
+        "sha256": "402f72391c2db5a1d0631df74b50f1519383721f49bfd2931fe7c898b54c171b"
+      }
+    },
+    {
+      "path": "scripts/chat_native_v8/聊天授权原生验收v8.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "a4983b83bb1fd91732fb40b3a9cf675c414003c7",
+        "sha256": "feaf7dc598c00243c4ee1811a3f094f6e8802137ed520f83d20ec4a0ad9df751"
+      }
+    },
+    {
       "path": "scripts/cloud_image_gate.py",
       "status": "A",
       "before": null,
@@ -4520,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "827dd4a58ccc6527f8bd41d80b2e3bb8ea0b7a71",
-        "sha256": "6535dfcc42b42bf7305fc45bb01d7a54a4dc4b1817d4fcd227f3638df6a67494"
+        "blob_sha": "7317f05bdd7f4f042220a9cd80fe12715622ccee",
+        "sha256": "f898d90455a8ebc63bbaa9796cc8d913b749b1219449e7dfdfb0dd33d2d9c05c"
       }
     },
     {
@@ -6080,8 +6100,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e4d5afa5af0c5892a18eb6e4b8f7cceddf04fc8b",
-        "sha256": "0ccb8116e1807886e3d4fb471be54d436aa389b371651d498eb4efdd17b17d8d"
+        "blob_sha": "9c4d2bb6f9bf179acf39398a230cf4f729eb9942",
+        "sha256": "6f091409a2ee3bce4e2a2c458ffbff8374df74e0914464b17f76e31e3a9e660b"
       }
     },
     {
@@ -6130,8 +6150,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8789183fd3030bbf61d84cd4e5e264ae0b4c8564",
-        "sha256": "30e64470a7d08c23206a794bf00b4159f380a28ce608fe49f712f8235ea623a5"
+        "blob_sha": "b462448e1680fb479b0add01868c6398b2c2d9eb",
+        "sha256": "9b0b95f198532af2f2a7c473622a913066b1682e81364d9b9cd122f0104c0383"
       }
     },
     {
@@ -6150,8 +6170,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f56414cec61fbd0df8afae5b11802c2e65ed1f0e",
-        "sha256": "fd72c482232cd630edb2b203f668a34259c3a58f119b3e2734f4ddc6ea86dba8"
+        "blob_sha": "70dcef7ef540a6bcfeba82e34d0e6ee61a82c536",
+        "sha256": "72757efc91dc83cd4777466d304ece7929d46fdf94391edbc2cbbb9e94c5c423"
       }
     },
     {
@@ -6250,8 +6270,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "0dddb851001dd8522f82724367a3d0d513ed2598",
-        "sha256": "a91bff5f6cf3e6bfb6857c0ac355a9620c8875ba932af1da5525e29400077001"
+        "blob_sha": "51e1c5a52754a03fcb6b54422abb5a6c9c299d55",
+        "sha256": "05f4c5fca43ac4a80c4134ae314a7d4c4842806c6f8195240ae622381c621ddb"
       }
     },
     {
@@ -6300,8 +6320,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9daa83b7f055d71801a18c0c90b77ac6b0ff7137",
-        "sha256": "4d58802bf6e060bd66f20ab7d99cd2e9be0009b5f39617b949ce9cb0046af90a"
+        "blob_sha": "988ea07404cab41d4f239ac6076eed795184fde9",
+        "sha256": "a2e30880132815aa09e634a7c93c7783d049c755531efc69e6c3f867dbeb8df2"
       }
     },
     {
@@ -6580,8 +6600,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5f68960d5a3249dc936a88ea27a2753104e836e1",
-        "sha256": "6ab20d0e5eaf8e87f641f3eef18690014b2ebbcddf0b38082b176dcbd79d75ee"
+        "blob_sha": "5fea70cafc0d283a86baa864e63a260c9bec9cec",
+        "sha256": "f4898dd7fc1e6d17e6d3fdc5f5d211adb63c3b7d9668e5efb308aa02d2a480b9"
       }
     },
     {
@@ -6860,8 +6880,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "571cc0df3b370ade2a74c2fd7e44af9c8a1c371f",
-        "sha256": "76d62e5d2c169fd316ab2b1db455dfd37d3ff74549f59f42ea05e873a64e31df"
+        "blob_sha": "da514702aaf63635251f14f5c534147d62fc6cb0",
+        "sha256": "4ef97800321338e3eb331c2e765e9c59183f1c6af818911032d4802615756561"
       }
     },
     {
@@ -6880,8 +6900,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f757c1888479d055910739b5aca390f715a7fa04",
-        "sha256": "d99cf9565a8218833dad79ee835ffb64767cec95ac3f3f954388fb5bda2c0eef"
+        "blob_sha": "291058d3c05c6d7750b5362a697fde46b59ee043",
+        "sha256": "58447929396905b54f24ba7f4a41042c16928dacd8119203a187c524c1a0613b"
       }
     },
     {
@@ -6950,8 +6970,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "566260338d8903ea6bcb3bd4e2b73d65005369e8",
-        "sha256": "7b4df5814d1df56d10d64edefa185d3523ccc1d99cdef8bc8e1cf1f361507a56"
+        "blob_sha": "d2ca964c8e9edb51a47911b2fd5541091d8e02a4",
+        "sha256": "2a2e2d01d4fc50e505ab2c17050f1085f381fafd0cff8f10bed2d8ffd59a374c"
       }
     },
     {
@@ -7010,8 +7030,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a184299c8f7174773181482e497e73617932efbd",
-        "sha256": "5f48d68b01dddab54edb9aeaa8a4c947fca6ee6afc322d7edbaaab24bb570cc2"
+        "blob_sha": "42cc70076e3b80bfdb47d55e08153022d1f4d671",
+        "sha256": "b229751513ddaaae763f812295a45a33bc6c630631a74fa75a22e65bf8ac065e"
       }
     },
     {
@@ -7170,8 +7190,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "be35c8351cd9d882f922fa477eee29fefdb0a9e4",
-        "sha256": "8c20fa013edc3960584102f61261a40e9080f43c26ac6e7b2a856ff7917b5608"
+        "blob_sha": "c826ac8dca7fdd0f6ddb4d483e507c5a6b57a9fa",
+        "sha256": "ea8f165fa522b657fde632f8a200800eb98f1f256efcad31857d44d981487fc4"
       }
     },
     {
@@ -7410,8 +7430,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cad3f63867ebdfc8222ff23c74ac2a4a026db458",
-        "sha256": "0902c49c2cdecc80c27ba99d2d96028cfad90ca85a0e2a51b907000e794e7c2c"
+        "blob_sha": "fc5e800d224464f81ac0949e43c2af6a3cd0a949",
+        "sha256": "c2ad346c1ff4f5a1e098c6d7e2d4acd45e642d95fab90518d8d24a792c45b96c"
       }
     },
     {
@@ -7440,8 +7460,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "04d189a43051b205ebf68b3737d4f9d7be307b09",
-        "sha256": "9150de6b6b797368399d152efc371eaa3040be7f0a47474cd0a910b656ac8ad4"
+        "blob_sha": "8e606894d59a9236795102de03f6e127830f3b00",
+        "sha256": "a746e18395a450988001866631fee275244617930b129eb37d58c6000e18ce6e"
       }
     },
     {
@@ -7680,8 +7700,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d4ea69e560dadb094492d20faa5b3e9fb6e8c982",
-        "sha256": "9bb98f9cecb5675b9dd7b8fdf7f2ebc6b641e12f2ca4c614bcd7a8210042373d"
+        "blob_sha": "82c3a659a6ad0da944d1d6d1bfeb7a81ec99d9f3",
+        "sha256": "0a42e445e7b2ceeb7d8f60a8b6dec28193b10fae9c1649b748278e321e9b0f99"
       }
     },
     {
@@ -7770,8 +7790,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b7ad5b718d6de154536d88226dc3bee5bc84940e",
-        "sha256": "0ef0039d1c6fb9e59892cb99a53747dcb3e1de4f37633a38b365acdb92903cca"
+        "blob_sha": "6e3e16237fdf374c044d102a22784363cf767301",
+        "sha256": "5cc9c4f952890b7b9ae6d3865a74ee9de333e5a9ba797086c41bd8476ad6ad76"
       }
     },
     {
@@ -7880,8 +7900,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a9bf3c58639e448329bdd6f9bbfa2791b9e3218c",
-        "sha256": "48133fe6bdcfb03c36df7b9aafcd3e0c308c85751248908517d16056de540c91"
+        "blob_sha": "50ad2d0a9c7830fa56c626399feb6a7c9f7fa0cf",
+        "sha256": "b5de436c96dfc3f25c2e8147b33f981737d6151236a8bc976123e40b966eeae1"
       }
     },
     {
@@ -7890,8 +7910,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8560dce132c855d4521cd09051b816b02ec2162c",
-        "sha256": "83c4904cb595d9dfc74ef784927b9b07773b852a77fe548bb41d26862f4f64f9"
+        "blob_sha": "67c071cb11f7649befbefc4539762fac1845c091",
+        "sha256": "739a012015c3399f252eab8dd7c90f76887b92cab722778c2db8bafc52271a62"
       }
     },
     {
@@ -7900,8 +7920,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fe6c106f5cc6654b53fd3545fae8d7799105f8ab",
-        "sha256": "ae944c9f0dd3ea1b59f2c6356980858e830dccf77dfe2a16d11d276995ec9d47"
+        "blob_sha": "cef3369b57022e5b39d77c0972388e93d9bcde0b",
+        "sha256": "42f0653c2b4feddd935dac71fac0d4fe89997ec388653af5e44cf71970927493"
       }
     },
     {
@@ -8040,8 +8060,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "496f4ae4525aed70c896b9b0e8254baaf97fc4ce",
-        "sha256": "40d72775bddc1e0d6233f7e6feaff4e821bec538e5bf47276237c0ea8771dbdb"
+        "blob_sha": "4c7ee6eb9f9a79c0e2965df2e2bf835424d0b288",
+        "sha256": "80dd0acbd72367436f9d2e0df41f9d22e47e5df021bd4e0feac5d463e64cad53"
       }
     },
     {
@@ -8642,8 +8662,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "b17d7ffd90b13e00615d2c538f7181cbea76ed3a",
-        "sha256": "88ec1a7684b2a482cd3da73da1cd83ae4bbcdcd1f2797b1fe9b761fb509a94f0"
+        "blob_sha": "bfe252c664156693548dab7e00a075f41fdc0ec7",
+        "sha256": "4921743d4654daba93ed4696e447fcf4097b0fbb9bb872926372fd25651f4321"
       }
     },
     {
@@ -10004,8 +10024,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c457aab8bd4760f368c6e6d1eb69997a55c63123",
-        "sha256": "f63d5138de37463b50ee3f649b708e5159754ab3e83efec3347b1129741bf323"
+        "blob_sha": "a205a38451d361518b1f64ecdf24246c0c952f0a",
+        "sha256": "28d7c2ae127464c9f53a43bd1ef7668dda2c172ca0d5d8fcbb43c964f8bd334d"
       }
     },
     {
@@ -10070,8 +10090,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f2223fdb3091962af76fbc202c751c75a1349264",
-        "sha256": "f0cbd1568c9c675b279deb0b7d7a96203ed068b5dd328f8fca0c2333b82c843a"
+        "blob_sha": "e00f9ca4d068d142b6d04599c2056cae1d6aee4e",
+        "sha256": "3568601a94f5c733652020a7f5ae08a40804e961718913962c685e0278078cbb"
       }
     },
     {
@@ -10494,8 +10514,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1b1af266a5fb334c50230deda802adc3c0966f70",
-        "sha256": "995e15b6d242d19038f23b9ced8a1b9e4c6f718ea416377773dcada095fad85d"
+        "blob_sha": "dc44e9d8fe7c8d9e096e08042b9d21f54840bc24",
+        "sha256": "7023d8782095eb7bdc97768e00bbc1f84e94da03d07a84a8eaa7ffbd8a29816e"
       }
     },
     {
@@ -10584,8 +10604,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "737ab29e616817a38bc8d06966074f6234fb5dce",
-        "sha256": "abbd8b25503c14ba7ed0fdf1c4cb94058803b8ea496a2701fa24ff035405ad84"
+        "blob_sha": "48d6368c53e436eebba13a2a67c7ace52f596636",
+        "sha256": "2de5227586017e145527bef65536f8e8b2097a25b1628eb001a358624a26c3f1"
       }
     },
     {
@@ -10618,8 +10638,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "892df1ad3c7cfb382ccfc890eec51b74b48092d1",
-        "sha256": "cb63a1a10981a620c502cb8237232240504310c85f96f003fb60f59129bf4539"
+        "blob_sha": "2fcb0de6e1459cf5200cba0b182e1932b1063a5b",
+        "sha256": "ad52f090d484789b8b0a21e34a0ddf8400b13f126587eb2ff1ba9c99b2ab26b5"
       }
     },
     {
@@ -10744,8 +10764,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "a6297be221135d7107ad601ed860f26caadf6370",
-        "sha256": "149ac9eee3e5a31276826b359bddcccfb4a25786c1f3068560086a2675455afe"
+        "blob_sha": "b0c1b6c3a31bc7f926bc7fd7cd92556eb46ed753",
+        "sha256": "47245fa33ed910101fababde4a162f05c06a5a6e0aad18838a1730ea1e5ea768"
       }
     },
     {
@@ -10772,8 +10792,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "e498f0512d3ee5f2e780a6d0d52a25d4808e933e",
-        "sha256": "d7fb0b47f92c135813320291d19d3e9eb7626b97c8e5cd8198bb90f8bbee5690"
+        "blob_sha": "7dc2366241b3c26d7991ff28f98271c3869e89b3",
+        "sha256": "cc730308d310cb36111c45634c1092b176fc85b4cec3d621f9bfda4788f874f3"
       }
     },
     {
@@ -11155,6 +11175,20 @@
       }
     },
     {
+      "path": "src/lib/chat-authorization.ts",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "993cf5520df63c7420d9394a04c5f0cb08b6fd93",
+        "sha256": "8893baf97d5962a5505a36316774b88368e3ca71beaccba4afeb3bb8aad0a48a"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "381bf07a8cf43930fcbde411590df29a01e64a74",
+        "sha256": "baf151adee9604ddacc9191633ee45fd76b2ae2124e2f8e39f8e58f06987b0dc"
+      }
+    },
+    {
       "path": "src/lib/cloud-connection.ts",
       "status": "A",
       "before": null,
@@ -11172,6 +11206,20 @@
         "mode": "100644",
         "blob_sha": "d603c8f678e40686d709e82f1f63ccae8155366e",
         "sha256": "8494dfb6aecd7c19be80ce07df8fcd65f966d599cc7ae8b22bef408cdb22b4cb"
+      }
+    },
+    {
+      "path": "src/lib/components/ChatAuthorizationHost.svelte",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "af832faed736928a29fa011e037e7f4738d83761",
+        "sha256": "b03d756300468db514eb8e9fe5219c3952c6a4e4807b689a8b98c3900ffa202c"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ada2b04b45c0db4ce7b482a04a59e3634a4c3150",
+        "sha256": "448cc08725a68b2432b17a801e6923489058b601c112c8b9f87bf4f3b0dba261"
       }
     },
     {
@@ -11224,8 +11272,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "e374aa857b5e57c8fcf8ebd0606b5721ea8f6de2",
-        "sha256": "5e13b431ebb592c21122a88353ceed75f7686de59e35bc2ae9f860d127fa2e48"
+        "blob_sha": "4dbc120f91a5e3f470d34a39b28de473b3169c92",
+        "sha256": "f2b9885e1210f63f95c2bbd50531c86b0ae584c222ae52afc403d4be7f88fafc"
       }
     },
     {
@@ -11285,6 +11333,20 @@
         "sha256": "9b0bbab2c405c7c7e4a6f93923bbd7842a238d56d39b2058475ba48555ef458f"
       },
       "after": null
+    },
+    {
+      "path": "tests/approval-decision-order.test.mjs",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "44ca7912dfb4a0dd5fea3d1612e711bbc06bbef3",
+        "sha256": "51d35f58f6be320bb0a564b391864ee2a657d3caaa16df4e3aa25dcc609026b6"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "2adc93e1ca4eadaed448bc67281ae5659a836be4",
+        "sha256": "16c3a6038ad8c72fb84d37cef2a234c60dff99462f5dffb431fe1a9bb383dd17"
+      }
     },
     {
       "path": "tests/browser_viewport_evidence.py",
@@ -11627,6 +11689,20 @@
       }
     },
     {
+      "path": "tests/exclusive-policy.test.mjs",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "7c65e25c0edb07acd2b3c1cf76a5d820e8c112ca",
+        "sha256": "87a08579061d45e6fa87adf45e812d1ba1b9a1f35be1566b88aea2a99ee4d27f"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d068ff6a9adb75c435bab6dad4780a81feafa4fa",
+        "sha256": "224b97f06a0f02899277ddb7d6006c388dfa0af9407ece2edc8908e07440d314"
+      }
+    },
+    {
       "path": "tests/fixtures/ui-refactor-ipc.js",
       "status": "M",
       "before": {
@@ -11760,6 +11836,20 @@
         "mode": "100644",
         "blob_sha": "1a7f17efea0966a25c890f561bf53681ce3ff575",
         "sha256": "5247409c6f0c1b9a510b7738b110c8879f8a036333d05ad326eb77efbdd45ca5"
+      }
+    },
+    {
+      "path": "tests/聊天授权界面回归v1.test.mjs",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "7bbfe8b7ffc7e2102cc292f762a0daeb0e46197a",
+        "sha256": "62dc89f5fa27290b137e53ba193bf67291e21b0c175b74429d2e4e09ab3f00fa"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "862b7325da056f62d9b6192e1c9e6bd9eec49ed8",
+        "sha256": "6aa41c71fd228d99e8dec94af6b805566dbdfe01e34df617ed3787361efb89f0"
       }
     },
     {
