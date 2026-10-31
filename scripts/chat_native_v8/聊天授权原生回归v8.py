@@ -23,8 +23,10 @@ def rust_scopes():
 
 class FakeSession:
     """Records the native clicks and answers the dialog probes."""
-    def __init__(self, scopes):
-        self.scopes, self.checked, self.clicks = scopes, False, []
+    def __init__(self, scopes, checked=None):
+        # O13 (decided 2026-10-31): a requested sensitive box starts checked.
+        start = v8.SENSITIVE in scopes if checked is None else checked
+        self.scopes, self.checked, self.clicks = scopes, start, []
     def execute(self, script, *args):
         if "approval-dialog .verify input" in script:
             return False
@@ -72,15 +74,15 @@ class NativeV8Contracts(unittest.TestCase):
         for path in (ROOT / ".github/workflows").glob("*.yml"):
             self.assertNotIn("chat_native_v8", path.read_text(encoding="utf-8"), path.name)
 
-    def _decide(self, scopes, approve=True, granted=None, grant_sensitive=True):
+    def _decide(self, scopes, approve=True, granted=None, grant_sensitive=True, start_checked=None, out=None):
         grant = {"id": "g1", "fingerprint": "0123456789abcdef", "scopes": scopes}
-        session = FakeSession(scopes)
+        session = FakeSession(scopes, start_checked)
         clicks = []
         state = {"status": "pending"}
         def click(_session, xpath):
             clicks.append(xpath)
             if xpath == v8.SENSITIVE_BOX:
-                session.checked = True
+                session.checked = not session.checked
             elif xpath.endswith("[normalize-space(.)='批准此聊天']"):
                 state.update(status="active", scopes=granted if granted is not None
                              else [s for s in scopes if s != "agents.manage" or session.checked])
@@ -102,18 +104,43 @@ class NativeV8Contracts(unittest.TestCase):
             v8.decide_in_dialog(session, "b", "t", "c", grant, approve=approve, grant_sensitive=grant_sensitive)
         finally:
             v8.v7.click, v8.v7.rpc, v8.rpc, v8.v7.inbox, v8.gui.wait_for = orig
+        if out is not None:
+            out.update(state)
         return clicks
 
-    def test_requested_sensitive_scope_is_ticked_by_one_native_click_before_approval(self):
-        clicks = self._decide(v8.SCOPES)
+    def test_requested_sensitive_scope_starts_checked_and_is_granted_only_by_the_approval_click(self):
+        state = {}
+        clicks = self._decide(v8.SCOPES, out=state)
+        self.assertNotIn(v8.SENSITIVE_BOX, clicks)
+        self.assertTrue(clicks[-1].endswith("[normalize-space(.)='批准此聊天']"))
+        self.assertEqual(sorted(state["scopes"]), sorted(v8.SCOPES))
+
+    def test_withheld_sensitive_scope_is_unticked_by_one_native_click_before_approval(self):
+        state = {}
+        clicks = self._decide(v8.SCOPES, grant_sensitive=False, out=state)
         self.assertEqual(clicks[0], v8.SENSITIVE_BOX)
         self.assertEqual(clicks.count(v8.SENSITIVE_BOX), 1)
         self.assertTrue(clicks[-1].endswith("[normalize-space(.)='批准此聊天']"))
+        self.assertEqual(sorted(state["scopes"]), sorted(v8.v6.SCOPES))
 
-    def test_unrequested_or_withheld_sensitive_scope_is_never_clicked(self):
+    def test_unrequested_or_denied_sensitive_scope_is_never_clicked(self):
         self.assertNotIn(v8.SENSITIVE_BOX, self._decide(["workspace.read"]))
-        self.assertNotIn(v8.SENSITIVE_BOX, self._decide(v8.SCOPES, grant_sensitive=False))
         self.assertNotIn(v8.SENSITIVE_BOX, self._decide(v8.SCOPES, approve=False))
+        self.assertNotIn(v8.SENSITIVE_BOX, self._decide(v8.SCOPES, approve=False, grant_sensitive=False))
+
+    def test_a_dialog_that_starts_unchecked_fails(self):
+        with self.assertRaises(AssertionError):
+            self._decide(v8.SCOPES, start_checked=False)
+
+    def test_an_unrequested_sensitive_box_that_starts_checked_fails(self):
+        with self.assertRaises(AssertionError):
+            self._decide(["workspace.read"], start_checked=True)
+
+    def test_the_ui_default_selects_every_requested_scope(self):
+        source = (ROOT / "src/lib/chat-authorization.ts").read_text(encoding="utf-8")
+        body = re.search(r"export function defaultScopeSelection\(.*?\n}\n", source, re.S).group(0)
+        self.assertIn("return [...grant.scopes];", body)
+        self.assertNotIn("sensitiveScopeWarnings", body)
 
     def test_a_grant_that_differs_from_the_ticked_boxes_fails(self):
         with self.assertRaises(AssertionError):

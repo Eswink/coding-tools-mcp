@@ -4,11 +4,13 @@ v8 of the eight-stage chat-authorization acceptance (A1 C6, SPEC-A1 v5.4 §3.1).
 v6 and v7 stay frozen; v8 loads its own copy of v7 and only changes:
 
 * SCOPES = v6.SCOPES + ["agents.manage"] (all ten local scopes);
-* every dialog decision first proves that the sensitive `agents.manage` box is
-  rendered unchecked with no warning (O13 default, pending user confirmation),
-  and, when it was requested and is to be granted, ticks it with one native
-  WebDriver click and waits for the warning
-  「Windows 无沙箱，子代理命令以你的权限运行」 before the v7 decision clicks;
+* every dialog decision first proves that the sensitive `agents.manage` box,
+  when requested, is rendered checked with the warning
+  「Windows 无沙箱，子代理命令以你的权限运行」 shown (A1 C7pre: O13 decided
+  2026-10-31, checked by default; UI default only), and absent otherwise;
+  when it is to be withheld from an approval, unticks it with one native
+  WebDriver click and waits for the warning to disappear before the v7
+  decision clicks (the grant still needs that explicit local approval);
 * the approved grant is read back over the MCP `auth_status` call and must
   contain exactly the ticked scopes.
 
@@ -52,11 +54,12 @@ def decide_in_dialog(session, base, token, chat, grant, *, approve=True, exclusi
         any(row.get("grant", {}).get("id") == grant["id"] for row in value["pending"]))
     v7.open_dialog(session, grant["fingerprint"])
     requested = SENSITIVE in grant["scopes"]
-    assert sensitive_state(session) == (requested, False, False), "sensitive scope must start unchecked"
+    assert sensitive_state(session) == (requested, requested, requested), \
+        "a requested sensitive scope must start checked with its warning (O13 default checked)"
     tick = approve and requested and grant_sensitive
-    if tick:
-        v7.click(session, SENSITIVE_BOX)  # One native click; never retried.
-        gui.wait_for(lambda: sensitive_state(session), lambda state: state == (True, True, True))
+    if approve and requested and not grant_sensitive:
+        v7.click(session, SENSITIVE_BOX)  # One native click to withhold it; never retried.
+        gui.wait_for(lambda: sensitive_state(session), lambda state: state == (True, False, False))
     _v7_decide(session, base, token, chat, grant, approve=approve, exclusive=exclusive)
     if approve:
         granted = rpc(base, token, chat, "auth_status", {})["authorization"]["scopes"]

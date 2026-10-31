@@ -19,8 +19,9 @@
   let generation = 0;
   let mutation = 0;
   const label: Record<string, string> = { pending: "待审批", active: "已授权", denied: "已拒绝", revoked: "已撤销", expired: "已过期" };
-  // A1 C6: labels come from the single source chat-authorization.ts; sensitive
-  // scopes (agents.manage) start unchecked (O13 default, pending user confirmation).
+  // A1 C6: labels come from the single source chat-authorization.ts; A1 C7pre O13
+  // (decided 2026-10-31): requested sensitive scopes (agents.manage) start checked and
+  // warn; approval still needs the explicit local fingerprint check and click.
   const chosen = (g: Grant) => selections[g.id] ?? defaultScopeSelection(g);
   async function call(id: string, action: string, extra: Record<string, unknown> = {}): Promise<Snapshot> {
     return invoke("chat_authorization_control", { id, action, requestId: null, scopes: null, exclusive: null, ...extra });

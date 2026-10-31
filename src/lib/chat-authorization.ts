@@ -8,12 +8,14 @@ export const chatScopeLabels: Record<string, string> = {
   "history.read": "读取本聊天归档", "history.write": "保存本聊天归档", "harness.write": "管理本聊天开发计划",
   "agents.manage": "管理子代理（创建 worktree、在其中运行命令、请求合入）",
 };
-/** A1 C6 (SPEC §3.1/§6.3, O13 pending user confirmation): sensitive scopes are never pre-selected. */
+/** A1 C6 (SPEC §3.1/§6.3); A1 C7pre O13 decided 2026-10-31: sensitive scopes are pre-selected like every
+ * requested scope and always show their warning while ticked. This is a UI default only: a grant still
+ * needs the remote request plus an explicit local approval, and Rust IPC validates the subset. */
 export const sensitiveScopeWarnings: Record<string, string> = {
   "agents.manage": "Windows 无沙箱，子代理命令以你的权限运行",
 };
 export function defaultScopeSelection(grant: Pick<ChatGrant, "scopes">): string[] {
-  return grant.scopes.filter(scope => !(scope in sensitiveScopeWarnings));
+  return [...grant.scopes];
 }
 export function scopeWarnings(selected: string[]): string[] {
   return selected.filter(scope => scope in sensitiveScopeWarnings).map(scope => sensitiveScopeWarnings[scope]);

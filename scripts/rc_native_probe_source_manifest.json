@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "be769ae3fd39fdb9d5af3a453bbf3d6f04d48000",
-   "bytes": 426973,
+   "blob": "60f4e2fa64308383e7f1804b255eff7fcbd112b2",
+   "bytes": 0,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "48ebaffddf0f6fd2dcf39a8e9d290609e7a151442172eab2e37435fe625728ad"
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6065,18 +6065,18 @@
    "sha256": "0eeb489168855e8f1263fe8a75cacdf8f6eae683a74d4d59a3f63a05042aec12"
   },
   {
-   "blob": "9ecd279bbb670972bc47ca8f7cd7b9d7fd7fab08",
-   "bytes": 5728,
+   "blob": "e380a5362e4e827c8968e16893fb30e192c9e8f0",
+   "bytes": 7248,
    "mode": "100644",
    "path": "scripts/chat_native_v8/\u804a\u5929\u6388\u6743\u539f\u751f\u56de\u5f52v8.py",
-   "sha256": "402f72391c2db5a1d0631df74b50f1519383721f49bfd2931fe7c898b54c171b"
+   "sha256": "15088146553b6b60ff5304ae38ffdfbabb9be8969e33ff76208bf6e068254417"
   },
   {
-   "blob": "a4983b83bb1fd91732fb40b3a9cf675c414003c7",
-   "bytes": 4135,
+   "blob": "b3861b2e055c8b94397191df44e56dc7c2f8f9ae",
+   "bytes": 4402,
    "mode": "100644",
    "path": "scripts/chat_native_v8/\u804a\u5929\u6388\u6743\u539f\u751f\u9a8c\u6536v8.py",
-   "sha256": "feaf7dc598c00243c4ee1811a3f094f6e8802137ed520f83d20ec4a0ad9df751"
+   "sha256": "bc93428d3483d09c9a40acf03863a78feb656023df78abb1b5a703b6b41d5074"
   },
   {
    "blob": "8bc46daf7f11faa11c21c8bbf9a536c15486d305",
@@ -11791,11 +11791,11 @@
    "sha256": "374019239b87a00c7a66dfebcdb849495944be8d9e80367ed3a911748c93de7e"
   },
   {
-   "blob": "381bf07a8cf43930fcbde411590df29a01e64a74",
-   "bytes": 2655,
+   "blob": "25057cb6fb2e9edb9caae65e7195f7f44eb41e94",
+   "bytes": 2814,
    "mode": "100644",
    "path": "src/lib/chat-authorization.ts",
-   "sha256": "baf151adee9604ddacc9191633ee45fd76b2ae2124e2f8e39f8e58f06987b0dc"
+   "sha256": "8a0acd7fe3b1b6a91c4359c872830c1f55fb73c7fdd3ba5dbbcd31b9b1fcc14e"
   },
   {
    "blob": "27c662aef7e3280f02e0876d19286e885bd9d99b",
@@ -12106,11 +12106,11 @@
    "sha256": "8bf8e3a6b11cf5c94fa80c479abefc2301a610de463061200ac3e8a534d3e20b"
   },
   {
-   "blob": "4dbc120f91a5e3f470d34a39b28de473b3169c92",
-   "bytes": 9988,
+   "blob": "2dc01b90bdb2510805dc5494b29fea658e61f1b7",
+   "bytes": 10073,
    "mode": "100644",
    "path": "src/lib/components/\u804a\u5929\u6388\u6743\u9762\u677fv1.svelte",
-   "sha256": "f2b9885e1210f63f95c2bbd50531c86b0ae584c222ae52afc403d4be7f88fafc"
+   "sha256": "70ec981c907f915a511f726170d2d16d2558aa7362db2ea0fccb852a1b2677e5"
   },
   {
    "blob": "0604813b688b8529cad2a6e3d42ce32add6b631b",
@@ -12309,11 +12309,11 @@
    "sha256": "bd976b6c82b13852226f71e81ddc6bf0b86a09a3ab0ad00f577d3582cc597955"
   },
   {
-   "blob": "2adc93e1ca4eadaed448bc67281ae5659a836be4",
-   "bytes": 6212,
+   "blob": "37ac53747b99c2835ad77e4ae3f2bcd490df996e",
+   "bytes": 6919,
    "mode": "100644",
    "path": "tests/approval-decision-order.test.mjs",
-   "sha256": "16c3a6038ad8c72fb84d37cef2a234c60dff99462f5dffb431fe1a9bb383dd17"
+   "sha256": "3d86d3fec47ac1565cc424cf328e590a0b0d6b6325ed165bb80435dbdaac4878"
   },
   {
    "blob": "ac960c381607d1b691268b3c936aa96e7c359f71",
@@ -12582,11 +12582,11 @@
    "sha256": "81ea4de5ad55088c26384a768d0e971967809989f89b34c7f8cc9d923f40dad1"
   },
   {
-   "blob": "d068ff6a9adb75c435bab6dad4780a81feafa4fa",
-   "bytes": 4687,
+   "blob": "1a06f126acf4fb1b2d3a7838872dca4eb9ce1f68",
+   "bytes": 5513,
    "mode": "100644",
    "path": "tests/exclusive-policy.test.mjs",
-   "sha256": "224b97f06a0f02899277ddb7d6006c388dfa0af9407ece2edc8908e07440d314"
+   "sha256": "32c893a482c65696f12960a5c5b99d19053dcbd73ed554bdda8730b9d52ef374"
   },
   {
    "blob": "cd97593c7595704b922e1fcbeb7dec92bb8596cc",
@@ -12799,11 +12799,11 @@
    "sha256": "dbdcc64c5fbde1e1b8b8b1e35907c430f4c4d5df91f473ed3937f34a40b27f37"
   },
   {
-   "blob": "862b7325da056f62d9b6192e1c9e6bd9eec49ed8",
-   "bytes": 1904,
+   "blob": "9c258cddc4e616588a4d7b8b9d7b6f2c44ca2331",
+   "bytes": 2087,
    "mode": "100644",
    "path": "tests/\u804a\u5929\u6388\u6743\u754c\u9762\u56de\u5f52v1.test.mjs",
-   "sha256": "6aa41c71fd228d99e8dec94af6b805566dbdfe01e34df617ed3787361efb89f0"
+   "sha256": "f0b858ce96e9cab6ddf02c84e4875c3832a6826c16150d17e2cca1afef733ca9"
   },
   {
    "blob": "4a403fc8dbdbb187a62d929393fb9f293c2ff526",

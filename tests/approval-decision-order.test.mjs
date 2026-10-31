@@ -124,14 +124,24 @@ test('local rejection does not require fingerprint confirmation or send approval
   assert.equal(ui.events.at(-1).busy, false);
 });
 
-test('default selection never carries agents.manage into the approval IPC (A1 C6, O13 pending)', async () => {
-  assert.match(host, /selectedScopes = defaultScopeSelection\(row\.grant\)/);
+test('default selection carries agents.manage only through the explicit local approval (A1 C6; C7pre O13 decided 2026-10-31)', async () => {
+  assert.match(host, /selectedScopes = defaultScopeSelection\(row\.grant\); verified = false;/);
   assert.match(host, /scopeWarnings\(selectedScopes\)/);
   const grant = { ...row().grant, scopes: ['files.read', 'agents.manage'] };
   const initial = exports.defaultScopeSelection(grant);
+  assert.deepEqual(initial, ['files.read', 'agents.manage']);
+  const unverified = harness({ row: { workspaceId: 'fixture-workspace', grant }, scopes: initial, verified: false });
+  await unverified.ui.decide(true);
+  assert.equal(unverified.ui.calls.length, 0, 'the default alone never approves');
   const { ui, gate } = harness({ row: { workspaceId: 'fixture-workspace', grant }, scopes: initial });
   const work = ui.decide(true);
   gate.resolve({});
   await work;
-  assert.deepEqual(ui.calls[0].args.scopes, ['files.read']);
+  assert.equal(ui.calls[0].args.action, 'approve');
+  assert.deepEqual(ui.calls[0].args.scopes, ['files.read', 'agents.manage']);
+  const withheld = harness({ row: { workspaceId: 'fixture-workspace', grant }, scopes: initial.filter(s => s !== 'agents.manage') });
+  const later = withheld.ui.decide(true);
+  withheld.gate.resolve({});
+  await later;
+  assert.deepEqual(withheld.ui.calls[0].args.scopes, ['files.read']);
 });
