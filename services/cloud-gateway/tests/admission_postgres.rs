@@ -83,6 +83,7 @@ async fn project_execution(
         execution,
         grant: Some(h.lease.clone()),
         drained_grant: None,
+        workers: vec![],
     };
     let (payload, sig) = h.signed(&value);
     c.control(

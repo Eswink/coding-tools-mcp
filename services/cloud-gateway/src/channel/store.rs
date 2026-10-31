@@ -322,6 +322,11 @@ impl ChannelController {
         }
         Ok(decision)
     }
+    /// A1 C7: pre-filter only, called after `assess` passed for every required scope.
+    pub async fn worker_owned(&self, binding: &ConversationBinding, worker: &str) -> Result<bool> {
+        let _guard = self.serial.lock().await;
+        self.projection.worker_owned(binding, worker).await
+    }
     async fn lock_device(
         &self,
         id: Uuid,

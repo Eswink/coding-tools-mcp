@@ -72,6 +72,7 @@ pub async fn project(
         execution: ExecutionState::Online,
         grant: Some(h.lease.clone()),
         drained_grant: None,
+        workers: vec![],
     };
     let (p, sig) = h.signed(&value);
     c.control(

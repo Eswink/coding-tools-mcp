@@ -97,6 +97,7 @@ impl Harness {
                 Some(self.lease.clone())
             },
             drained_grant: None,
+            workers: vec![],
         }
     }
     pub fn signed(&self, c: &ProjectionClaims) -> (Vec<u8>, Vec<u8>) {

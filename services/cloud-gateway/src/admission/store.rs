@@ -148,6 +148,9 @@ struct ProjectedState {
     // A retained Free receipt is never a grant or an admission capability.
     #[serde(default, rename = "last_drained_grant")]
     _last_drained_grant: Option<Uuid>,
+    // A1 C7: the worker pre-filter list is never an admission capability.
+    #[serde(default, rename = "workers")]
+    _workers: Vec<crate::projection::WorkerClaim>,
 }
 #[derive(Clone)]
 struct Fence {
@@ -856,9 +859,21 @@ mod c6_tests {
                 scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
             }),
             _last_drained_grant: None,
+            _workers: Vec::new(),
         }
     }
 
+    #[test]
+    fn c7_persisted_state_with_workers_parses_for_admission() {
+        let text = format!(
+            r#"{{"phase":"active","execution":"online","authority_epoch":1,"grant":{{"id":"00000000-0000-0000-0000-000000000002","conversation":"{}","issued_at":1000,"expires_at":2000,"scopes":["agents.manage"]}},"workers":[{{"id":"{}","conversation":"{}"}}]}}"#,
+            "A".repeat(43),
+            "ab".repeat(16),
+            "A".repeat(43)
+        );
+        let state: ProjectedState = serde_json::from_str(&text).unwrap();
+        assert!(validate_state(state).is_ok());
+    }
     #[test]
     fn admission_accepts_agents_manage_as_the_primary_scope() {
         let c = conversation();

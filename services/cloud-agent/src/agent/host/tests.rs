@@ -653,3 +653,142 @@ fn journal_does_not_persist_command_arguments_or_output() {
 
 #[cfg(unix)]
 mod fault;
+
+// ---- A1 C7 (SPEC §3.3): projected worker list ----
+fn c7_worker(n: u8, conversation: &str) -> crate::projection::WorkerClaim {
+    crate::projection::WorkerClaim {
+        id: format!("{n:02x}").repeat(16),
+        conversation: conversation.into(),
+    }
+}
+#[test]
+fn c7_with_workers_validates_bound_hex_uniqueness_and_conversation() {
+    let f = Fixture::simple();
+    let s = f.host.state.lock().unwrap().clone();
+    let conv = s.grant.as_ref().unwrap().conversation.clone();
+    let eight: Vec<_> = (0..8).map(|n| c7_worker(n, &conv)).collect();
+    assert_eq!(
+        s.clone()
+            .with_workers(eight.clone())
+            .unwrap()
+            .workers()
+            .len(),
+        8
+    );
+    let mut nine = eight.clone();
+    nine.push(c7_worker(9, &conv));
+    assert!(s.clone().with_workers(nine).is_err());
+    assert!(s
+        .clone()
+        .with_workers(vec![c7_worker(1, &conv), c7_worker(1, &conv)])
+        .is_err());
+    let mut upper = c7_worker(1, &conv);
+    upper.id = "AB".repeat(16);
+    assert!(s.clone().with_workers(vec![upper]).is_err());
+    assert!(s
+        .clone()
+        .with_workers(vec![c7_worker(1, &URL_SAFE_NO_PAD.encode([4; 32]))])
+        .is_err());
+    let free = HostAuthoritySnapshot::new(
+        1,
+        1,
+        1,
+        ProjectionPhase::Free,
+        ExecutionState::Offline,
+        None,
+        None,
+    )
+    .unwrap();
+    assert!(free
+        .clone()
+        .with_workers(vec![c7_worker(1, &conv)])
+        .is_err());
+    assert!(free.with_workers(vec![]).is_ok());
+}
+#[tokio::test]
+async fn c7_worker_list_change_after_projection_does_not_invalidate_execution() {
+    let f = Fixture::simple();
+    let a = f.agent(true).unwrap();
+    let (r, p) = f.request(&a);
+    {
+        let mut s = f.host.state.lock().unwrap();
+        let conv = s.grant.as_ref().unwrap().conversation.clone();
+        *s = s.clone().with_workers(vec![c7_worker(7, &conv)]).unwrap();
+    }
+    assert!(!f.host.state.lock().unwrap().eq(&p.snapshot));
+    let result = a.worker.execute_inner(&r, &f.peer, &p).await.unwrap();
+    assert_eq!(result["fixture"], "read-canary");
+    assert_eq!(f.host.calls.load(Ordering::SeqCst), 1);
+}
+fn c7_sign(f: &Fixture, host: &HostAuthoritySnapshot) -> (Vec<u8>, Vec<u8>) {
+    let cfg = AgentConfig::from_bytes(&f.config).unwrap();
+    let signer = super::super::signer::RecoverySigner::from_input(cfg, &f.key).unwrap();
+    let at = now().unwrap();
+    let boot = Uuid::new_v4();
+    let proof = signer
+        .host_projection(
+            super::super::wire::SnapshotChallenge {
+                boot,
+                nonce: URL_SAFE_NO_PAD.encode([9; 32]),
+                expires_at: at + 30,
+                ceiling: at + 20,
+            },
+            boot,
+            1,
+            at,
+            host,
+        )
+        .unwrap();
+    (
+        URL_SAFE_NO_PAD.decode(proof.payload).unwrap(),
+        URL_SAFE_NO_PAD.decode(proof.signature).unwrap(),
+    )
+}
+fn c7_verifies(f: &Fixture, message: &[u8], signature: &[u8]) -> bool {
+    let cfg: Value = serde_json::from_slice(&f.config).unwrap();
+    let public = URL_SAFE_NO_PAD
+        .decode(cfg["public_key"].as_str().unwrap())
+        .unwrap();
+    ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public)
+        .verify(message, signature)
+        .is_ok()
+}
+#[test]
+fn c7_host_projection_signs_v2_with_workers_and_exact_v1_without() {
+    use crate::projection::{projection_message, projection_message_v2};
+    let f = Fixture::simple();
+    let s = f.host.state.lock().unwrap().clone();
+    let (payload, sig) = c7_sign(&f, &s);
+    let v: Value = serde_json::from_slice(&payload).unwrap();
+    assert_eq!(v["version"], 1);
+    assert!(v.get("workers").is_none());
+    assert!(c7_verifies(
+        &f,
+        &projection_message(&payload).unwrap(),
+        &sig
+    ));
+    assert!(!c7_verifies(
+        &f,
+        &projection_message_v2(&payload).unwrap(),
+        &sig
+    ));
+    let conv = s.grant.as_ref().unwrap().conversation.clone();
+    let with = s.with_workers(vec![c7_worker(3, &conv)]).unwrap();
+    let (payload, sig) = c7_sign(&f, &with);
+    let v: Value = serde_json::from_slice(&payload).unwrap();
+    assert_eq!(v["version"], 2);
+    assert_eq!(
+        v["workers"],
+        json!([{"id":"03".repeat(16),"conversation":conv}])
+    );
+    assert!(c7_verifies(
+        &f,
+        &projection_message_v2(&payload).unwrap(),
+        &sig
+    ));
+    assert!(!c7_verifies(
+        &f,
+        &projection_message(&payload).unwrap(),
+        &sig
+    ));
+}

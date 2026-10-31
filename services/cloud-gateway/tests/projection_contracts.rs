@@ -43,6 +43,7 @@ fn sample() -> (Ed25519KeyPair, EnrolledDevice, ProjectionClaims) {
             scopes: vec!["files.read".into()],
         }),
         drained_grant: None,
+        workers: vec![],
     };
     (key, device, claims)
 }
@@ -231,4 +232,98 @@ fn ten_scope_grants_with_agents_manage_verify_and_eleven_do_not() {
     v["grant"]["scopes"] = json!(eleven);
     assert!(!check_value(&v));
     assert_eq!(scopes.len(), 10);
+}
+
+// ---- A1 C7 (SPEC §3.3): projection v2 carries the grant conversation's workers ----
+fn sign_with(c: &ProjectionClaims, v2: bool) -> bool {
+    let (k, d, _) = sample();
+    let p = serde_json::to_vec(c).unwrap();
+    let m = if v2 {
+        projection_message_v2(&p).unwrap()
+    } else {
+        projection_message(&p).unwrap()
+    };
+    verify_snapshot(&identity(), &d, &p, k.sign(&m).as_ref(), 120).is_ok()
+}
+fn worker(n: u8, conversation: &str) -> WorkerClaim {
+    WorkerClaim {
+        id: format!("{n:02x}").repeat(16),
+        conversation: conversation.into(),
+    }
+}
+fn v2_sample() -> ProjectionClaims {
+    let (_, _, mut c) = sample();
+    let conv = c.grant.as_ref().unwrap().conversation.clone();
+    c.version = 2;
+    c.workers = vec![worker(1, &conv), worker(2, &conv)];
+    c
+}
+#[test]
+fn c7_v2_projection_with_workers_verifies_only_under_the_v2_domain() {
+    let c = v2_sample();
+    assert!(sign_with(&c, true));
+    // A v1-domain signature can never vouch for a v2 payload.
+    assert!(!sign_with(&c, false));
+}
+#[test]
+fn c7_v1_projection_stays_accepted_without_workers_for_one_transition() {
+    let (_, _, c) = sample();
+    assert!(sign_with(&c, false));
+    // A v1 payload signed under the v2 domain mismatches its version.
+    assert!(!sign_with(&c, true));
+    let p = serde_json::to_vec(&c).unwrap();
+    assert!(!String::from_utf8(p).unwrap().contains("workers"));
+}
+#[test]
+fn c7_v1_projection_with_workers_is_rejected() {
+    let mut c = v2_sample();
+    c.version = 1;
+    assert!(!sign_with(&c, false));
+    assert!(!sign_with(&c, true));
+}
+#[test]
+fn c7_worker_shape_is_bounded_unique_hex_and_in_the_grant_conversation() {
+    let base = v2_sample();
+    let conv = base.grant.as_ref().unwrap().conversation.clone();
+    let mut c = base.clone();
+    c.workers = (0..MAX_PROJECTED_WORKERS as u8)
+        .map(|n| worker(n, &conv))
+        .collect();
+    assert!(sign_with(&c, true));
+    c.workers.push(worker(200, &conv));
+    assert!(!sign_with(&c, true), "more than 8 workers");
+    let mut c = base.clone();
+    c.workers[1] = c.workers[0].clone();
+    assert!(!sign_with(&c, true), "duplicate id");
+    for bad in [
+        "AB".repeat(16),
+        "0".repeat(31),
+        "0".repeat(33),
+        "g".repeat(32),
+        String::new(),
+    ] {
+        let mut c = base.clone();
+        c.workers[0].id = bad;
+        assert!(!sign_with(&c, true), "bad id");
+    }
+    let mut c = base.clone();
+    c.workers[0].conversation = Secret::random().unwrap().expose().into();
+    assert!(!sign_with(&c, true), "foreign conversation");
+    let mut c = base.clone();
+    c.phase = ProjectionPhase::Free;
+    c.execution = ExecutionState::Offline;
+    c.grant = None;
+    assert!(!sign_with(&c, true), "workers without a grant");
+    let mut v = serde_json::to_value(&base).unwrap();
+    v["workers"][0]["extra"] = json!(1);
+    let (k, d, _) = sample();
+    let p = serde_json::to_vec(&v).unwrap();
+    let s = k.sign(&projection_message_v2(&p).unwrap());
+    assert!(verify_snapshot(&identity(), &d, &p, s.as_ref(), 120).is_err());
+}
+#[test]
+fn c7_v2_without_workers_is_also_well_formed() {
+    let (_, _, mut c) = sample();
+    c.version = 2;
+    assert!(sign_with(&c, true));
 }

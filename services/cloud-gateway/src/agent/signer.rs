@@ -115,6 +115,7 @@ impl RecoverySigner {
             execution: ExecutionState::Offline,
             grant: None,
             drained_grant: None,
+            workers: vec![],
         };
         let payload = serde_json::to_vec(&claims).map_err(|_| AgentError::Protocol)?;
         let msg = projection_message(&payload).map_err(|_| AgentError::Protocol)?;

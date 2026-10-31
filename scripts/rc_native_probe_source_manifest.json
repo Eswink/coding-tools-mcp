@@ -1459,11 +1459,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "fff4cf8eb058faa73e988e936003ea1cafce811f",
-   "bytes": 426900,
+   "blob": "12de1382b08d13263ad8cc0d3d55d4e321542a53",
+   "bytes": 426880,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "03a539806d81f62cf5dfc3f606e074a5f2e8b163daedd7d8f8d1fd4364c86580"
+   "sha256": "bdc1003a6e8b899750b71330c8b35e5c72e7cd3228bf819679a57fbcf8382a58"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -8151,11 +8151,11 @@
    "sha256": "fc45bed46644915dadde1699ff09490f924935f2f19f66d760c36ffc07f8417b"
   },
   {
-   "blob": "80e99a2c7c722ea233414b17d80f03d8dbde2ab3",
-   "bytes": 7295,
+   "blob": "c564ec77ff0659c827a5ca5562bdaead530689b5",
+   "bytes": 9258,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/host/authority.rs",
-   "sha256": "8dc81b19e76cc03036758ac7859311f85b75b815c945e981239e862782e4da23"
+   "sha256": "304aa0e5b8c4a736bda649eb8e18d17202284c84cae440a1fe37e20110e0a842"
   },
   {
    "blob": "9d6dda3d2055e94150e9dfcdc3cde1765daa6ff9",
@@ -8193,11 +8193,11 @@
    "sha256": "9c3fc00c8e6d6525d168054ecabde77c3fdca09bfd1908a9be780c3a304d60e6"
   },
   {
-   "blob": "9c4d2bb6f9bf179acf39398a230cf4f729eb9942",
-   "bytes": 21281,
+   "blob": "192e918b19c29960a5c3efb6605d460fcd33d0e6",
+   "bytes": 25846,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/host/tests.rs",
-   "sha256": "6f091409a2ee3bce4e2a2c458ffbff8374df74e0914464b17f76e31e3a9e660b"
+   "sha256": "97ca91098c75e50717d3e55dc5342fc53e35e5ad5c40869caa38abaf45edecc5"
   },
   {
    "blob": "5403a8a0dac2f14403aa3c6236b988f4afc12490",
@@ -8214,11 +8214,11 @@
    "sha256": "bf5abc6dc7e2ab23a40044b55a6366e45ec22588188115e09645c54d6645086b"
   },
   {
-   "blob": "d3542e2dec7e1f338f6895cfc19cd214424588c5",
-   "bytes": 7193,
+   "blob": "1f5e5b66dcefe30dcbc3949426d0bf1e0a878755",
+   "bytes": 7643,
    "mode": "100644",
    "path": "services/cloud-agent/src/agent/signer.rs",
-   "sha256": "e78d2a63bf5dd6a52bd6cf2a7d8c44b0534d3e2d4eabd7422997371be5e8a9f7"
+   "sha256": "33148cef537b99ab078df0b0e8d4fb1d354972cd522a6af1c6ac19149624e7bd"
   },
   {
    "blob": "3d136c1cd0df5ffa71c076b7455763f8f95322f4",
@@ -8235,11 +8235,11 @@
    "sha256": "9b0b95f198532af2f2a7c473622a913066b1682e81364d9b9cd122f0104c0383"
   },
   {
-   "blob": "6d2578e9cf949301e3336eb706cab1182aa2010a",
-   "bytes": 2782,
+   "blob": "386877afddc45de7d5dcb7b413e4ef32ff6ef9ae",
+   "bytes": 3234,
    "mode": "100644",
    "path": "services/cloud-agent/src/canonical.rs",
-   "sha256": "b23cafe44032bc25c9bd9bc24aada6201af898f5f6d08baaae9076c6e2145609"
+   "sha256": "9db919d0ff04f79c5bab2e70ed4b783b6b7ee6d55602f241fe1a5e89c5f0377e"
   },
   {
    "blob": "70dcef7ef540a6bcfeba82e34d0e6ee61a82c536",
@@ -8382,11 +8382,11 @@
    "sha256": "b865acb7bb83bb9dc68d8f7205274f36d7214c456ee488d5a6862858f3c3dc35"
   },
   {
-   "blob": "95757e69e645d4a3eb083bb9c016a9ffbb067b9b",
-   "bytes": 1731,
+   "blob": "ac219610ce19767b59d6a17bae6dc757eb2f0e82",
+   "bytes": 2801,
    "mode": "100644",
    "path": "services/cloud-agent/src/projection.rs",
-   "sha256": "4cda67899fd6a818449af632fa91b3f6f2922a28f35678b9c6d5da3895d638fb"
+   "sha256": "f97ff13b8b057b55c94ac1fadd13f968370fc69ccb0b540389f098eab0c367c3"
   },
   {
    "blob": "4546d6e8dce6e5227a1f1eafa48f6ce5ac61e04f",
@@ -8522,11 +8522,11 @@
    "sha256": "f2bfd449b06b06147f95d7b46c25ec404df4f3b07bd8f947f2e5e98c9e2e6fe0"
   },
   {
-   "blob": "6d2578e9cf949301e3336eb706cab1182aa2010a",
-   "bytes": 2782,
+   "blob": "386877afddc45de7d5dcb7b413e4ef32ff6ef9ae",
+   "bytes": 3234,
    "mode": "100644",
    "path": "services/cloud-gateway/src/admission/canonical.rs",
-   "sha256": "b23cafe44032bc25c9bd9bc24aada6201af898f5f6d08baaae9076c6e2145609"
+   "sha256": "9db919d0ff04f79c5bab2e70ed4b783b6b7ee6d55602f241fe1a5e89c5f0377e"
   },
   {
    "blob": "709d2e69fa85afc23e26f15807671cae6113a1b9",
@@ -8543,11 +8543,11 @@
    "sha256": "9905dd4c59a9612d2baccc0685dae2667ed7137b5859370fa9580b59d9d816a1"
   },
   {
-   "blob": "5fea70cafc0d283a86baa864e63a260c9bec9cec",
-   "bytes": 33629,
+   "blob": "2bef7070365a266bb7018f14de3f53427df3861e",
+   "bytes": 34422,
    "mode": "100644",
    "path": "services/cloud-gateway/src/admission/store.rs",
-   "sha256": "f4898dd7fc1e6d17e6d3fdc5f5d211adb63c3b7d9668e5efb308aa02d2a480b9"
+   "sha256": "a0c26730f891a4ce08295ec67b945e98e532726145e1ae47295693f9558c784f"
   },
   {
    "blob": "2439259272b1860c204b6f6e84cae13b005a7e1b",
@@ -8585,11 +8585,11 @@
    "sha256": "b8d37bb29858af1bbc8bed00373e75896120e2f00752dc53f0bf6442503825cf"
   },
   {
-   "blob": "619436726ed348cf8efaaf359718857c2d53c8ab",
-   "bytes": 5482,
+   "blob": "999c7e2c4b31adbe5417884104fc5c01e4099275",
+   "bytes": 5511,
    "mode": "100644",
    "path": "services/cloud-gateway/src/agent/signer.rs",
-   "sha256": "240b09629cd2d0c855efd80136bf928a868e05617e1fce67ba16f65f2162127f"
+   "sha256": "2809375c47360cfc03c35ee1a1955738fbed519191dbf72e84518e402d97aa48"
   },
   {
    "blob": "328f245066fb9a0b7723ca7dd5585a8d4366097a",
@@ -8613,11 +8613,11 @@
    "sha256": "73f74d319f3d0a934730210b470fe0dd6b5dfc56637dedf4f2c3787eef36b96c"
   },
   {
-   "blob": "55501bc7c76f103205fec90b6a36f4728b6ca197",
-   "bytes": 9422,
+   "blob": "4a8495d980728fb4ba5c69bd6372137590d64334",
+   "bytes": 9608,
    "mode": "100644",
    "path": "services/cloud-gateway/src/approval.rs",
-   "sha256": "9dd9dc5e2699568cdab64009e0de27673ad48f002b28e4f93b86b55735e27cd4"
+   "sha256": "a1610a2e302d28d476a97f7085b3095363e5efe05ef34ee7203566cf49f92e61"
   },
   {
    "blob": "7db926a83297444420bba3f9c862cbeb6034120c",
@@ -8676,11 +8676,11 @@
    "sha256": "baefe29876c5034af951c012846246b99004051cbbed5b86cd99de8c592f9b53"
   },
   {
-   "blob": "248c7e06ce04a46b3f17a418c8ae8d5e4c0b5223",
-   "bytes": 17828,
+   "blob": "43a04080757a9a3441bb52cef22cac94bfd1b615",
+   "bytes": 18128,
    "mode": "100644",
    "path": "services/cloud-gateway/src/channel/store.rs",
-   "sha256": "ac68f850f22f5025ea2f146cf65f5c3f313cd633093615ff47ba720ec686f598"
+   "sha256": "c9ca3e6ac61363e1570921e5a6f950e2fa5bb53c24ff38ede4af967d6ee0527c"
   },
   {
    "blob": "92728c3f792efe0e0936b331ba8fda03c86b0a27",
@@ -8781,18 +8781,18 @@
    "sha256": "75bd30ef8d97e00a3fa498fef5fbed598767fb05861846955ff0bac2e8ac00cd"
   },
   {
-   "blob": "0859d1d1e63aeb28b956fa034506cb000cb99d28",
-   "bytes": 9957,
+   "blob": "e4a467d92f1b8a8c008d0529c89ef6e1e6716951",
+   "bytes": 10613,
    "mode": "100644",
    "path": "services/cloud-gateway/src/mcp/business.rs",
-   "sha256": "646d2a0159a9a64bbb23497159792a977d9fade3bc4722cb9f11757d62151954"
+   "sha256": "8d23acf917ae2304ad173ea6f19ff9384f272c8d191d7f159e8141952347d047"
   },
   {
-   "blob": "82f0c192d27b4c52a77d93342fcbf1a78b0cd761",
-   "bytes": 15655,
+   "blob": "c831962b147eec839dbc0e04166b95d78a6a241d",
+   "bytes": 17161,
    "mode": "100644",
    "path": "services/cloud-gateway/src/mcp/http.rs",
-   "sha256": "1034eebe6fff8e2036209646a4c7f3b821fd675f88240b9b3d49285f19f88421"
+   "sha256": "31e9fc9e052f624c1da3eda191b9b4d0b6d2317f5042385e740b2b222f7f8dd6"
   },
   {
    "blob": "337f0e4cd3b06cb7a124b29d4439c7ac2ff5c24c",
@@ -8830,25 +8830,25 @@
    "sha256": "a16ff13b7845a15c887d55c2ae0549e908da505391b696022e06c4c5c9c4be8e"
   },
   {
-   "blob": "1922c24aec0a2a98dedb7e314992b975255bd0fa",
-   "bytes": 8585,
+   "blob": "50dbf7c20313b7f868ed79b1f758e1e71d179d22",
+   "bytes": 14136,
    "mode": "100644",
    "path": "services/cloud-gateway/src/projection/claims.rs",
-   "sha256": "e52dae7a7e8a494c0c713f16cf26f66c264d6adae4c1343a455ca09182e4d1d6"
+   "sha256": "37cc65d5d29dd22545d82627319383b165712b33d91426510246fe90276b1da0"
   },
   {
-   "blob": "d0664e95bfefcc7ef2ef1c73f981fd39c4bfb704",
-   "bytes": 976,
+   "blob": "0a42cdc1cfd7d41d7fe6151d9133e06a4b813a4d",
+   "bytes": 1056,
    "mode": "100644",
    "path": "services/cloud-gateway/src/projection/mod.rs",
-   "sha256": "5d61fd35f84a481854a498b02dfb781a659abeb56326754adaa67f1bd0e2c15f"
+   "sha256": "602ad29e9770e5c0a2c380597431ff026ba4f8727097ce4b928d516ad748fcea"
   },
   {
-   "blob": "42cc70076e3b80bfdb47d55e08153022d1f4d671",
-   "bytes": 13585,
+   "blob": "4cf7e9bf1f5074763e107cd90533549957d28334",
+   "bytes": 14500,
    "mode": "100644",
    "path": "services/cloud-gateway/src/projection/store.rs",
-   "sha256": "b229751513ddaaae763f812295a45a33bc6c630631a74fa75a22e65bf8ac065e"
+   "sha256": "b4452e0f30e17459fda23b269e0b1e3ce22c9f5adc49eec914b856434aacf70e"
   },
   {
    "blob": "bf0a27112fe58ad9ad142e14620d1a59e43f6d84",
@@ -8949,18 +8949,18 @@
    "sha256": "72216ad025fdb5878eb1a7434bd46e9d377aa29441fae5f7d15e80ada9784d32"
   },
   {
-   "blob": "3b8894a9c1b81fdd426008e9d9bfcc4703aa5100",
-   "bytes": 18571,
+   "blob": "3e59c2f071a6e91446a807437806709c87fd0679",
+   "bytes": 18596,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/admission_postgres.rs",
-   "sha256": "0f4aca30992871b49115ecec0c0b491603fa6bae5b05d68f43462b2fff42437c"
+   "sha256": "de4ae88780f0d5591b74233818127c9557553a714fe03e8806d759a8b9efaaf9"
   },
   {
-   "blob": "c826ac8dca7fdd0f6ddb4d483e507c5a6b57a9fa",
-   "bytes": 5660,
+   "blob": "f26d0d8d835e4cf1512cb6c6745dcea1ff277499",
+   "bytes": 9956,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/agent_wire_parity.rs",
-   "sha256": "ea8f165fa522b657fde632f8a200800eb98f1f256efcad31857d44d981487fc4"
+   "sha256": "2409f42378adf73a7b03b32fdd4bc9ad2259c3e6c1f564c52a18ae5b890419a0"
   },
   {
    "blob": "3150eade7e4ccb7ab1c69168334be3f1f93c2e70",
@@ -8991,11 +8991,11 @@
    "sha256": "9df141fc27ed69f181fd39f3af001b15a5dd7aa47ebab9ed1fbc0f4f13af7cf0"
   },
   {
-   "blob": "9942bcf8a00e450a9a8fe4879f198c50b3f00550",
-   "bytes": 13209,
+   "blob": "5cbe18b97ed567ccfe8f861abc7a71cc389efaf2",
+   "bytes": 13234,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/channel_postgres.rs",
-   "sha256": "b09107dace06f34d68ab8f09c0220ebf768b4f450596fb974bb427e9b110eacf"
+   "sha256": "bfd1321bd467207bfafecc2115d48050b98f4377d782ade9660581e4648555c7"
   },
   {
    "blob": "a6a4b2696639cbb8ff046591b6d4788e20703da5",
@@ -9005,18 +9005,18 @@
    "sha256": "7930d383514c4d9ddadc1a8034e5e965ae2c25e1fe7ed9920fc09487ded3bd4a"
   },
   {
-   "blob": "ab5298be62a05f611cc83f10c38051292904ee99",
-   "bytes": 2902,
+   "blob": "88579bffffa66216faf55534540e27ad815e7b02",
+   "bytes": 2927,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/channel_support/mod.rs",
-   "sha256": "c87e0c0b34244f4bd1f952566987790eb1e4bd26fa89a365b94b66ad76d1ced2"
+   "sha256": "dffd5c4cabc7361aaff96e86b9a6112a7079d4f5869dacdbbebff960f0b8f754"
   },
   {
-   "blob": "894701e4338b079b2cee843ab3b91eda1292206c",
-   "bytes": 11467,
+   "blob": "06c3e4a3614568082147c3c768ff78ae84655f6f",
+   "bytes": 11496,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/channel_websocket.rs",
-   "sha256": "fd00167c24e56bfcf815be4c46dccb9a0c58cb13e5544b722cc9c6a3a0928338"
+   "sha256": "34ea6b1459f4cd64d72cccc85fe9144fac277467c3f650e9934c2e9e7b985742"
   },
   {
    "blob": "640d87a52e87ff5089607d98a0488c88de6e772e",
@@ -9047,11 +9047,11 @@
    "sha256": "812d2a32884004a885c0c16938ec97d66cb63d940a9caf4e866b2b4fcae56922"
   },
   {
-   "blob": "59f71a6f9da428006d37d8cbbd8b8ffa93a4f437",
-   "bytes": 6516,
+   "blob": "c499a24e4a8253fb124f7aa324ae8e848fe06197",
+   "bytes": 6545,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/execution_wire_support/mod.rs",
-   "sha256": "db8d33adb39f87dcffa121d88f62e7c47ab807c4953fc926cac6e4220ece452f"
+   "sha256": "0b1fc9f945989dd8004871fdfda26d9734e41993fc070f8a372b70694bb46252"
   },
   {
    "blob": "c975b2c9e4ee3d4ebd78b7b57ed633dce18a2266",
@@ -9124,11 +9124,11 @@
    "sha256": "d30779cc0ee45c1c07aefde49b8cf81f7ee2bf0b3855a5063791b3069d34a727"
   },
   {
-   "blob": "fc5e800d224464f81ac0949e43c2af6a3cd0a949",
-   "bytes": 8068,
+   "blob": "781e76dc2107bbed8400e40fddbcd87e93ab256e",
+   "bytes": 11316,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/projection_contracts.rs",
-   "sha256": "c2ad346c1ff4f5a1e098c6d7e2d4acd45e642d95fab90518d8d24a792c45b96c"
+   "sha256": "852af87bb1dfed9672a245f8b2b85d44282ef7c1a410f51c5f8b113a9ae4a4c7"
   },
   {
    "blob": "b214cf52a592123ff1615737d725c948a923ddb3",
@@ -9138,11 +9138,11 @@
    "sha256": "342ce68f4d71a6988c2187c267aebf939ba1f238e1af4e236c0ee80de48d5c73"
   },
   {
-   "blob": "bd28c3e23f370c9e941a1f04943ff979d4271a7a",
-   "bytes": 4486,
+   "blob": "5e6a6eb5190eb8fa6739a2876765f9535465f505",
+   "bytes": 4515,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/projection_support/mod.rs",
-   "sha256": "f66d931c57762add0ecd37c1d358767221a0d26434e6c055db64cd872766752f"
+   "sha256": "b803b150c0aa7d54d6413c231dc8872ce3d8770c883b31363beadf6b612cc5c8"
   },
   {
    "blob": "8e606894d59a9236795102de03f6e127830f3b00",

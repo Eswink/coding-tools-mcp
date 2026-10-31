@@ -107,6 +107,7 @@ impl Harness {
             execution: ExecutionState::Online,
             grant: Some(self.h.lease.clone()),
             drained_grant: None,
+            workers: vec![],
         };
         let (b, s) = self.h.signed(&claims);
         write(p,&json!({"type":"projection","seq":seq+1,"proof":{"payload":URL_SAFE_NO_PAD.encode(b),"signature":URL_SAFE_NO_PAD.encode(s)}})).await;

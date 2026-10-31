@@ -119,3 +119,113 @@ fn client_server_both_accept_agents_manage_bindings() {
     assert!(client::grant::LOCAL_SCOPES.contains(&"agents.manage"));
     assert_eq!(server::grant::LOCAL_SCOPES.len(), 10);
 }
+
+// ---- A1 C7 (SPEC §3.3): projection v2 / worker_id cross vectors ----
+// Independently: sha256 of `{"path":"fixture","worker_id":"abab…ab"}` (sorted keys, compact).
+const C7_WORKER_ARGS_DIGEST: &str =
+    "372f47cab2323b920a9fef5027c2605da2e27b72b1175040a2f170e0274c08d9";
+#[test]
+fn c7_projection_v2_domain_and_worker_bounds_match() {
+    assert_eq!(
+        client::projection::projection_message_v2(b"fixture").unwrap(),
+        server::projection::projection_message_v2(b"fixture").unwrap()
+    );
+    assert_ne!(
+        server::projection::projection_message(b"fixture").unwrap(),
+        server::projection::projection_message_v2(b"fixture").unwrap()
+    );
+    assert_eq!(
+        client::projection::MAX_PROJECTED_WORKERS,
+        server::projection::MAX_PROJECTED_WORKERS
+    );
+    for id in [
+        "ab".repeat(16),
+        "AB".repeat(16),
+        "0".repeat(31),
+        "g".repeat(32),
+        String::new(),
+    ] {
+        assert_eq!(
+            client::projection::valid_worker_id(&id),
+            server::projection::valid_worker_id(&id)
+        );
+    }
+}
+#[test]
+fn c7_worker_id_arguments_hash_is_a_fixed_cross_vector() {
+    let args = json!({"worker_id":"ab".repeat(16),"path":"fixture"});
+    let digest = server::admission::canonical_digest(&args, 4096).unwrap();
+    let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+    assert_eq!(hex, C7_WORKER_ARGS_DIGEST);
+    let mut value = request();
+    value["arguments"] = args;
+    value["binding"]["arguments_hash"] = json!(digest);
+    let a: client::execution::ExecutionRequest = serde_json::from_value(value.clone()).unwrap();
+    let b: server::execution::ExecutionRequest = serde_json::from_value(value).unwrap();
+    assert_eq!(
+        serde_json::to_vec(&a).unwrap(),
+        serde_json::to_vec(&b).unwrap()
+    );
+    a.validate_at(&a.binding.peer, 100).unwrap();
+    b.validate_at(&b.binding.peer, 100).unwrap();
+}
+#[test]
+fn c7_client_v2_claims_with_workers_verify_on_the_server() {
+    use ring::signature::{Ed25519KeyPair, KeyPair};
+    let identity = server::PublicIdentity::new(
+        "https://gateway.example.invalid",
+        "/coding-tools",
+        Uuid::from_u128(1),
+    )
+    .unwrap();
+    let key = Ed25519KeyPair::from_seed_unchecked(&[21; 32]).unwrap();
+    let device = server::device::EnrolledDevice {
+        id: Uuid::from_u128(2),
+        connector: identity.connector(),
+        public_key: key.public_key().as_ref().into(),
+        epoch: 3,
+    };
+    let conversation = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc".to_owned();
+    let claims = client::projection::ProjectionClaims {
+        version: 2,
+        issuer: identity.issuer(),
+        resource: identity.resource(),
+        connector: identity.connector(),
+        device: device.id,
+        device_epoch: 3,
+        gateway_boot: Uuid::from_u128(4),
+        challenge: "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk".into(),
+        revision: 7,
+        authority_epoch: 9,
+        issued_at: 100,
+        valid_until: 150,
+        phase: client::projection::ProjectionPhase::Active,
+        execution: client::projection::ExecutionState::Online,
+        grant: Some(client::projection::LocalLease {
+            id: Uuid::from_u128(5),
+            conversation: conversation.clone(),
+            issued_at: 80,
+            expires_at: 200,
+            scopes: vec!["agents.manage".into()],
+        }),
+        drained_grant: None,
+        workers: vec![client::projection::WorkerClaim {
+            id: "ab".repeat(16),
+            conversation,
+        }],
+    };
+    let payload = serde_json::to_vec(&claims).unwrap();
+    let sig = key.sign(&client::projection::projection_message_v2(&payload).unwrap());
+    assert!(
+        server::projection::verify_snapshot(&identity, &device, &payload, sig.as_ref(), 120)
+            .is_ok()
+    );
+    // The server codec re-encodes the client's v2 claims byte-for-byte.
+    let parsed: server::projection::ProjectionClaims = serde_json::from_slice(&payload).unwrap();
+    assert_eq!(serde_json::to_vec(&parsed).unwrap(), payload);
+    let v1 = key.sign(&client::projection::projection_message(&payload).unwrap());
+    assert!(
+        server::projection::verify_snapshot(&identity, &device, &payload, v1.as_ref(), 120)
+            .is_err()
+    );
+}

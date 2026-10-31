@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7 commit 1 (Grok nits on d42714ba: O13 comments, group_cleanup production wiring) on a1-c7 d42714ba, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c7 commit 2 (projection v2 workers wire + gateway WORKER_NOT_OWNED pre-filter, SPEC v5.6 §3.3) on a1-c7 9c00f44b, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e1b1cf80067f6b7ede06ddda886b19456bdeccd6",
-        "sha256": "1d7d3c1a134cf794cac3b2744fdfc6fe5ec6ac92e41a92ddf163c95f8a390da2"
+        "blob_sha": "441e4566f213c5ad0494f87ddac955e62b050653",
+        "sha256": "f8c7c822fcac5affa85dfbf983b1a451e24323506d50ae429cdad934b3630ee4"
       }
     },
     {
@@ -6040,8 +6040,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "80e99a2c7c722ea233414b17d80f03d8dbde2ab3",
-        "sha256": "8dc81b19e76cc03036758ac7859311f85b75b815c945e981239e862782e4da23"
+        "blob_sha": "c564ec77ff0659c827a5ca5562bdaead530689b5",
+        "sha256": "304aa0e5b8c4a736bda649eb8e18d17202284c84cae440a1fe37e20110e0a842"
       }
     },
     {
@@ -6100,8 +6100,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9c4d2bb6f9bf179acf39398a230cf4f729eb9942",
-        "sha256": "6f091409a2ee3bce4e2a2c458ffbff8374df74e0914464b17f76e31e3a9e660b"
+        "blob_sha": "192e918b19c29960a5c3efb6605d460fcd33d0e6",
+        "sha256": "97ca91098c75e50717d3e55dc5342fc53e35e5ad5c40869caa38abaf45edecc5"
       }
     },
     {
@@ -6130,8 +6130,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d3542e2dec7e1f338f6895cfc19cd214424588c5",
-        "sha256": "e78d2a63bf5dd6a52bd6cf2a7d8c44b0534d3e2d4eabd7422997371be5e8a9f7"
+        "blob_sha": "1f5e5b66dcefe30dcbc3949426d0bf1e0a878755",
+        "sha256": "33148cef537b99ab078df0b0e8d4fb1d354972cd522a6af1c6ac19149624e7bd"
       }
     },
     {
@@ -6160,8 +6160,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6d2578e9cf949301e3336eb706cab1182aa2010a",
-        "sha256": "b23cafe44032bc25c9bd9bc24aada6201af898f5f6d08baaae9076c6e2145609"
+        "blob_sha": "386877afddc45de7d5dcb7b413e4ef32ff6ef9ae",
+        "sha256": "9db919d0ff04f79c5bab2e70ed4b783b6b7ee6d55602f241fe1a5e89c5f0377e"
       }
     },
     {
@@ -6370,8 +6370,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "95757e69e645d4a3eb083bb9c016a9ffbb067b9b",
-        "sha256": "4cda67899fd6a818449af632fa91b3f6f2922a28f35678b9c6d5da3895d638fb"
+        "blob_sha": "ac219610ce19767b59d6a17bae6dc757eb2f0e82",
+        "sha256": "f97ff13b8b057b55c94ac1fadd13f968370fc69ccb0b540389f098eab0c367c3"
       }
     },
     {
@@ -6570,8 +6570,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6d2578e9cf949301e3336eb706cab1182aa2010a",
-        "sha256": "b23cafe44032bc25c9bd9bc24aada6201af898f5f6d08baaae9076c6e2145609"
+        "blob_sha": "386877afddc45de7d5dcb7b413e4ef32ff6ef9ae",
+        "sha256": "9db919d0ff04f79c5bab2e70ed4b783b6b7ee6d55602f241fe1a5e89c5f0377e"
       }
     },
     {
@@ -6600,8 +6600,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5fea70cafc0d283a86baa864e63a260c9bec9cec",
-        "sha256": "f4898dd7fc1e6d17e6d3fdc5f5d211adb63c3b7d9668e5efb308aa02d2a480b9"
+        "blob_sha": "2bef7070365a266bb7018f14de3f53427df3861e",
+        "sha256": "a0c26730f891a4ce08295ec67b945e98e532726145e1ae47295693f9558c784f"
       }
     },
     {
@@ -6660,8 +6660,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "619436726ed348cf8efaaf359718857c2d53c8ab",
-        "sha256": "240b09629cd2d0c855efd80136bf928a868e05617e1fce67ba16f65f2162127f"
+        "blob_sha": "999c7e2c4b31adbe5417884104fc5c01e4099275",
+        "sha256": "2809375c47360cfc03c35ee1a1955738fbed519191dbf72e84518e402d97aa48"
       }
     },
     {
@@ -6700,8 +6700,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "55501bc7c76f103205fec90b6a36f4728b6ca197",
-        "sha256": "9dd9dc5e2699568cdab64009e0de27673ad48f002b28e4f93b86b55735e27cd4"
+        "blob_sha": "4a8495d980728fb4ba5c69bd6372137590d64334",
+        "sha256": "a1610a2e302d28d476a97f7085b3095363e5efe05ef34ee7203566cf49f92e61"
       }
     },
     {
@@ -6790,8 +6790,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "248c7e06ce04a46b3f17a418c8ae8d5e4c0b5223",
-        "sha256": "ac68f850f22f5025ea2f146cf65f5c3f313cd633093615ff47ba720ec686f598"
+        "blob_sha": "43a04080757a9a3441bb52cef22cac94bfd1b615",
+        "sha256": "c9ca3e6ac61363e1570921e5a6f950e2fa5bb53c24ff38ede4af967d6ee0527c"
       }
     },
     {
@@ -6940,8 +6940,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "0859d1d1e63aeb28b956fa034506cb000cb99d28",
-        "sha256": "646d2a0159a9a64bbb23497159792a977d9fade3bc4722cb9f11757d62151954"
+        "blob_sha": "e4a467d92f1b8a8c008d0529c89ef6e1e6716951",
+        "sha256": "8d23acf917ae2304ad173ea6f19ff9384f272c8d191d7f159e8141952347d047"
       }
     },
     {
@@ -6950,8 +6950,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "82f0c192d27b4c52a77d93342fcbf1a78b0cd761",
-        "sha256": "1034eebe6fff8e2036209646a4c7f3b821fd675f88240b9b3d49285f19f88421"
+        "blob_sha": "c831962b147eec839dbc0e04166b95d78a6a241d",
+        "sha256": "31e9fc9e052f624c1da3eda191b9b4d0b6d2317f5042385e740b2b222f7f8dd6"
       }
     },
     {
@@ -7010,8 +7010,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1922c24aec0a2a98dedb7e314992b975255bd0fa",
-        "sha256": "e52dae7a7e8a494c0c713f16cf26f66c264d6adae4c1343a455ca09182e4d1d6"
+        "blob_sha": "50dbf7c20313b7f868ed79b1f758e1e71d179d22",
+        "sha256": "37cc65d5d29dd22545d82627319383b165712b33d91426510246fe90276b1da0"
       }
     },
     {
@@ -7020,8 +7020,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d0664e95bfefcc7ef2ef1c73f981fd39c4bfb704",
-        "sha256": "5d61fd35f84a481854a498b02dfb781a659abeb56326754adaa67f1bd0e2c15f"
+        "blob_sha": "0a42cdc1cfd7d41d7fe6151d9133e06a4b813a4d",
+        "sha256": "602ad29e9770e5c0a2c380597431ff026ba4f8727097ce4b928d516ad748fcea"
       }
     },
     {
@@ -7030,8 +7030,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "42cc70076e3b80bfdb47d55e08153022d1f4d671",
-        "sha256": "b229751513ddaaae763f812295a45a33bc6c630631a74fa75a22e65bf8ac065e"
+        "blob_sha": "4cf7e9bf1f5074763e107cd90533549957d28334",
+        "sha256": "b4452e0f30e17459fda23b269e0b1e3ce22c9f5adc49eec914b856434aacf70e"
       }
     },
     {
@@ -7180,8 +7180,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "3b8894a9c1b81fdd426008e9d9bfcc4703aa5100",
-        "sha256": "0f4aca30992871b49115ecec0c0b491603fa6bae5b05d68f43462b2fff42437c"
+        "blob_sha": "3e59c2f071a6e91446a807437806709c87fd0679",
+        "sha256": "de4ae88780f0d5591b74233818127c9557553a714fe03e8806d759a8b9efaaf9"
       }
     },
     {
@@ -7190,8 +7190,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c826ac8dca7fdd0f6ddb4d483e507c5a6b57a9fa",
-        "sha256": "ea8f165fa522b657fde632f8a200800eb98f1f256efcad31857d44d981487fc4"
+        "blob_sha": "f26d0d8d835e4cf1512cb6c6745dcea1ff277499",
+        "sha256": "2409f42378adf73a7b03b32fdd4bc9ad2259c3e6c1f564c52a18ae5b890419a0"
       }
     },
     {
@@ -7240,8 +7240,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9942bcf8a00e450a9a8fe4879f198c50b3f00550",
-        "sha256": "b09107dace06f34d68ab8f09c0220ebf768b4f450596fb974bb427e9b110eacf"
+        "blob_sha": "5cbe18b97ed567ccfe8f861abc7a71cc389efaf2",
+        "sha256": "bfd1321bd467207bfafecc2115d48050b98f4377d782ade9660581e4648555c7"
       }
     },
     {
@@ -7260,8 +7260,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ab5298be62a05f611cc83f10c38051292904ee99",
-        "sha256": "c87e0c0b34244f4bd1f952566987790eb1e4bd26fa89a365b94b66ad76d1ced2"
+        "blob_sha": "88579bffffa66216faf55534540e27ad815e7b02",
+        "sha256": "dffd5c4cabc7361aaff96e86b9a6112a7079d4f5869dacdbbebff960f0b8f754"
       }
     },
     {
@@ -7270,8 +7270,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "894701e4338b079b2cee843ab3b91eda1292206c",
-        "sha256": "fd00167c24e56bfcf815be4c46dccb9a0c58cb13e5544b722cc9c6a3a0928338"
+        "blob_sha": "06c3e4a3614568082147c3c768ff78ae84655f6f",
+        "sha256": "34ea6b1459f4cd64d72cccc85fe9144fac277467c3f650e9934c2e9e7b985742"
       }
     },
     {
@@ -7320,8 +7320,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "59f71a6f9da428006d37d8cbbd8b8ffa93a4f437",
-        "sha256": "db8d33adb39f87dcffa121d88f62e7c47ab807c4953fc926cac6e4220ece452f"
+        "blob_sha": "c499a24e4a8253fb124f7aa324ae8e848fe06197",
+        "sha256": "0b1fc9f945989dd8004871fdfda26d9734e41993fc070f8a372b70694bb46252"
       }
     },
     {
@@ -7430,8 +7430,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fc5e800d224464f81ac0949e43c2af6a3cd0a949",
-        "sha256": "c2ad346c1ff4f5a1e098c6d7e2d4acd45e642d95fab90518d8d24a792c45b96c"
+        "blob_sha": "781e76dc2107bbed8400e40fddbcd87e93ab256e",
+        "sha256": "852af87bb1dfed9672a245f8b2b85d44282ef7c1a410f51c5f8b113a9ae4a4c7"
       }
     },
     {
@@ -7450,8 +7450,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bd28c3e23f370c9e941a1f04943ff979d4271a7a",
-        "sha256": "f66d931c57762add0ecd37c1d358767221a0d26434e6c055db64cd872766752f"
+        "blob_sha": "5e6a6eb5190eb8fa6739a2876765f9535465f505",
+        "sha256": "b803b150c0aa7d54d6413c231dc8872ce3d8770c883b31363beadf6b612cc5c8"
       }
     },
     {

@@ -210,6 +210,21 @@ impl ProjectionStore {
         binding: &ConversationBinding,
         scope: &str,
     ) -> Result<ProjectionDecision> {
+        Ok(self.evaluate(binding, Some(scope)).await?.0)
+    }
+    /// A1 C7 (SPEC §3.3): gateway pre-filter for a `worker_id` argument. True only when the
+    /// fresh projection would be Eligible and lists `(worker, binding conversation)`.
+    /// False never claims the worker does not exist (the projection may lag).
+    pub async fn worker_owned(&self, binding: &ConversationBinding, worker: &str) -> Result<bool> {
+        let (decision, state) = self.evaluate(binding, None).await?;
+        Ok(decision == ProjectionDecision::Eligible
+            && state.is_some_and(|s| s.owns_worker(&binding.0, worker)))
+    }
+    async fn evaluate(
+        &self,
+        binding: &ConversationBinding,
+        scope: Option<&str>,
+    ) -> Result<(ProjectionDecision, Option<ProjectedState>)> {
         use ProjectionDecision::*;
         let mut tx = bounded_tx(&self.identity).await?;
         let selected: Option<Uuid> =
@@ -219,24 +234,24 @@ impl ProjectionStore {
                 .await?
                 .flatten();
         let Some(id) = selected else {
-            return Ok(AuthorizationUnavailable);
+            return Ok((AuthorizationUnavailable, None));
         };
         let device = match lock_device(&self.identity, id, &mut tx).await {
             Ok(d) => d,
-            Err(IdentityError::InvalidProof) => return Ok(AuthorizationUnavailable),
+            Err(IdentityError::InvalidProof) => return Ok((AuthorizationUnavailable, None)),
             Err(e) => return Err(e),
         };
         let row = self.lock_row(&mut tx, false).await?;
         if row.try_get::<Option<Uuid>, _>("device")? != Some(device.id)
             || row.try_get::<i64, _>("snapshot_device_epoch")? != device.epoch
         {
-            return Ok(AuthorizationUnavailable);
+            return Ok((AuthorizationUnavailable, None));
         }
         let Some(state) = read_state(&row)? else {
-            return Ok(AuthorizationUnavailable);
+            return Ok((AuthorizationUnavailable, None));
         };
         let Some(grant) = state.grant.as_ref() else {
-            return Ok(AuthorizationUnavailable);
+            return Ok((AuthorizationUnavailable, None));
         };
         let at = now(&mut tx).await?;
         if grant.conversation != binding.0
@@ -244,10 +259,10 @@ impl ProjectionStore {
             || grant.issued_at > at
             || state.authority_epoch <= row.try_get::<i64, _>("revoked_through_epoch")?
         {
-            return Ok(AuthorizationUnavailable);
+            return Ok((AuthorizationUnavailable, None));
         }
-        if !grant.scopes.iter().any(|s| s == scope) {
-            return Ok(ScopeDenied);
+        if scope.is_some_and(|scope| !grant.scopes.iter().any(|s| s == scope)) {
+            return Ok((ScopeDenied, None));
         }
         if row.try_get::<Uuid, _>("gateway_boot")? != self.boot
             || !row.try_get::<bool, _>("reconciled")?
@@ -256,17 +271,17 @@ impl ProjectionStore {
                 ProjectionPhase::Draining | ProjectionPhase::RecoveryRequired
             )
         {
-            return Ok(RecoveryRequired);
+            return Ok((RecoveryRequired, None));
         }
         if state.phase != ProjectionPhase::Active {
-            return Ok(AuthorizationUnavailable);
+            return Ok((AuthorizationUnavailable, None));
         }
         if row.try_get::<i64, _>("snapshot_until")? <= at
             || state.execution == ExecutionState::Offline
         {
-            return Ok(WorkspaceOffline);
+            return Ok((WorkspaceOffline, None));
         }
-        Ok(Eligible)
+        Ok((Eligible, Some(state)))
     }
     async fn lock_row(&self, tx: &mut Transaction<'_, Postgres>, exclusive: bool) -> Result<PgRow> {
         let query = if exclusive {
