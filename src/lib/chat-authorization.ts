@@ -6,7 +6,18 @@ export const chatScopeLabels: Record<string, string> = {
   "workspace.read": "工作区状态", "files.read": "读取文件", "files.write": "修改文件",
   "exec.run": "执行命令（可访问共享文件）", "task.read": "查看本聊天任务", "task.manage": "管理本聊天任务",
   "history.read": "读取本聊天归档", "history.write": "保存本聊天归档", "harness.write": "管理本聊天开发计划",
+  "agents.manage": "管理子代理（创建 worktree、在其中运行命令、请求合入）",
 };
+/** A1 C6 (SPEC §3.1/§6.3, O13 pending user confirmation): sensitive scopes are never pre-selected. */
+export const sensitiveScopeWarnings: Record<string, string> = {
+  "agents.manage": "Windows 无沙箱，子代理命令以你的权限运行",
+};
+export function defaultScopeSelection(grant: Pick<ChatGrant, "scopes">): string[] {
+  return grant.scopes.filter(scope => !(scope in sensitiveScopeWarnings));
+}
+export function scopeWarnings(selected: string[]): string[] {
+  return selected.filter(scope => scope in sensitiveScopeWarnings).map(scope => sensitiveScopeWarnings[scope]);
+}
 export function pendingChats(snapshot: ChatInbox): PendingChat[] {
   return snapshot.pending.filter(p => p.grant.status === "pending" && p.grant.expires_at > snapshot.now);
 }

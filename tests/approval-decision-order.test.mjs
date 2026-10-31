@@ -123,3 +123,15 @@ test('local rejection does not require fingerprint confirmation or send approval
   await work;
   assert.equal(ui.events.at(-1).busy, false);
 });
+
+test('default selection never carries agents.manage into the approval IPC (A1 C6, O13 pending)', async () => {
+  assert.match(host, /selectedScopes = defaultScopeSelection\(row\.grant\)/);
+  assert.match(host, /scopeWarnings\(selectedScopes\)/);
+  const grant = { ...row().grant, scopes: ['files.read', 'agents.manage'] };
+  const initial = exports.defaultScopeSelection(grant);
+  const { ui, gate } = harness({ row: { workspaceId: 'fixture-workspace', grant }, scopes: initial });
+  const work = ui.decide(true);
+  gate.resolve({});
+  await work;
+  assert.deepEqual(ui.calls[0].args.scopes, ['files.read']);
+});

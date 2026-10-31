@@ -17,3 +17,10 @@ test("提示词与协议均先审批后归档，不再无条件开始就调用�
   assert.match(server,/Never use business tools before OAuth and local desktop approval/);
   assert.doesNotMatch(server,/At the start of every new ChatGPT conversation, before answering/);
 });
+test("面板标签单一来源，agents.manage 默认不勾并在勾选时警示（A1 C6，O13 待用户确认）",()=>{
+  assert.match(panel,/from "\$lib\/chat-authorization"/);
+  assert.doesNotMatch(panel,/"harness\.write": "/);
+  assert.match(panel,/selections\[g\.id\] \?\? defaultScopeSelection\(g\)/);
+  assert.doesNotMatch(panel,/selections\[grant\.id\] \?\? grant\.scopes/);
+  assert.match(panel,/scopeWarnings\(chosen\(grant\)\)/);
+});

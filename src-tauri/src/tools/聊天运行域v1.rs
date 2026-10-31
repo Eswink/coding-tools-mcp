@@ -60,9 +60,9 @@ impl ChatDomains {
     }
 }
 /// A1 C2 (SPEC-A1 v4 §3.2): `required` plus `agents.manage` when the call carries
-/// `worker_id`. `required` itself, the catalog and ScopeSet alignment stay
-/// unchanged until C6; `agents.manage` is not grantable yet, so every remote
-/// worker call fails closed with INSUFFICIENT_CHAT_SCOPE.
+/// `worker_id`. Since C6 `agents.manage` is grantable, but only after the local
+/// owner explicitly ticks it; without it every remote worker call still fails
+/// closed with INSUFFICIENT_CHAT_SCOPE.
 pub(crate) fn scopes(name: &str, args: &Value) -> Option<Vec<&'static str>> {
     let mut out = required(name, args)?.to_vec();
     if args.get("worker_id").is_some() && !out.contains(&"agents.manage") {
@@ -115,8 +115,8 @@ pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static st
         "start_task" | "update_task" | "pause_task" | "resume_task" | "finish_task" => {
             &["harness.write"]
         }
-        // A1 C2b (SPEC-A1 v4 §2.1): agents.manage is pending (never grantable
-        // before C6), so remote subagent_* calls fail closed.
+        // A1 C2b (SPEC-A1 v4 §2.1) / C6: subagent_* need agents.manage, which a
+        // grant only carries when the local owner ticked it (default unchecked).
         "subagent_spawn" | "subagent_integrate" | "subagent_rollback" | "subagent_discard" => {
             &["agents.manage", "files.write"]
         }
@@ -250,7 +250,7 @@ pub(crate) fn auth_tools() -> Vec<Value> {
         .into_iter().map(|(name,description)| json!({
             "name":name,"description":description,
             "inputSchema":{"type":"object","properties":if name == "auth_status" { json!({}) } else {
-                json!({"scopes":{"type":"array","minItems":1,"maxItems":9,"items":{"type":"string","enum":crate::auth::chat::SCOPES}}})
+                json!({"scopes":{"type":"array","minItems":1,"maxItems":crate::auth::chat::SCOPES.len(),"items":{"type":"string","enum":crate::auth::chat::SCOPES}}})
             },"additionalProperties":false},
             "securitySchemes":[{"type":"oauth2","scopes":["mcp"]}],
             "annotations":{"readOnlyHint":name == "auth_status","destructiveHint":false,"openWorldHint":false}

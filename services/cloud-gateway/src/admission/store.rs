@@ -878,12 +878,12 @@ mod c6_tests {
 
     #[test]
     fn persisted_grants_with_and_without_agents_manage_are_both_valid() {
+        assert!(validate_state(state(&["files.read", "agents.manage"])).is_ok());
         let old = &LOCAL_SCOPES[..9];
         assert!(!old.contains(&"agents.manage"));
         assert!(validate_state(state(old)).is_ok());
         assert!(validate_state(state(LOCAL_SCOPES)).is_ok());
         assert_eq!(LOCAL_SCOPES.len(), 10);
-        assert!(validate_state(state(&["files.read", "agents.manage"])).is_ok());
         assert!(matches!(
             validate_state(state(&["files.read", "agents.admin"])),
             Err(IdentityError::StoreUnavailable)

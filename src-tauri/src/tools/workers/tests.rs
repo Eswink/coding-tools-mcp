@@ -1211,8 +1211,9 @@ fn remote_worker_calls_add_agents_manage_to_the_required_scopes() {
     }
     // Unknown tools stay unknown.
     assert!(scopes("no_such_tool", &json!({"worker_id":"x"})).is_none());
-    // C2 grants never include agents.manage, so a remote worker call fails closed.
-    assert!(!crate::auth::chat::SCOPES.contains(&"agents.manage"));
+    // A1 C6: agents.manage is grantable (and the auth schema allows all 10).
+    assert!(crate::auth::chat::SCOPES.contains(&"agents.manage"));
+    assert_eq!(crate::auth::chat::SCOPES.len(), 10);
 }
 
 /// Simulates a running worker call (the guard route() holds for the call).

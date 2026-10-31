@@ -26,6 +26,8 @@ pub const SCOPES: &[&str] = &[
     "history.read",
     "history.write",
     "harness.write",
+    // A1 C6: sensitive; the approval UI never pre-selects it (O13, pending user confirmation).
+    "agents.manage",
 ];
 const PENDING: u64 = 90;
 const MAX_RECORDS: usize = 64;
