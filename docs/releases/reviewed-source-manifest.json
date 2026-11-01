@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10c commit 1 (C10c nits 1-4: unlink temp on write/sync failure; sweep via fdopendir; no tighten on read-only sweep/remove; open_root O_NOFOLLOW) on a1-c10b 67a0b58c, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10c commit 2 (C10c-2: cargo fmt wrap on integrate_tests only) on a1-c10c 2434ec96, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9c0f467b35d0d9c5d2b88bb5606f042688a3244d",
-        "sha256": "bc8b64de4008aa6cfa845e950cdc3e364aa8a4c123f732f2a57f326b9385ad9d"
+        "blob_sha": "fe66b5b80bd81dded09f9aebcd5632d17c4b33f9",
+        "sha256": "2f8583242ffffd43f76587998a72e2ab4780d974a632a1bf7778319070266142"
       }
     },
     {
@@ -10574,8 +10574,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "839692e205424ac779859ba93204acf44aae3a85",
-        "sha256": "35a256e5a5cf0b5d6cee9ec98dd658d9161c6c323b368d11ad319900bf66dfb0"
+        "blob_sha": "48e28f08cc0fd91e4cc3b20bbce3e71bc35a4a55",
+        "sha256": "12504521bc579371302eac04e56680e10b8656d3a5682d301dd884c47c9b4d8c"
       }
     },
     {

@@ -2183,7 +2183,8 @@ fn c10c_clear_attention_unlinks_temp_when_write_or_sync_fails() {
             listing_tmp_files(&dir)
         );
     }
-    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare after fault cleared: {e}"));
+    let card =
+        attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare after fault cleared: {e}"));
     assert!(card.summary["entries_not_shown"].as_u64().unwrap() > 0);
     assert!(listing.exists(), "listing written once the fault is gone");
 }
@@ -2215,7 +2216,10 @@ fn c10c_sweep_uses_the_dir_fd_not_a_replaced_path() {
         !dir_path.join(&stale).exists(),
         "replacement path has no stale file"
     );
-    assert!(moved.join(&stale).exists(), "stale lives under the fd's dir");
+    assert!(
+        moved.join(&stale).exists(),
+        "stale lives under the fd's dir"
+    );
     integration::sweep_stale_tmp_for_test(&dir_fd);
     assert!(
         !moved.join(&stale).exists(),
