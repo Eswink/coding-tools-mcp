@@ -245,9 +245,23 @@ fn core_profile_keeps_the_default_capabilities_and_adds_history_tools() {
     ]
     .into_iter()
     .collect::<std::collections::HashSet<_>>();
-    let additions = ["worktree_create", "worktree_list", "worktree_remove"]
-        .into_iter()
-        .collect::<std::collections::HashSet<_>>();
+    // A1 C2b (SPEC-A1 v4 §2.1): the seven subagent_* tools join the three
+    // managed worktree tools; the 30-tool baseline is unchanged.
+    let additions = [
+        "worktree_create",
+        "worktree_list",
+        "worktree_remove",
+        "subagent_spawn",
+        "subagent_status",
+        "subagent_collect",
+        "subagent_cancel",
+        "subagent_integrate",
+        "subagent_rollback",
+        "subagent_discard",
+    ]
+    .into_iter()
+    .collect::<std::collections::HashSet<_>>();
+    assert_eq!(additions.len(), 10);
     assert_eq!(baseline.len(), 30);
     assert_eq!(
         names
@@ -289,6 +303,36 @@ fn core_profile_keeps_the_default_capabilities_and_adds_history_tools() {
             read_only.iter().any(|tool| tool["name"] == name),
             read,
             "{name}: {scope} profile boundary"
+        );
+    }
+    // Only status/collect are read-only; every subagent schema is closed and no
+    // subagent tool exposes a path, root or ref (opaque worker_id only).
+    for (name, read, destructive) in [
+        ("subagent_spawn", false, false),
+        ("subagent_status", true, false),
+        ("subagent_collect", true, false),
+        ("subagent_cancel", false, true),
+        ("subagent_integrate", false, true),
+        ("subagent_rollback", false, true),
+        ("subagent_discard", false, true),
+    ] {
+        let tool = tools.iter().find(|tool| tool["name"] == name).unwrap();
+        let schema = &tool["inputSchema"];
+        assert_eq!(schema["additionalProperties"], false, "{name}");
+        for forbidden in ["path", "root", "workdir", "ref", "worktree_id"] {
+            assert!(schema["properties"].get(forbidden).is_none(), "{name}");
+        }
+        for (hint, expected) in [
+            ("readOnlyHint", read),
+            ("destructiveHint", destructive),
+            ("openWorldHint", false),
+        ] {
+            assert_eq!(tool["annotations"][hint], expected, "{name}: {hint}");
+        }
+        assert_eq!(
+            read_only.iter().any(|tool| tool["name"] == name),
+            read,
+            "{name}: read-only profile boundary"
         );
     }
     for name in [

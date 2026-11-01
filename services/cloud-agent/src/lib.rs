@@ -53,5 +53,7 @@ pub mod grant {
         "history.read",
         "history.write",
         "harness.write",
+        // A1 C6: grantable through the normal request -> local approve path.
+        "agents.manage",
     ];
 }

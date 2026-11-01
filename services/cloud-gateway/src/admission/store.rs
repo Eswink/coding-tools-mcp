@@ -148,6 +148,9 @@ struct ProjectedState {
     // A retained Free receipt is never a grant or an admission capability.
     #[serde(default, rename = "last_drained_grant")]
     _last_drained_grant: Option<Uuid>,
+    // A1 C7: the worker pre-filter list is never an admission capability.
+    #[serde(default, rename = "workers")]
+    _workers: Vec<crate::projection::WorkerClaim>,
 }
 #[derive(Clone)]
 struct Fence {
@@ -202,7 +205,7 @@ impl AdmissionStore {
         }
         // Expired exact retries reconcile immutable existing metadata above;
         // only a genuinely new admission is subject to the new-request TTL.
-        self.validate_request(&request, at)?;
+        validate_request(&request, at)?;
 
         let decision = self.current_fence(&mut tx, &request, &fingerprint).await?;
         let (state, deny, fence) = match decision {
@@ -431,22 +434,6 @@ impl AdmissionStore {
             arguments_hash: digest_json(request.arguments, MAX_ARGUMENT_BYTES)?,
         })
     }
-    fn validate_request(&self, request: &AdmissionRequest<'_>, at: i64) -> Result<()> {
-        if request.request_id.is_nil()
-            || request.scope.is_empty()
-            || request.scope.len() > MAX_SCOPE
-            || !LOCAL_SCOPES.contains(&request.scope)
-            || !valid_tool(request.tool_name)
-            || request.deadline <= at
-            || request
-                .deadline
-                .checked_sub(at)
-                .is_none_or(|n| n > MAX_DEADLINE_SECONDS)
-        {
-            return Err(IdentityError::InvalidRequest);
-        }
-        Ok(())
-    }
     fn verify_same(
         &self,
         row: &PgRow,
@@ -561,6 +548,23 @@ impl AdmissionStore {
     }
 }
 
+/// Pure admission shape check (A1 C6: also covers `agents.manage` as primary scope).
+fn validate_request(request: &AdmissionRequest<'_>, at: i64) -> Result<()> {
+    if request.request_id.is_nil()
+        || request.scope.is_empty()
+        || request.scope.len() > MAX_SCOPE
+        || !LOCAL_SCOPES.contains(&request.scope)
+        || !valid_tool(request.tool_name)
+        || request.deadline <= at
+        || request
+            .deadline
+            .checked_sub(at)
+            .is_none_or(|n| n > MAX_DEADLINE_SECONDS)
+    {
+        return Err(IdentityError::InvalidRequest);
+    }
+    Ok(())
+}
 fn valid_tool(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= MAX_TOOL_NAME
@@ -573,6 +577,11 @@ fn parse_state(row: &PgRow) -> Result<ProjectedState> {
     let state: ProjectedState =
         serde_json::from_str(text.as_deref().ok_or(IdentityError::InvalidProof)?)
             .map_err(|_| IdentityError::StoreUnavailable)?;
+    validate_state(state)
+}
+/// Pure persisted-state check. An older gateway (without `agents.manage` in
+/// LOCAL_SCOPES) rejects a persisted grant holding it as StoreUnavailable.
+fn validate_state(state: ProjectedState) -> Result<ProjectedState> {
     if state.authority_epoch <= 0
         || (state.phase != ProjectionPhase::Active && state.execution != ExecutionState::Offline)
         || (state.phase == ProjectionPhase::Free && state.grant.is_some())
@@ -814,3 +823,91 @@ fn decision_for_state(state: RequestState, deny: Option<AdmissionDeny>) -> Admis
 
 #[path = "dispatch.rs"]
 mod dispatch;
+
+#[cfg(test)]
+mod c6_tests {
+    use super::*;
+
+    fn conversation() -> ConversationBinding {
+        ConversationBinding::for_test("A".repeat(43))
+    }
+    fn request<'a>(
+        conversation: &'a ConversationBinding,
+        scope: &'a str,
+        arguments: &'a Value,
+    ) -> AdmissionRequest<'a> {
+        AdmissionRequest {
+            request_id: Uuid::from_u128(1),
+            conversation,
+            scope,
+            tool_name: "subagent_spawn",
+            arguments,
+            class: RequestClass::Mutating,
+            deadline: 1_060,
+        }
+    }
+    fn state(scopes: &[&str]) -> ProjectedState {
+        ProjectedState {
+            phase: ProjectionPhase::Active,
+            execution: ExecutionState::Online,
+            authority_epoch: 1,
+            grant: Some(LocalLease {
+                id: Uuid::from_u128(2),
+                conversation: "A".repeat(43),
+                issued_at: 1_000,
+                expires_at: 2_000,
+                scopes: scopes.iter().map(|s| (*s).to_owned()).collect(),
+            }),
+            _last_drained_grant: None,
+            _workers: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn c7_persisted_state_with_workers_parses_for_admission() {
+        let text = format!(
+            r#"{{"phase":"active","execution":"online","authority_epoch":1,"grant":{{"id":"00000000-0000-0000-0000-000000000002","conversation":"{}","issued_at":1000,"expires_at":2000,"scopes":["agents.manage"]}},"workers":[{{"id":"{}","conversation":"{}"}}]}}"#,
+            "A".repeat(43),
+            "ab".repeat(16),
+            "A".repeat(43)
+        );
+        let state: ProjectedState = serde_json::from_str(&text).unwrap();
+        assert!(validate_state(state).is_ok());
+    }
+    #[test]
+    fn admission_accepts_agents_manage_as_the_primary_scope() {
+        let c = conversation();
+        let args = serde_json::json!({});
+        assert!(validate_request(&request(&c, "agents.manage", &args), 1_000).is_ok());
+        assert!(validate_request(&request(&c, "files.read", &args), 1_000).is_ok());
+        for bad in ["agents.admin", "", "AGENTS.MANAGE"] {
+            assert!(
+                matches!(
+                    validate_request(&request(&c, bad, &args), 1_000),
+                    Err(IdentityError::InvalidRequest)
+                ),
+                "{bad}"
+            );
+        }
+    }
+
+    #[test]
+    fn persisted_grants_with_and_without_agents_manage_are_both_valid() {
+        assert!(validate_state(state(&["files.read", "agents.manage"])).is_ok());
+        let old = &LOCAL_SCOPES[..9];
+        assert!(!old.contains(&"agents.manage"));
+        assert!(validate_state(state(old)).is_ok());
+        assert!(validate_state(state(LOCAL_SCOPES)).is_ok());
+        assert_eq!(LOCAL_SCOPES.len(), 10);
+        assert!(matches!(
+            validate_state(state(&["files.read", "agents.admin"])),
+            Err(IdentityError::StoreUnavailable)
+        ));
+        let mut eleven = LOCAL_SCOPES.to_vec();
+        eleven.push("files.read");
+        assert!(matches!(
+            validate_state(state(&eleven)),
+            Err(IdentityError::StoreUnavailable)
+        ));
+    }
+}

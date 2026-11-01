@@ -7,6 +7,16 @@ use crate::tools::session::SessionStore;
 use crate::tools::workspace::{relative_display, Workspace};
 use crate::workspace::AuthConfig;
 
+/// Main-root anchors (SPEC-A1 v4 §1.5). `ChatDomains::scoped` replaces `harness`
+/// with a per-session root; worker state (WorkerStore, slots, draining, journal)
+/// always hangs off these, one per main root, never per session or epoch.
+#[derive(Clone, Debug)]
+pub(crate) struct HostRoots {
+    pub(crate) workspace_root: PathBuf,
+    pub(crate) store_root: PathBuf,
+    pub(crate) workspace_id: String,
+}
+
 pub struct ToolContext {
     pub(crate) policy_hooks: Arc<super::policy_hooks::HookRegistry>,
     pub(crate) hook_nested: bool,
@@ -22,6 +32,7 @@ pub struct ToolContext {
     pub tool_profile: String,
     pub permission_mode: String,
     pub harness: Harness,
+    pub(crate) host: Arc<HostRoots>,
     pub(crate) default_cwd: Arc<Mutex<PathBuf>>,
     pub(crate) remote_request: Option<crate::auth::chat::RemoteRequest>,
     pub(crate) chat_scoped: bool,
@@ -36,6 +47,9 @@ pub struct ToolContext {
     pub(crate) managed_task: bool,
     pub(crate) local_task_control: bool,
     pub exec_tasks: Arc<crate::tools::exec_tasks::ExecTaskStore>,
+    /// A1 C2 (SPEC-A1 v4 §1.4): set only by `for_worker`; carried through every
+    /// recursive dispatch and background snapshot so a worker call never re-roots.
+    pub(crate) worker: Option<Arc<super::worktree_tools::workers::WorkerBinding>>,
 }
 
 pub type SharedToolContext = Arc<ToolContext>;
@@ -87,6 +101,11 @@ impl ToolContext {
         let linux_sandbox = Arc::new(coding_tools_local_agent::LinuxSandbox::new(&root));
         let harness = Harness::new(root.clone(), harness_root).expect("无法初始化 Harness");
         let root_work = super::root_work::RootWorkTracker::for_workspace(&root);
+        let host = Arc::new(HostRoots {
+            workspace_root: root.clone(),
+            store_root: harness.store_root().to_path_buf(),
+            workspace_id: harness.workspace_id().to_owned(),
+        });
         let mut workspace = workspace;
         // An unavailable ledger never falls back to ordinary host-reading mode;
         // the outer dispatcher also refuses all business calls on that failure.
@@ -107,6 +126,7 @@ impl ToolContext {
             tool_profile: crate::tools::registry::normalize_tool_profile(&tool_profile).into(),
             permission_mode,
             harness,
+            host,
             default_cwd: Arc::new(Mutex::new(root)),
             remote_request: None,
             chat_scoped: false,
@@ -118,6 +138,7 @@ impl ToolContext {
             managed_task: false,
             local_task_control: false,
             exec_tasks: Arc::new(crate::tools::exec_tasks::ExecTaskStore::default()),
+            worker: None,
         }
     }
 
@@ -152,6 +173,7 @@ impl ToolContext {
             tool_profile: self.tool_profile.clone(),
             permission_mode: self.permission_mode.clone(),
             harness: self.harness.clone(),
+            host: self.host.clone(),
             default_cwd: Arc::new(Mutex::new(self.default_cwd_path())),
             remote_request: self.remote_request.clone(),
             chat_scoped: self.chat_scoped,
@@ -163,7 +185,43 @@ impl ToolContext {
             exec_tasks: self.exec_tasks.clone(),
             managed_task: self.managed_task,
             local_task_control: self.local_task_control,
+            worker: self.worker.clone(),
         }
+    }
+
+    /// A1 C2 (SPEC-A1 v4 §1.4.2): the same chat-scoped domain re-rooted at one
+    /// worker worktree. Built after `ChatDomains::scoped()`, so authority, owner,
+    /// hooks, gates and the main-root anchors (`host`) are inherited unchanged; only
+    /// the file/exec root, the confined reads, the cwd and the Linux sandbox root
+    /// move. The binding stays on the context for the rest of the call.
+    pub(crate) fn for_worker(
+        &self,
+        binding: Arc<super::worktree_tools::workers::WorkerBinding>,
+    ) -> Result<Self, String> {
+        let mut workspace =
+            Workspace::new(binding.worktree_root.clone()).map_err(|e| e.message())?;
+        workspace.mark_worker_root();
+        let root = workspace.root().to_path_buf();
+        // A1 C2-d (SPEC-A1 v5 §1.4.4): re-canonicalized after the join; anything
+        // that is not an existing directory inside the root falls back to the root.
+        let cwd = super::worktree_tools::workers::checked_cwd(&root, &binding.cwd)
+            .unwrap_or_else(|_| root.clone());
+        let mut copy = self.background_snapshot();
+        #[cfg(target_os = "linux")]
+        {
+            // SPEC-A1 v4 §4.2 (C4): the worker's gitdirs are readable, never writable.
+            // A1 C2-ad2 (NB-p): fail-closed, no root-only fallback for a worker.
+            // A1 C4-b (SPEC-A1 v5.3 §4.2): its children join `w-<worker_id>`
+            // (cgroup v2) or run under the RLIMIT fallback.
+            copy.linux_sandbox = Arc::new(
+                super::git_runner::worker_sandbox_for_root(&root)
+                    .map(|sandbox| sandbox.with_worker_resources(binding.worker_id.as_str())),
+            );
+        }
+        copy.workspace = workspace;
+        copy.default_cwd = Arc::new(Mutex::new(cwd));
+        copy.worker = Some(binding);
+        Ok(copy)
     }
 
     pub(crate) fn execution_gate(&self) -> Arc<crate::runtime::WorkspaceExecutionGate> {

@@ -59,6 +59,24 @@ impl ChatDomains {
         Ok(copy)
     }
 }
+/// A1 C2 (SPEC-A1 v4 §3.2): `required` plus `agents.manage` when the call carries
+/// `worker_id`. Since C6 `agents.manage` is grantable, but only after the local
+/// owner explicitly ticks it; without it every remote worker call still fails
+/// closed with INSUFFICIENT_CHAT_SCOPE.
+pub(crate) fn scopes(name: &str, args: &Value) -> Option<Vec<&'static str>> {
+    let mut out = required(name, args)?.to_vec();
+    if args.get("worker_id").is_some() && !out.contains(&"agents.manage") {
+        out.push("agents.manage");
+    }
+    Some(out)
+}
+/// The outer layer only parses worker_id (v4 §1.4.1); resolution is inner.
+fn malformed_worker_id(args: &Value) -> bool {
+    args.get("worker_id").is_some_and(|raw| {
+        raw.as_str()
+            .is_none_or(|id| super::worktree_tools::workers::WorkerId::parse(id).is_err())
+    })
+}
 pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static str]> {
     Some(match name {
         "server_info"
@@ -97,6 +115,14 @@ pub(crate) fn required(name: &str, args: &Value) -> Option<&'static [&'static st
         "start_task" | "update_task" | "pause_task" | "resume_task" | "finish_task" => {
             &["harness.write"]
         }
+        // A1 C2b (SPEC-A1 v4 §2.1) / C6: subagent_* need agents.manage, which a
+        // grant only carries when the local owner ticked it (default unchecked).
+        "subagent_spawn" | "subagent_integrate" | "subagent_rollback" | "subagent_discard" => {
+            &["agents.manage", "files.write"]
+        }
+        "subagent_status" => &["agents.manage"],
+        "subagent_collect" => &["agents.manage", "files.read"],
+        "subagent_cancel" => &["agents.manage", "task.manage"],
         // request_permissions is intentionally not capable of granting remote scopes.
         _ => return None,
     })
@@ -156,14 +182,23 @@ pub(crate) fn intercept(ctx: &ToolContext, name: &str, args: &Value) -> Option<V
     if name == "request_chat_authorization" {
         return Some(request_chat_authorization(ctx, req, args));
     }
-    let scopes = match required(name, args) {
+    let scopes = match scopes(name, args) {
         Some(s) => s,
         None => return Some(denied("REMOTE_TOOL_NOT_PERMITTED")),
     };
-    if ctx.chat_scoped {
-        return req.service.permit(req, scopes).err().map(denied);
+    if malformed_worker_id(args) {
+        // A1 C3: the scope check (side-effect free: no flight, no fence) comes
+        // first, then the same INVALID_ARGUMENT code the cloud prepare path
+        // returns. WorkerStore is never opened.
+        return Some(match req.service.permit(req, &scopes) {
+            Err(code) => denied(code),
+            Ok(()) => super::worktree_tools::workers::invalid_worker_id(),
+        });
     }
-    let _admission = match req.service.admit(req, scopes) {
+    if ctx.chat_scoped {
+        return req.service.permit(req, &scopes).err().map(denied);
+    }
+    let _admission = match req.service.admit(req, &scopes) {
         Ok(g) => g,
         Err(e) => return Some(denied(e)),
     };
@@ -215,7 +250,7 @@ pub(crate) fn auth_tools() -> Vec<Value> {
         .into_iter().map(|(name,description)| json!({
             "name":name,"description":description,
             "inputSchema":{"type":"object","properties":if name == "auth_status" { json!({}) } else {
-                json!({"scopes":{"type":"array","minItems":1,"maxItems":9,"items":{"type":"string","enum":crate::auth::chat::SCOPES}}})
+                json!({"scopes":{"type":"array","minItems":1,"maxItems":crate::auth::chat::SCOPES.len(),"items":{"type":"string","enum":crate::auth::chat::SCOPES}}})
             },"additionalProperties":false},
             "securitySchemes":[{"type":"oauth2","scopes":["mcp"]}],
             "annotations":{"readOnlyHint":name == "auth_status","destructiveHint":false,"openWorldHint":false}

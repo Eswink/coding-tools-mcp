@@ -1,13 +1,120 @@
 //! Read-only, bounded Git inspection. Repository configuration is untrusted.
 //! This module is Linux-only; the existing Windows execution path is unchanged.
-use coding_tools_local_agent::{ExecSpec, ExecTermination, LinuxSandbox, ProcessManager};
+use coding_tools_local_agent::{
+    ExecSpec, ExecTermination, LinuxSandbox, ProcessManager, SandboxError, SandboxErrorKind,
+};
 use std::{
     os::unix::process::ExitStatusExt,
-    path::Path,
+    path::{Path, PathBuf},
     process::{ExitStatus, Output},
     sync::OnceLock,
     time::Duration,
 };
+
+/// Largest `.git` link, `commondir` or `gitdir` record this host will parse.
+const GIT_LINK_LIMIT: u64 = 8192;
+
+fn read_git_record(path: &Path) -> Option<String> {
+    let metadata = std::fs::symlink_metadata(path).ok()?;
+    if !metadata.is_file() || metadata.len() > GIT_LINK_LIMIT {
+        return None;
+    }
+    let text = String::from_utf8(std::fs::read(path).ok()?).ok()?;
+    let line = text.strip_suffix('\n').unwrap_or(&text);
+    (!line.is_empty() && !line.contains(['\n', '\r', '\0'])).then(|| line.to_owned())
+}
+
+/// SPEC-A1 v4 §4.2 (C4). When `root` is a linked Git worktree, return its
+/// `(private_gitdir, common_gitdir)`; otherwise `None`.
+///
+/// Every record here is workspace-controlled, so it only selects candidates;
+/// it never names an arbitrary readable directory. The private gitdir must be
+/// `<common>/worktrees/<name>` per its own `commondir`, and its `gitdir`
+/// back-pointer must name exactly this root's `.git`, which a sandboxed
+/// process cannot forge for a directory outside its own writable root.
+/// Anything else (a symlinked `.git`, a plain `gitdir:` redirect, a pointer at
+/// another worktree's metadata) yields `None`, i.e. the unchanged
+/// root-only sandbox.
+pub(crate) fn linked_worktree_gitdirs(root: &Path) -> Option<(PathBuf, PathBuf)> {
+    let root = std::fs::canonicalize(root).ok()?;
+    let link = root.join(".git");
+    let target = read_git_record(&link)?;
+    let target = target.strip_prefix("gitdir: ")?;
+    let private = std::fs::canonicalize(root.join(target)).ok()?;
+    let commondir = read_git_record(&private.join("commondir"))?;
+    let common = std::fs::canonicalize(private.join(commondir)).ok()?;
+    if private.parent()? != common.join("worktrees") || !common.is_dir() {
+        return None;
+    }
+    let back = read_git_record(&private.join("gitdir"))?;
+    if std::fs::canonicalize(private.join(back)).ok()? != link {
+        return None;
+    }
+    Some((private, common))
+}
+
+/// The Linux sandbox for a host-owned root: `for_worktree` (gitdirs read-only)
+/// for a validated linked worktree, otherwise exactly `LinuxSandbox::new`.
+///
+/// A1 C2-ad (NB5, SPEC-A1 v5 §1.4.2): when `for_worktree` refuses the root (a
+/// main root that is itself a linked worktree and contains, or is contained
+/// in, its own gitdirs), the root falls back to `LinuxSandbox::new` (the
+/// pre-C4 root-only sandbox) instead of failing every exec and Git call with
+/// "isolation unavailable". A failure of `new` itself still propagates.
+///
+/// A1 C2-ad2 (NB-p, SPEC-A1 v5.2 §1.4.2): only that refusal
+/// (`SandboxErrorKind::InvalidRoot`) falls back; any other `for_worktree`
+/// failure (unsupported, unavailable, privileged host, ...) propagates.
+pub(crate) fn sandbox_for_root(root: &Path) -> Result<LinuxSandbox, SandboxError> {
+    match linked_worktree_gitdirs(root) {
+        Some((private, common)) => {
+            main_root_fallback(root, LinuxSandbox::for_worktree(root, private, common))
+        }
+        None => LinuxSandbox::new(root),
+    }
+}
+
+/// NB-p: the main-root fallback rule, separate so every error kind is tested.
+pub(crate) fn main_root_fallback(
+    root: &Path,
+    attempt: Result<LinuxSandbox, SandboxError>,
+) -> Result<LinuxSandbox, SandboxError> {
+    match attempt {
+        Err(error) if error.kind == SandboxErrorKind::InvalidRoot => LinuxSandbox::new(root),
+        other => other,
+    }
+}
+
+/// A1 C2-ad2 (NB-p, SPEC-A1 v5.2 §1.4.2): the sandbox of a worker context is
+/// fail-closed. A worker root must be a validated linked worktree whose
+/// gitdirs `for_worktree` pins read-only; anything else (not linked, or
+/// refused by `for_worktree` for any reason) is an error, never the
+/// root-only fallback of [`sandbox_for_root`].
+pub(crate) fn worker_sandbox_for_root(root: &Path) -> Result<LinuxSandbox, SandboxError> {
+    match linked_worktree_gitdirs(root) {
+        Some((private, common)) => LinuxSandbox::for_worktree(root, private, common),
+        None => Err(SandboxError {
+            kind: SandboxErrorKind::InvalidRoot,
+        }),
+    }
+}
+
+/// A1 C5 (NB-g, SPEC-A1 v5.3 §1.4.2): which sandbox rule a Git inspection
+/// root gets. A main root keeps the NB5/NB-p `sandbox_for_root` fallback; a
+/// worker root is fail-closed (`worker_sandbox_for_root`), never root-only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum GitRoot {
+    Main,
+    Worker,
+}
+
+/// NB-g: the sandbox `run` uses for `root` under `kind`.
+pub(crate) fn git_sandbox(root: &Path, kind: GitRoot) -> Result<LinuxSandbox, SandboxError> {
+    match kind {
+        GitRoot::Main => sandbox_for_root(root),
+        GitRoot::Worker => worker_sandbox_for_root(root),
+    }
+}
 
 /// All callers provide a host-owned workspace root. A resolved subdirectory is
 /// only a cwd, never a replacement authority root.
@@ -16,6 +123,7 @@ pub(crate) fn run(
     cwd: &Path,
     args: &[&str],
     timeout: Duration,
+    kind: GitRoot,
 ) -> Result<Output, &'static str> {
     if !matches!(
         args.first().copied(),
@@ -23,7 +131,7 @@ pub(crate) fn run(
     ) {
         return Err("Git inspection only accepts read-only commands");
     }
-    let policy = LinuxSandbox::new(root)
+    let policy = git_sandbox(root, kind)
         .map_err(|_| "Git workspace isolation unavailable")?
         .read_only();
     let root = std::fs::canonicalize(root).map_err(|_| "Git workspace unavailable")?;

@@ -26,6 +26,9 @@ pub const SCOPES: &[&str] = &[
     "history.read",
     "history.write",
     "harness.write",
+    // A1 C6: sensitive; requested only explicitly and granted only by explicit local approval;
+    // the approval UI pre-checks it when requested (O13 decided in C7pre: UI default only).
+    "agents.manage",
 ];
 const PENDING: u64 = 90;
 const MAX_RECORDS: usize = 64;

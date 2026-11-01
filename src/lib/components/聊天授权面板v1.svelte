@@ -6,6 +6,7 @@
   import { untrack } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { confirm } from "@tauri-apps/plugin-dialog";
+  import { chatScopeLabels as scopeLabel, defaultScopeSelection, scopeWarnings } from "$lib/chat-authorization";
   type Grant = { id: string; fingerprint: string; status: string; scopes: string[]; expires_at: number; idle_expires_at: number };
   type Snapshot = { records: Grant[]; exclusive: boolean; oauth_ready: boolean; available_scopes: string[]; lease_state: string; policy: { chat_lease_ttl_seconds: number; chat_idle_timeout_seconds: number }; recovery: {required: boolean; generation: string} };
   let { workspaceId }: { workspaceId: string } = $props();
@@ -18,10 +19,10 @@
   let generation = 0;
   let mutation = 0;
   const label: Record<string, string> = { pending: "待审批", active: "已授权", denied: "已拒绝", revoked: "已撤销", expired: "已过期" };
-  const scopeLabel: Record<string, string> = {
-    "workspace.read": "工作区状态", "files.read": "读取文件", "files.write": "修改文件", "exec.run": "执行命令（可访问共享文件）",
-    "task.read": "查看本聊天任务", "task.manage": "管理本聊天任务", "history.read": "读取本聊天归档", "history.write": "保存本聊天归档", "harness.write": "管理本聊天开发计划"
-  };
+  // A1 C6: labels come from the single source chat-authorization.ts; A1 C7pre O13
+  // (decided 2026-10-31): requested sensitive scopes (agents.manage) start checked and
+  // warn; approval still needs the explicit local fingerprint check and click.
+  const chosen = (g: Grant) => selections[g.id] ?? defaultScopeSelection(g);
   async function call(id: string, action: string, extra: Record<string, unknown> = {}): Promise<Snapshot> {
     return invoke("chat_authorization_control", { id, action, requestId: null, scopes: null, exclusive: null, ...extra });
   }
@@ -55,7 +56,7 @@
     finally { if (generation === current) busy = false; }
   }
   function toggle(g: Grant, scope: string, enabled: boolean) {
-    const selected = new Set(selections[g.id] ?? g.scopes);
+    const selected = new Set(chosen(g));
     if (enabled) selected.add(scope); else selected.delete(scope);
     selections = { ...selections, [g.id]: [...selected] };
   }
@@ -92,15 +93,16 @@
           <div class="heading"><strong>会话指纹 <code>{grant.fingerprint}</code></strong><span>{label[grant.status] ?? grant.status}</span></div>
           {#if grant.status === "pending"}
             <fieldset disabled={busy}><legend>批准权限（可缩减，不能扩大）</legend>
-              {#each grant.scopes as scope}<label><input type="checkbox" checked={(selections[grant.id] ?? grant.scopes).includes(scope)}
+              {#each grant.scopes as scope}<label><input type="checkbox" checked={chosen(grant).includes(scope)}
                 onchange={(e) => toggle(grant, scope, e.currentTarget.checked)} />{scopeLabel[scope] ?? scope}</label>{/each}
             </fieldset>
+            {#each scopeWarnings(chosen(grant)) as warning}<p role="alert" class="scope-warning">{warning}</p>{/each}
             <label class="exclusive"><input type="checkbox" checked={verified[grant.id] ?? false} disabled={busy} onchange={(e) => verified = {...verified, [grant.id]: e.currentTarget.checked}} />我已核对该聊天返回的指纹</label>
             <p>剩余 {Math.max(0, Math.ceil(grant.expires_at - now))} 秒</p>
             <div class="controls">
               <button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void act("deny", { requestId: grant.id })}>拒绝</button>
-              <button type="button" class="tx-btn-primary" disabled={busy || !snapshot.oauth_ready || !verified[grant.id] || now >= grant.expires_at || (selections[grant.id] ?? grant.scopes).length === 0}
-                onclick={() => void act("approve", { requestId: grant.id, scopes: selections[grant.id] ?? grant.scopes })}>核对指纹并批准</button>
+              <button type="button" class="tx-btn-primary" disabled={busy || !snapshot.oauth_ready || !verified[grant.id] || now >= grant.expires_at || chosen(grant).length === 0}
+                onclick={() => void act("approve", { requestId: grant.id, scopes: chosen(grant) })}>核对指纹并批准</button>
             </div>
           {:else if grant.status === "active"}
             <p>{grant.scopes.map(s => scopeLabel[s] ?? s).join(" · ")}</p>
@@ -121,5 +123,6 @@
   .exclusive, fieldset label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; padding: 0.45rem 0; }
   fieldset { border: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 0.8rem; margin: 0.6rem 0; }
   legend { font-size: 0.8rem; } .records { display: grid; gap: 0.7rem; } article { border: 1px solid var(--color-border); border-radius: 8px; padding: 0.8rem; }
+  .scope-warning { color: var(--danger); }
   .controls { display: flex; gap: 0.7rem; } button { min-height: 44px; } code { overflow-wrap: anywhere; } input { flex-shrink: 0; }
 </style>

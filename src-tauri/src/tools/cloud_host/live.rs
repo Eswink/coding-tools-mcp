@@ -3,6 +3,7 @@
 //! and every opaque permit is rebuilt from the current native authorizer.
 mod application_view;
 mod projection;
+use super::super::worktree_tools::workers::projection_bus;
 use super::{now, NativeToolHost, PreparedCall};
 use crate::auth::cloud_context::CloudPeer;
 use coding_tools_cloud_agent::{
@@ -11,7 +12,7 @@ use coding_tools_cloud_agent::{
         AgentError,
     },
     execution::{ExecutionBinding, ExecutionRequest, PeerBinding},
-    projection::{ExecutionState, LocalLease, ProjectionPhase},
+    projection::{ExecutionState, LocalLease, ProjectionPhase, WorkerClaim, MAX_PROJECTED_WORKERS},
 };
 use projection::ProjectionJournal;
 use serde_json::{json, Value};
@@ -163,8 +164,40 @@ impl NativeLiveHost {
             revision,
             generation,
         )?;
+        drop(journal);
+        let result = self.with_workers(result);
         self.tools.link.ensure_connected().map_err(rejected)?;
         Ok(result)
+    }
+    /// A1 C7-3 (SPEC v5.6 §3.3): an active grant projects its owner's active
+    /// workers (newest first, at most MAX_PROJECTED_WORKERS). The list is not
+    /// execution authority (`same_authority` ignores it); any failure projects
+    /// none, which the gateway answers with the retryable WORKER_NOT_OWNED.
+    fn with_workers(&self, view: HostAuthoritySnapshot) -> HostAuthoritySnapshot {
+        use super::super::worktree_tools::workers::{projected_workers, WorkerOwner};
+        let Some(conversation) = view.grant().map(|g| g.conversation.clone()) else {
+            return view;
+        };
+        let Some(owner) = self
+            .tools
+            .request(&conversation)
+            .ok()
+            .and_then(|r| WorkerOwner::from_request(&r).ok())
+        else {
+            return view;
+        };
+        let claims: Vec<WorkerClaim> =
+            projected_workers(&self.tools.context.host, &owner, MAX_PROJECTED_WORKERS)
+                .into_iter()
+                .map(|id| WorkerClaim {
+                    id,
+                    conversation: conversation.clone(),
+                })
+                .collect();
+        if claims.is_empty() {
+            return view;
+        }
+        view.clone().with_workers(claims).unwrap_or(view)
     }
     #[cfg(test)]
     fn receipt(&self, view: &HostAuthoritySnapshot) -> Result<(), AgentError> {
@@ -197,12 +230,19 @@ impl LocalHost for NativeLiveHost {
     }
     fn projection_applied(&self, view: HostAuthoritySnapshot) -> HostFuture<()> {
         let projection = self.projection.clone();
+        let host = self.tools.context.host.clone();
         super::super::native_drain::blocking(&self.work, move |_| {
             projection
                 .lock()
                 .map_err(|_| AgentError::Journal)?
-                .acknowledge(&view)
+                .acknowledge(&view)?;
+            // A1 C7-3: a remote spawn waiting on this projection may return.
+            projection_bus::applied(&host, view.workers().iter().map(|w| w.id.clone()));
+            Ok(())
         })
+    }
+    fn projection_dirty(&self) -> Option<watch::Receiver<u64>> {
+        Some(projection_bus::subscribe(&self.tools.context.host))
     }
     fn authorization(
         &self,
@@ -254,7 +294,9 @@ impl LocalHost for NativeLiveHost {
         let this = self.clone();
         super::super::native_drain::blocking(&self.work, move |_| {
             if !this.tools.link.matches(&peer(&request.binding.peer)?)
-                || this.current()? != expected
+                // A1 C7-3: the worker list may change between projection and
+                // admission; it is not execution authority.
+                || !this.current()?.same_authority(&expected)
             {
                 return Err(AgentError::LocalAuthority);
             }
@@ -353,6 +395,16 @@ mod tests;
 
 #[cfg(all(test, feature = "cloud-agent-integration-tests"))]
 mod wss_tests;
+
+/// A1 C8-1: runner tick -> real gateway ack -> spawn applied (beside the frozen
+/// wss_tests.rs, reusing its Harness).
+#[cfg(all(test, feature = "cloud-agent-integration-tests"))]
+mod c8_projection_wss_tests;
+
+/// A1 C9n nit 2: no relay of this worktree outlives the native fixture (Linux,
+/// where the fixture binds it with PR_SET_PDEATHSIG).
+#[cfg(all(test, feature = "cloud-agent-integration-tests", target_os = "linux"))]
+mod c9n_relay_leftover_tests;
 
 #[cfg(test)]
 mod catalog_tests;

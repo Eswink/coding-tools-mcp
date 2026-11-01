@@ -113,6 +113,7 @@ impl Server {
             execution: ExecutionState::Online,
             grant: Some(self.h.lease.clone()),
             drained_grant: None,
+            workers: vec![],
         };
         let (p, s) = self.h.signed(&claims);
         write(ws,&json!({"type":"projection","seq":seq+1,"proof":{"payload":URL_SAFE_NO_PAD.encode(p),"signature":URL_SAFE_NO_PAD.encode(s)}})).await;

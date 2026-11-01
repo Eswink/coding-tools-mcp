@@ -17,6 +17,8 @@ const READ_DIR: u64 = 1 << 3;
 const TRUNCATE: u64 = 1 << 14;
 const HANDLED_FS: u64 = (1 << 15) - 1;
 const WORKSPACE_FS: u64 = HANDLED_FS & !((1 << 6) | (1 << 9) | (1 << 11));
+/// Linked-worktree gitdirs (SPEC-A1 v4 §4.2 C4): read only, never write or execute.
+const GITDIR_FS: u64 = READ_FILE | READ_DIR;
 const RUNTIME_DIRS: &[&str] = &[
     "/usr/bin",
     "/usr/sbin",
@@ -103,6 +105,53 @@ pub(super) fn pin_root(path: &Path) -> Result<Root, SandboxError> {
     Ok(Root { path, file })
 }
 
+/// SPEC-A1 v4 §4.2 (C4). Pins `[private, common]` for `LinuxSandbox::for_worktree`.
+pub(super) fn pin_worktree(
+    root: &Path,
+    private: &Path,
+    common: &Path,
+) -> Result<(Root, [Root; 2]), SandboxError> {
+    let root = pin_root(root)?;
+    let private = pin_root(private)?;
+    let common = pin_root(common)?;
+    let invalid = || failure(SandboxErrorKind::InvalidRoot);
+    if private.path.parent() != Some(common.path.join("worktrees").as_path())
+        || private.path.file_name().is_none()
+    {
+        return Err(invalid());
+    }
+    for gitdir in [&private.path, &common.path] {
+        if root.path.starts_with(gitdir) || gitdir.starts_with(&root.path) {
+            return Err(invalid());
+        }
+    }
+    Ok((root, [private, common]))
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Test-only: simulate the Landlock ABI reported by the kernel (e.g. ABI1 on
+    /// the Ubuntu 22.04 GA kernel). `prepare` runs in the parent, so a
+    /// thread-local seam cannot leak into another test or a child process.
+    pub(super) static SIMULATED_ABI: std::cell::Cell<Option<i64>> =
+        const { std::cell::Cell::new(None) };
+}
+
+fn landlock_abi() -> i64 {
+    #[cfg(test)]
+    if let Some(abi) = SIMULATED_ABI.with(|value| value.get()) {
+        return abi;
+    }
+    unsafe {
+        libc::syscall(
+            libc::SYS_landlock_create_ruleset,
+            std::ptr::null::<u8>(),
+            0,
+            1,
+        )
+    }
+}
+
 #[repr(C)]
 struct CapHeader {
     version: u32,
@@ -171,19 +220,16 @@ fn add_rule(ruleset: RawFd, file: &File, rights: u64) -> io::Result<()> {
 
 pub(super) fn prepare(
     root: &Root,
+    gitdirs: Option<&[Root; 2]>,
     executable: &Path,
     cwd: &Path,
     read_only: bool,
+    umask: Option<u32>,
+    resources: Option<super::resources::PreparedResources>,
 ) -> Result<PreparedSandbox, SandboxError> {
     require_unprivileged()?;
-    let abi = unsafe {
-        libc::syscall(
-            libc::SYS_landlock_create_ruleset,
-            std::ptr::null::<u8>(),
-            0,
-            1,
-        )
-    };
+    // ABI1/ABI2 (e.g. the Ubuntu 22.04 GA kernel) fail closed: pre-existing baseline.
+    let abi = landlock_abi();
     if abi < 3 {
         return Err(failure(SandboxErrorKind::Unavailable));
     }
@@ -220,6 +266,9 @@ pub(super) fn prepare(
             WORKSPACE_FS
         };
         add_rule(ruleset.as_raw_fd(), &root.file, workspace_rights)?;
+        for gitdir in gitdirs.into_iter().flatten() {
+            add_rule(ruleset.as_raw_fd(), &gitdir.file, GITDIR_FS)?;
+        }
         add_rule(ruleset.as_raw_fd(), &program, EXECUTE | READ_FILE)?;
         for path in RUNTIME_DIRS {
             match open_path(Path::new(path)) {
@@ -250,6 +299,8 @@ pub(super) fn prepare(
         ruleset,
         cwd,
         filter: filter::program(),
+        umask,
+        resources,
     })
 }
 
@@ -257,6 +308,8 @@ pub(crate) struct PreparedSandbox {
     ruleset: OwnedFd,
     cwd: File,
     filter: Vec<libc::sock_filter>,
+    umask: Option<u32>,
+    resources: Option<super::resources::PreparedResources>,
 }
 
 impl PreparedSandbox {
@@ -266,6 +319,15 @@ impl PreparedSandbox {
             len: self.filter.len() as u16,
             filter: self.filter.as_ptr() as *mut libc::sock_filter,
         };
+        // A1 C4-b, SPEC-A1 v5.3 §4.2 order ①: join the worker cgroup (or set
+        // the fallback rlimits) before anything else restricts this child.
+        if let Some(resources) = &self.resources {
+            resources.apply()?;
+        }
+        // A1 C4-b: umask(2) cannot fail and is async-signal-safe.
+        if let Some(mask) = self.umask {
+            unsafe { libc::umask(mask as libc::mode_t) };
+        }
         let ok = unsafe {
             libc::fchdir(self.cwd.as_raw_fd()) == 0
                 && libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == 0

@@ -283,9 +283,20 @@ fn permission(code: &str) -> Value {
         "CHAT_SCOPE_REQUIRED"=>"This conversation lacks the required local scope.",
         "CHAT_RECOVERY_REQUIRED"=>"Local workspace authorization requires recovery. Do not retry or request OAuth.",
         "CHAT_AUTHORIZATION_UNAVAILABLE"=>"New cloud-side authorization cannot be created. Use the local approval path when available.",
+        // A1 C8-0: same text as validate_empty_args; before this arm INVALID_ARGUMENTS
+        // fell through to the "not locally approved" message.
+        "INVALID_ARGUMENTS"=>"Invalid tool arguments.",
         _=>"This conversation is not locally approved.",
     };
     denial(code, "permission", message)
+}
+/// A1 C7 (SPEC §3.3): the gateway projection may lag a fresh spawn, so this is always
+/// retryable and never says whether the worker exists. Only the native host's
+/// authoritative check may answer `retryable:false`.
+fn worker_not_owned() -> Value {
+    json!({"ok":false,"error":{"code":"WORKER_NOT_OWNED","category":"permission","retryable":true,
+        "retry_after_ms":1000,"message":"The worker is not in this conversation's current projection. Retry shortly."},
+        "requires_local_action":false})
 }
 fn availability(code: &str) -> Value {
     let message=match code {
@@ -449,5 +460,51 @@ async fn mcp_post(State(state): State<McpState>, headers: HeaderMap, body: Bytes
                 .record_mcp(McpObservation::ProtocolError);
             wire_error(e, message.id.as_ref())
         }
+    }
+}
+
+#[cfg(test)]
+mod c7_tests {
+    #[test]
+    fn c7_worker_not_owned_is_a_retryable_permission_denial_without_existence_claims() {
+        let v = super::worker_not_owned();
+        assert_eq!(v["ok"], false);
+        assert_eq!(v["error"]["code"], "WORKER_NOT_OWNED");
+        assert_eq!(v["error"]["category"], "permission");
+        assert_eq!(v["error"]["retryable"], true);
+        assert_eq!(v["error"]["retry_after_ms"], 1000);
+        let message = v["error"]["message"].as_str().unwrap().to_lowercase();
+        assert!(!message.contains("not exist") && !message.contains("not found"));
+    }
+    #[test]
+    fn c7_worker_checkpoint_precedes_request_allocation_and_follows_scope_checks() {
+        let src = include_str!("business.rs");
+        let scope = src.find("if offline {").unwrap();
+        let check = src.find("state.control.worker_owned(").unwrap();
+        let alloc = src.find("let Some(external_id)").unwrap();
+        assert!(scope < check && check < alloc);
+    }
+    #[test]
+    fn c8_invalid_arguments_denial_carries_its_own_message() {
+        let v = super::permission("INVALID_ARGUMENTS");
+        assert_eq!(v["error"]["code"], "INVALID_ARGUMENTS");
+        assert_eq!(v["error"]["category"], "permission");
+        assert_eq!(v["error"]["message"], "Invalid tool arguments.");
+        assert_eq!(
+            v["error"]["message"],
+            super::validate_empty_args(&super::RpcMessage {
+                id: Some(serde_json::json!(1)),
+                method: "tools/call".into(),
+                params: serde_json::json!({"arguments":[1]})
+                    .as_object()
+                    .cloned()
+                    .unwrap(),
+            })
+            .unwrap_err()["error"]["message"]
+        );
+        assert_eq!(
+            super::permission("CHAT_AUTHORIZATION_REQUIRED")["error"]["message"],
+            "This conversation is not locally approved."
+        );
     }
 }

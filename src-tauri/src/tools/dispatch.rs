@@ -55,6 +55,13 @@ pub fn call_tool(ctx: &ToolContext, name: &str, args: &Value) -> Value {
     if let Some(result) = crate::tools::chat_domain::intercept(ctx, name, args) {
         return result;
     }
+    // A1 C2 (SPEC-A1 v4 §1.4.1): strip worker_id and re-enter on the worker's
+    // re-rooted context; the recursion runs every layer below on that context.
+    if let Some(result) =
+        crate::tools::worktree_tools::workers::route(ctx, name, args, |w, a| call_tool(w, name, a))
+    {
+        return result;
+    }
     let effective_args = apply_default_cwd(ctx, name, args);
     if let Err(e) = validate_tool_arguments_for_workspace(
         name,
@@ -82,6 +89,15 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         };
     }
 
+    // A1 C2b: worker control and the worker-scoped change summary never reach
+    // the harness (main-task state) branch below.
+    if name.starts_with("subagent_") {
+        return crate::tools::worktree_tools::workers::subagent::call(ctx, name, args);
+    }
+    if name == "change_summary" && ctx.worker.is_some() {
+        return crate::tools::worktree_tools::workers::subagent::worker_change_summary(ctx, args);
+    }
+
     if crate::harness::tools::TOOL_NAMES.contains(&name) {
         return match crate::harness::tools::call(ctx, name, args) {
             Ok(value) => value,
@@ -89,7 +105,10 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         };
     }
 
-    let task_id = if requires_write_baseline(name, &effective_args) {
+    // Worker calls never touch the main task's baseline, events or operation log
+    // (SPEC-A1 v4 §1.4.3); the worker's own history is its ops log (C3).
+    let in_worker = ctx.worker.is_some();
+    let task_id = if !in_worker && requires_write_baseline(name, &effective_args) {
         let task = ctx.harness.current_task().ok().flatten();
         if let Some(task) = task {
             if let Err(error) = ctx.harness.check_baseline(&task.id) {
@@ -114,7 +133,7 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         None
     };
 
-    let operation = if should_log_operation(name) {
+    let operation = if !in_worker && should_log_operation(name) {
         ctx.harness
             .record_operation(
                 None,
@@ -140,6 +159,7 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         "check_exec_environment" => check_exec_environment(ctx),
         "exec_health_check" => exec::exec_health_check(ctx),
         "get_default_cwd" => get_default_cwd(ctx),
+        "set_default_cwd" if in_worker => set_worker_default_cwd(ctx, effective_args),
         "set_default_cwd" => set_default_cwd(ctx, &effective_args),
         "read_file" => file::read_file(ws, &effective_args),
         "list_dir" => file::list_dir(ws, &effective_args),
@@ -206,7 +226,12 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
         Ok(v) => v,
         Err(e) => tool_err(e),
     };
+    if in_worker {
+        // A1 C3 (v4 §1.4.3): the worker's own history; main logs stay untouched.
+        crate::tools::worktree_tools::workers::record_op(ctx, name, effective_args, &output);
+    }
     if task_id.is_none()
+        && !in_worker
         && standalone_operation(name)
         && output.get("ok") == Some(&Value::Bool(true))
     {
@@ -220,7 +245,7 @@ fn call_admitted(ctx: &ToolContext, name: &str, args: &Value, effective_args: &V
             object.insert("operation_id".into(), Value::String(operation.id.clone()));
         }
     }
-    if output.get("ok").and_then(Value::as_bool) == Some(false) {
+    if !in_worker && output.get("ok").and_then(Value::as_bool) == Some(false) {
         output = attach_harness_status(ctx, output, task_id.is_none());
     }
     if let Some(task_id) = task_id.as_deref() {
@@ -465,6 +490,35 @@ pub fn get_default_cwd(ctx: &ToolContext) -> Result<Value, WorkspaceError> {
         "workspace": ctx.workspace.root_display(),
         "default_cwd": ctx.default_cwd_display(),
         "resolved_cwd": ctx.default_cwd_path().display().to_string()
+    })))
+}
+
+/// Worker cwd (SPEC-A1 v4 §1.4.2): confined to the worktree and persisted in the
+/// main-root WorkerStore, so it survives restarts and never moves the main cwd.
+fn set_worker_default_cwd(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
+    let binding = ctx.worker.as_ref().expect("worker context");
+    let path = args.get("path").and_then(Value::as_str).unwrap_or(".");
+    let resolved = ctx.workspace.resolve_existing(path)?;
+    if !resolved.path.is_dir() {
+        return Err(WorkspaceError::not_a_directory(
+            "Default cwd must be a directory",
+        ));
+    }
+    let relative =
+        match crate::tools::workspace::relative_display(ctx.workspace.root(), &resolved.path) {
+            shown if shown.is_empty() => ".".to_owned(),
+            shown => shown,
+        };
+    if let Err(error) =
+        crate::tools::worktree_tools::workers::set_cwd(ctx, binding.worker_id.as_str(), &relative)
+    {
+        return Ok(crate::tools::worktree_tools::workers::error_value(&error));
+    }
+    ctx.set_default_cwd(resolved.path.clone());
+    Ok(tool_ok(json!({
+        "workspace": ctx.workspace.root_display(),
+        "default_cwd": relative,
+        "resolved_cwd": resolved.path.display().to_string()
     })))
 }
 

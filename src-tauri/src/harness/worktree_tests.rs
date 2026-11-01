@@ -476,3 +476,263 @@ fn fixture_git_commands_do_not_start_background_maintenance() {
         "fixture Git spawned maintenance after writing repository metadata"
     );
 }
+
+#[test]
+fn a_failed_lifecycle_lock_still_releases_the_reservation_inside_the_lock() {
+    // A1 C3 (steering 3): native::lock() Err must not free the slot outside the lock.
+    let fixture = TestRepo::new();
+    let slot = fixture.manager.reserve_slot().expect("reserve");
+    let _ = SlotReservation::take_last_release_locked_for_test();
+    WorktreeManager::fail_next_lifecycle_lock_for_test();
+    fixture.manager.release_slot(slot);
+    assert_eq!(
+        SlotReservation::take_last_release_locked_for_test(),
+        Some(true),
+        "release_slot dropped the reservation outside the lifecycle lock"
+    );
+    assert_eq!(reservations::count(&fixture.manager.managed_root), 0);
+
+    let slot = fixture.manager.reserve_slot().expect("reserve again");
+    WorktreeManager::fail_next_lifecycle_lock_for_test();
+    assert_eq!(
+        fixture
+            .manager
+            .create_reserved(slot)
+            .map(|_| ())
+            .map_err(|e| e.code()),
+        Err("LOCK_UNAVAILABLE")
+    );
+    assert_eq!(
+        SlotReservation::take_last_release_locked_for_test(),
+        Some(true),
+        "create_reserved dropped the reservation outside the lifecycle lock"
+    );
+    assert_eq!(reservations::count(&fixture.manager.managed_root), 0);
+    assert!(fixture.manager.list().unwrap().is_empty());
+    for _ in 0..MAX_MANAGED_WORKTREES {
+        fixture
+            .manager
+            .create_detached()
+            .expect("all eight slots are free");
+    }
+}
+
+#[test]
+fn legacy_chat_root_worktrees_count_against_the_main_slots_and_are_never_moved() {
+    // A1 C3 (steering 2, C1-b orphans): trees created before C1-b under a
+    // session's `chat-v1/<key>` harness root stay where they are but are counted.
+    let fixture = TestRepo::new();
+    let key = "ab".repeat(32);
+    let legacy_root = fixture.harness.path().join("chat-v1").join(&key);
+    fs::create_dir_all(&legacy_root).expect("legacy root");
+    let legacy =
+        WorktreeManager::new(fixture.repo.path(), &legacy_root, WORKSPACE_ID).expect("legacy");
+    let old: Vec<_> = (0..3)
+        .map(|_| legacy.create_detached().expect("legacy tree"))
+        .collect();
+    // The native per-root listing is unchanged (no duplicates across managers).
+    assert!(fixture.manager.list().unwrap().is_empty());
+    for _ in 0..(MAX_MANAGED_WORKTREES - old.len()) {
+        fixture.manager.create_detached().expect("main slot");
+    }
+    assert_eq!(
+        fixture
+            .manager
+            .create_detached()
+            .map(|_| ())
+            .map_err(|e| e.code()),
+        Err("CAPACITY"),
+        "legacy chat-v1 worktrees were not counted against the 8 main slots"
+    );
+    assert_eq!(
+        fixture
+            .manager
+            .reserve_slot()
+            .map(|_| ())
+            .map_err(|e| e.code()),
+        Err("CAPACITY")
+    );
+    // Removing a legacy tree through the main root fails closed; nothing moves.
+    assert_eq!(
+        fixture
+            .manager
+            .remove_clean(&old[0].id)
+            .map_err(|e| e.code()),
+        Err("LEGACY_WORKTREE")
+    );
+    for item in &old {
+        assert!(legacy_root
+            .join("worktrees-v1")
+            .join(WORKSPACE_ID)
+            .join(&item.id)
+            .join("README.md")
+            .is_file());
+    }
+    let mut sorted = old.clone();
+    sorted.sort_by(|a, b| a.id.cmp(&b.id));
+    assert_eq!(legacy.list().unwrap(), sorted);
+}
+
+/// SPEC-A1 v4 §4.2 (C4): managed roots are private to the owner.
+#[cfg(unix)]
+#[test]
+fn managed_roots_are_created_0700_and_group_writable_roots_are_rejected() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = TestRepo::new();
+    let worktrees = fixture.harness.path().join("worktrees-v1");
+    let managed = worktrees.join(WORKSPACE_ID);
+    let modes =
+        [&worktrees, &managed].map(|path| fs::metadata(path).unwrap().permissions().mode() & 0o777);
+    assert_eq!(modes, [0o700, 0o700]);
+    // Reopening an existing owner-only root keeps working.
+    assert_eq!(
+        WorktreeManager::new(fixture.repo.path(), fixture.harness.path(), WORKSPACE_ID)
+            .err()
+            .map(|error| error.code),
+        None
+    );
+    for (path, mode) in [(&managed, 0o770), (&managed, 0o702), (&worktrees, 0o720)] {
+        fs::set_permissions(path, fs::Permissions::from_mode(mode)).unwrap();
+        assert_eq!(
+            WorktreeManager::new(fixture.repo.path(), fixture.harness.path(), WORKSPACE_ID)
+                .err()
+                .map(|error| error.code),
+            Some("BOUNDARY_VIOLATION"),
+            "{mode:o}"
+        );
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+}
+
+/// A1 C4 (N1): only real `chat-v1/<64 hex>/worktrees-v1` roots count towards
+/// the legacy scan limit; past it roots are skipped (warned), never CAPACITY.
+#[test]
+fn legacy_scan_counts_only_real_hex_roots_and_skips_past_the_limit() {
+    let fixture = TestRepo::new();
+    let chat = fixture.harness.path().join("chat-v1");
+    let mut legacy_ids = Vec::new();
+    for key in ["ab".repeat(32), "cd".repeat(32), "ef".repeat(32)] {
+        let root = chat.join(&key);
+        fs::create_dir_all(&root).unwrap();
+        let manager = WorktreeManager::new(fixture.repo.path(), &root, WORKSPACE_ID).unwrap();
+        legacy_ids.push(manager.create_detached().unwrap().id);
+    }
+    legacy_ids.sort();
+    // 300 each of: hex-named files, non-hex dirs with worktrees-v1, hex dirs without it.
+    for n in 0..300 {
+        fs::write(chat.join(format!("{n:064x}")), "file").unwrap();
+        fs::create_dir_all(chat.join(format!("not-hex-{n}")).join("worktrees-v1")).unwrap();
+        fs::create_dir_all(chat.join(format!("{:064x}", n + 1000))).unwrap();
+    }
+    LEGACY_GIT_RUNS.with(|runs| runs.set(0));
+    let scan = fixture.manager.legacy_scan().map(|(items, skipped)| {
+        (
+            items.into_iter().map(|item| item.id).collect::<Vec<_>>(),
+            skipped,
+        )
+    });
+    assert_eq!(scan.map_err(|e| e.code()), Ok((legacy_ids.clone(), 0)));
+    assert_eq!(
+        LEGACY_GIT_RUNS.with(|runs| runs.get()),
+        1,
+        "one git run per scan"
+    );
+
+    // 300 real hex roots sorting before the three trees push them past the limit.
+    for n in 0..300 {
+        fs::create_dir_all(chat.join(format!("{:064x}", n + 2000)).join("worktrees-v1")).unwrap();
+    }
+    LEGACY_GIT_RUNS.with(|runs| runs.set(0));
+    let scan = fixture
+        .manager
+        .legacy_scan()
+        .map(|(items, skipped)| (items.len(), skipped));
+    assert_eq!(scan.map_err(|e| e.code()), Ok((0, 303 - 256)));
+    assert!(LEGACY_GIT_RUNS.with(|runs| runs.get()) <= 1);
+    assert_eq!(
+        fixture
+            .manager
+            .list_with_legacy()
+            .map(|items| items.len())
+            .map_err(|e| e.code()),
+        Ok(0)
+    );
+    let created = fixture.manager.create_detached().map(|item| item.legacy);
+    assert_eq!(created.map_err(|e| e.code()), Ok(false));
+    let slot = fixture.manager.reserve_slot().map(|_| ());
+    assert_eq!(slot.map_err(|e| e.code()), Ok(()));
+}
+
+/// A1 C2-ad (NB3, SPEC-A1 v5 §1.7): one broken legacy registration (the
+/// registry entry survives but its tree directory was deleted by hand, or its
+/// HEAD is unreadable) is skipped with a warning; list/create/reserve proceed.
+#[test]
+fn a_broken_legacy_registration_is_skipped_and_never_fails_list_create_or_spawn() {
+    let fixture = TestRepo::new();
+    let chat = fixture.harness.path().join("chat-v1");
+    let mut trees = Vec::new();
+    for key in ["ab".repeat(32), "cd".repeat(32), "ef".repeat(32)] {
+        let root = chat.join(&key);
+        fs::create_dir_all(&root).unwrap();
+        let manager = WorktreeManager::new(fixture.repo.path(), &root, WORKSPACE_ID).unwrap();
+        let item = manager.create_detached().unwrap();
+        trees.push((root.join("worktrees-v1").join(WORKSPACE_ID), item.id));
+    }
+    // Tree 0: directory removed by hand, registration left behind.
+    fs::remove_dir_all(trees[0].0.join(&trees[0].1)).unwrap();
+    // Tree 1: registry HEAD corrupted.
+    let git_dir = fixture.repo.path().join(".git").join("worktrees");
+    fs::write(git_dir.join(&trees[1].1).join("HEAD"), "not an oid\n").unwrap();
+    let listed = fixture.manager.list_with_legacy();
+    assert!(listed.is_ok(), "list failed: {listed:?}");
+    let ids: Vec<String> = listed.unwrap().into_iter().map(|i| i.id).collect();
+    assert_eq!(ids, vec![trees[2].1.clone()], "only the intact legacy tree");
+    let created = fixture.manager.create_detached();
+    assert!(created.is_ok(), "create failed: {created:?}");
+    let reserved = fixture.manager.reserve_slot().map(|_| ());
+    assert!(reserved.is_ok(), "reserve (spawn) failed: {reserved:?}");
+    let (_, warnings) = fixture.manager.legacy_scan_warnings_for_test();
+    assert_eq!(warnings, 2, "each skipped entry is one warning");
+}
+
+/// A1 C2-ad (NB4): a managed root the harness creates is chmod'ed to exactly
+/// 0700, independent of the process umask (even one that strips owner bits).
+/// Runs in a child process so the umask never leaks into parallel tests.
+#[cfg(unix)]
+#[test]
+fn managed_roots_created_under_a_restrictive_umask_are_exactly_0700() {
+    use std::os::unix::fs::PermissionsExt;
+    if std::env::var_os("A1_NB4_CHILD").is_none() {
+        let exe = std::env::current_exe().unwrap();
+        let out = Command::new(exe)
+            .args([
+                "--exact",
+                "harness::worktree::tests::managed_roots_created_under_a_restrictive_umask_are_exactly_0700",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env("A1_NB4_CHILD", "1")
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&out.stdout).into_owned()
+            + &String::from_utf8_lossy(&out.stderr);
+        assert!(out.status.success(), "child failed: {text}");
+        assert!(
+            text.contains("1 passed"),
+            "child did not run the test: {text}"
+        );
+        return;
+    }
+    let fixture = TestRepo::new();
+    let harness = tempfile::tempdir().unwrap();
+    // 0o277 strips owner write: DirBuilder.mode(0o700) alone would give 0500.
+    let previous = unsafe { libc::umask(0o277) };
+    let made = WorktreeManager::new(fixture.repo.path(), harness.path(), WORKSPACE_ID).map(|_| ());
+    unsafe { libc::umask(previous) };
+    assert!(made.is_ok(), "{made:?}");
+    let worktrees = harness.path().join("worktrees-v1");
+    let managed = worktrees.join(WORKSPACE_ID);
+    let modes =
+        [&worktrees, &managed].map(|path| fs::metadata(path).unwrap().permissions().mode() & 0o777);
+    assert_eq!(modes, [0o700, 0o700]);
+}

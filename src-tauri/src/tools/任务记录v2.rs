@@ -25,6 +25,9 @@ struct Record {
     stdout_total: usize,
     stderr: String,
     stderr_total: usize,
+    /// A1 C2b worker tag; absent on untagged and pre-C2b records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    worker_id: Option<String>,
 }
 
 pub(super) fn snapshot(job: &Job) -> Value {
@@ -60,6 +63,7 @@ pub(super) fn snapshot(job: &Job) -> Value {
         stdout_total: ot,
         stderr: STANDARD.encode(stderr),
         stderr_total: et,
+        worker_id: job.worker_id.clone(),
     })
     .expect("task record is JSON")
 }
@@ -81,6 +85,12 @@ pub(super) fn restore(value: Value) -> Result<Job, WorkspaceError> {
         || r.timeout_ms > 86_400_000
         || r.stdout.len() > RETAIN_BYTES.div_ceil(3) * 4
         || r.stderr.len() > RETAIN_BYTES.div_ceil(3) * 4
+        || r.worker_id.as_ref().is_some_and(|w| {
+            w.len() != 32
+                || !w
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        })
     {
         return Err(invalid());
     }
@@ -113,6 +123,7 @@ pub(super) fn restore(value: Value) -> Result<Job, WorkspaceError> {
         persistent: true,
         restored_elapsed: Some(r.elapsed_ms),
         persistence_failed: AtomicBool::new(false),
+        worker_id: r.worker_id,
         data: Mutex::new(JobData {
             status: if interrupted {
                 Status::Interrupted

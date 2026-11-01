@@ -296,5 +296,27 @@ async fn debug_and_errors_never_disclose_bound_paths() {
     host.revoke().await.unwrap();
 }
 
+/// A1 C7 (nit4): production dispatch reports the sandbox's group cleanup.
+/// A PTY leader calls `setsid`, so its group has no holder; dispatch attaches
+/// no worker resources, so there is no cgroup either.
+#[cfg(target_arch = "x86_64")]
+#[tokio::test]
+async fn dispatch_output_reports_group_cleanup_for_pty_and_piped_leaders() {
+    let f = Fixture::new();
+    let host = f.host();
+    let pty = complete(&host, &f.call(true, "exit 0"), &f.admission).await;
+    assert_eq!(pty["ok"], true, "{pty}");
+    assert_eq!(pty["group_cleanup"], "skipped_unsafe", "{pty}");
+    let exec = complete(&host, &f.call(false, "exit 0"), &f.admission).await;
+    assert_eq!(exec["ok"], true, "{exec}");
+    let piped = if crate::process_tree::host_holds_groups() {
+        "holder_killpg"
+    } else {
+        "skipped_unsafe"
+    };
+    assert_eq!(exec["group_cleanup"], piped, "{exec}");
+    host.revoke().await.unwrap();
+}
+
 #[path = "lifecycle_tests.rs"]
 mod lifecycle;

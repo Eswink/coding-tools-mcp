@@ -4,7 +4,7 @@ mod dispatch;
 pub(crate) use dispatch::{blocking_context, dispatch};
 mod exclusive;
 mod identity;
-pub(crate) use exclusive::exclusive_context;
+pub(crate) use exclusive::{exclusive_context, RootExclusiveGuard};
 mod storage;
 use super::ToolContext;
 use crate::data::AuthDocument;

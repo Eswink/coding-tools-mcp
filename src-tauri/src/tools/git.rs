@@ -20,7 +20,7 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
         .unwrap_or(true);
 
     let root_check = run_git(
-        ws.root(),
+        ws,
         &resolved.path,
         &["rev-parse", "--show-toplevel"],
         Duration::from_secs(10),
@@ -38,12 +38,7 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
     if !include_untracked {
         status_args.push("--untracked-files=no");
     }
-    let completed = run_git(
-        ws.root(),
-        &resolved.path,
-        &status_args,
-        Duration::from_secs(10),
-    )?;
+    let completed = run_git(ws, &resolved.path, &status_args, Duration::from_secs(10))?;
     if !completed.success && completed.exit_code != 0 {
         return Err(git_error(&completed.stderr));
     }
@@ -88,7 +83,7 @@ pub fn git_status(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError>
         }
     }
 
-    let head = git_rev_parse(ws.root(), &resolved.path, "HEAD").unwrap_or_default();
+    let head = git_rev_parse(ws, &resolved.path, "HEAD").unwrap_or_default();
     Ok(tool_ok(json!({
         "is_repo": true,
         "branch": branch,
@@ -133,7 +128,7 @@ pub fn git_diff(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
         ws.reject_unsafe_text(p)?;
     }
 
-    if !is_git_repo(ws.root()) {
+    if !is_git_repo(ws) {
         return Ok(tool_ok(json!({
             "diff": "",
             "files": [],
@@ -144,10 +139,10 @@ pub fn git_diff(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
 
     let mut chunks = Vec::new();
     if unstaged {
-        chunks.push(run_git_diff(ws.root(), context, &path_filters, false)?);
+        chunks.push(run_git_diff(ws, context, &path_filters, false)?);
     }
     if staged {
-        chunks.push(run_git_diff(ws.root(), context, &path_filters, true)?);
+        chunks.push(run_git_diff(ws, context, &path_filters, true)?);
     }
     let mut combined = chunks.join("\n");
     if !combined.is_empty() && !combined.ends_with('\n') {
@@ -183,7 +178,7 @@ pub fn git_log(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
         .unwrap_or(0)
         .min(10_000) as usize;
 
-    if !is_git_repo(ws.root()) {
+    if !is_git_repo(ws) {
         return Ok(tool_ok(json!({
             "is_repo": false,
             "commits": [],
@@ -213,7 +208,7 @@ pub fn git_log(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
         cmd_args.push(path_filter.as_str());
     }
 
-    let completed = run_git(ws.root(), ws.root(), &cmd_args, Duration::from_secs(10))?;
+    let completed = run_git(ws, ws.root(), &cmd_args, Duration::from_secs(10))?;
     if !completed.success {
         return Err(git_error(&completed.stderr));
     }
@@ -250,7 +245,7 @@ pub fn git_log(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
 }
 
 pub fn git_show(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
-    if !is_git_repo(ws.root()) {
+    if !is_git_repo(ws) {
         return Ok(tool_ok(json!({
             "is_repo": false,
             "content": "",
@@ -308,7 +303,7 @@ pub fn git_show(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> {
         }
     }
 
-    let completed = run_git(ws.root(), ws.root(), &cmd_args, Duration::from_secs(10))?;
+    let completed = run_git(ws, ws.root(), &cmd_args, Duration::from_secs(10))?;
     if !completed.success {
         return Err(git_error(&completed.stderr));
     }
@@ -345,7 +340,7 @@ pub fn git_blame(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> 
             retryable: false,
         });
     }
-    if !is_git_repo(ws.root()) {
+    if !is_git_repo(ws) {
         return Ok(tool_ok(json!({
             "is_repo": false,
             "path": resolved.display,
@@ -393,7 +388,7 @@ pub fn git_blame(ws: &Workspace, args: &Value) -> Result<Value, WorkspaceError> 
     cmd_args.push("--");
     cmd_args.push(resolved.display.as_str());
 
-    let completed = run_git(ws.root(), ws.root(), &cmd_args, Duration::from_secs(10))?;
+    let completed = run_git(ws, ws.root(), &cmd_args, Duration::from_secs(10))?;
     if !completed.success {
         return Err(git_error(&completed.stderr));
     }
@@ -487,16 +482,24 @@ struct GitOutput {
 }
 
 fn run_git(
-    root: &std::path::Path,
+    ws: &Workspace,
     cwd: &std::path::Path,
     args: &[&str],
     limit: Duration,
 ) -> Result<GitOutput, WorkspaceError> {
     #[cfg(target_os = "linux")]
-    let output = super::git_runner::run(root, cwd, args, limit).map_err(git_error)?;
+    let output = {
+        // A1 C5 (NB-g): a worker root is fail-closed, never the root-only fallback.
+        let kind = if ws.is_worker_root() {
+            super::git_runner::GitRoot::Worker
+        } else {
+            super::git_runner::GitRoot::Main
+        };
+        super::git_runner::run(ws.root(), cwd, args, limit, kind).map_err(git_error)?
+    };
     #[cfg(not(target_os = "linux"))]
     let output = {
-        let _ = (root, limit);
+        let _ = (ws, limit);
         let mut cmd = Command::new("git");
         cmd.arg("-C")
             .arg(cwd)
@@ -522,7 +525,7 @@ fn run_git(
 }
 
 fn run_git_diff(
-    root: &std::path::Path,
+    ws: &Workspace,
     context: u64,
     path_filters: &[String],
     cached: bool,
@@ -538,17 +541,17 @@ fn run_git_diff(
             args.push(p.as_str());
         }
     }
-    let completed = run_git(root, root, &args, Duration::from_secs(10))?;
+    let completed = run_git(ws, ws.root(), &args, Duration::from_secs(10))?;
     if completed.exit_code != 0 && completed.exit_code != 1 {
         return Err(git_error(&completed.stderr));
     }
     Ok(completed.stdout)
 }
 
-fn is_git_repo(root: &std::path::Path) -> bool {
+fn is_git_repo(ws: &Workspace) -> bool {
     run_git(
-        root,
-        root,
+        ws,
+        ws.root(),
         &["rev-parse", "--git-dir"],
         Duration::from_secs(5),
     )
@@ -556,8 +559,8 @@ fn is_git_repo(root: &std::path::Path) -> bool {
     .unwrap_or(false)
 }
 
-fn git_rev_parse(root: &std::path::Path, cwd: &std::path::Path, rev: &str) -> Option<String> {
-    run_git(root, cwd, &["rev-parse", rev], Duration::from_secs(5))
+fn git_rev_parse(ws: &Workspace, cwd: &std::path::Path, rev: &str) -> Option<String> {
+    run_git(ws, cwd, &["rev-parse", rev], Duration::from_secs(5))
         .ok()
         .filter(|o| o.success)
         .map(|o| o.stdout.trim().to_string())

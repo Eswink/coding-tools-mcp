@@ -1,8 +1,10 @@
 pub(crate) mod chat_notifications;
 pub(crate) mod cloud_connection;
+pub(crate) mod legacy_cleanup;
 pub(crate) mod managed_workspace;
 pub(crate) mod native_owner;
 pub(crate) mod policy_hooks;
+pub(crate) mod subagent_integration;
 pub(crate) mod workspace_snapshots;
 pub use chat_notifications::{chat_authorization_inbox, refresh_session_control};
 #[path = "异步任务v2.rs"]

@@ -144,3 +144,12 @@ fn conversation_digest_requires_canonical_base64url_encoding() {
         assert!(changed.validate_at(&changed.binding.peer, 100).is_err());
     }
 }
+#[test]
+fn agents_manage_is_a_valid_binding_scope() {
+    // A1 C6 (wire.rs:63): released together with admission (store.rs).
+    let mut r = request();
+    r.binding.scope = "agents.manage".into();
+    assert!(r.validate_at(&r.binding.peer, 100).is_ok());
+    r.binding.scope = "agents.admin".into();
+    assert!(r.validate_at(&r.binding.peer, 100).is_err());
+}

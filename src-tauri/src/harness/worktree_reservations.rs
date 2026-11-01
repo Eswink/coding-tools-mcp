@@ -1,0 +1,70 @@
+//! In-process slot reservations for not-yet-built worker worktrees (SPEC-A1 v4 §1.3/§1.6).
+//! A reservation must be dropped while the native lifecycle lock is still held.
+//! Counted against MAX_MANAGED_WORKTREES while the native lifecycle lock is held.
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
+
+static RESERVED: Mutex<BTreeMap<PathBuf, Vec<String>>> = Mutex::new(BTreeMap::new());
+
+fn with<T>(run: impl FnOnce(&mut BTreeMap<PathBuf, Vec<String>>) -> T) -> T {
+    let mut map = RESERVED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    run(&mut map)
+}
+pub(super) fn count(root: &Path) -> usize {
+    with(|map| map.get(root).map_or(0, Vec::len))
+}
+pub(super) fn holds(root: &Path, id: &str) -> bool {
+    with(|map| map.get(root).is_some_and(|ids| ids.iter().any(|v| v == id)))
+}
+pub(super) fn take(root: &Path, id: String) -> SlotReservation {
+    with(|map| map.entry(root.to_path_buf()).or_default().push(id.clone()));
+    SlotReservation {
+        root: root.to_path_buf(),
+        id,
+    }
+}
+
+/// One reserved managed slot; released on drop.
+#[derive(Debug)]
+pub(crate) struct SlotReservation {
+    root: PathBuf,
+    id: String,
+}
+impl SlotReservation {
+    pub(crate) fn id(&self) -> &str {
+        &self.id
+    }
+    pub(super) fn root(&self) -> &Path {
+        &self.root
+    }
+}
+#[cfg(test)]
+thread_local! {
+    static LAST_DROP_LOCKED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+impl SlotReservation {
+    /// Test hook: whether this thread's most recent release ran under the native lock.
+    #[cfg(test)]
+    pub(crate) fn take_last_release_locked_for_test() -> Option<bool> {
+        LAST_DROP_LOCKED.with(std::cell::Cell::take)
+    }
+}
+impl Drop for SlotReservation {
+    fn drop(&mut self) {
+        #[cfg(test)]
+        LAST_DROP_LOCKED.with(|last| last.set(Some(super::native::held_by_current_thread())));
+        with(|map| {
+            if let Some(ids) = map.get_mut(&self.root) {
+                ids.retain(|value| value != &self.id);
+                if ids.is_empty() {
+                    map.remove(&self.root);
+                }
+            }
+        });
+    }
+}
