@@ -1700,6 +1700,31 @@ fn foreign_owner_answer() -> Value {
     let _ = exec_task(&f.ctx, "cancel", &job);
     out
 }
+/// C10b nit 4: the cross-owner answer through the router, taken in the same
+/// fixture (the router adds a `harness` envelope naming that workspace). The
+/// foreign caller is the local (approved) context and the owner a chat
+/// session, so chat authorization does not stop the call before the owner
+/// check; the unapproved owner cleans up on the direct path.
+fn routed_foreign_answer(f: &Fixture) -> Value {
+    let chat_a = remote(&f.ctx, "chat-a");
+    let worker = spawn_ok(&chat_a, "req-a", "a");
+    let job = json!({"job_id": start_tagged(&chat_a, worker.worker_id.as_str(), "c10b-4-ref")});
+    let out = exec_task_routed(&f.ctx, "get", &job);
+    let cancelled = exec_task(&chat_a, "cancel", &job);
+    assert_eq!(cancelled["ok"], true, "{cancelled}");
+    assert_eq!(code(&out), "WORKER_NOT_OWNED", "{out}");
+    out
+}
+/// C10b nit 4: `get_exec_task` / `cancel_exec_task` through the production
+/// router (`crate::tools::call_tool`: root scope, then `dispatch::call_tool`).
+fn exec_task_routed(ctx: &ToolContext, name: &str, args: &Value) -> Value {
+    let tool = match name {
+        "get" => "get_exec_task",
+        "cancel" => "cancel_exec_task",
+        _ => unreachable!("{name}"),
+    };
+    call_tool(ctx, tool, args)
+}
 fn assert_not_owned_like(label: &str, out: &Value, reference: &Value) {
     assert_eq!(out["ok"], false, "{label}: {out}");
     assert_eq!(code(out), "WORKER_NOT_OWNED", "{label}: {out}");
@@ -1758,23 +1783,23 @@ fn c9n_tagged_job_owner_fails_closed_when_the_store_is_corrupt() {
 /// shape (任务记录v2.rs:88), so that branch stays covered at the check above.
 fn entry_point_answers(ctx: &ToolContext, job: &Value) -> [(&'static str, Value); 2] {
     [
-        ("get", exec_task(ctx, "get", job)),
-        ("cancel", exec_task(ctx, "cancel", job)),
+        ("get", exec_task_routed(ctx, "get", job)),
+        ("cancel", exec_task_routed(ctx, "cancel", job)),
     ]
 }
 fn owner_still_controls(ctx: &ToolContext, job: &Value, id: &str) {
-    let after = exec_task(ctx, "get", job);
+    let after = exec_task_routed(ctx, "get", job);
     assert_eq!(after["ok"], true, "{after}");
     assert_eq!(after["cancel_requested"], false, "{after}");
-    let cancelled = exec_task(ctx, "cancel", job);
+    let cancelled = exec_task_routed(ctx, "cancel", job);
     assert_eq!(cancelled["ok"], true, "{cancelled}");
     assert_eq!(cancelled["worker_id"], id, "{cancelled}");
 }
 
 #[test]
 fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_missing() {
-    let reference = foreign_owner_answer();
     let f = Fixture::new();
+    let reference = routed_foreign_answer(&f);
     let worker = spawn_ok(&f.ctx, "req", "w");
     let id = worker.worker_id.as_str();
     let job = json!({"job_id": start_tagged(&f.ctx, id, "c10a-4-missing")});
@@ -1793,8 +1818,8 @@ fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_missing() {
 
 #[test]
 fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_corrupt() {
-    let reference = foreign_owner_answer();
     let f = Fixture::new();
+    let reference = routed_foreign_answer(&f);
     let worker = spawn_ok(&f.ctx, "req", "w");
     let id = worker.worker_id.as_str();
     let job = json!({"job_id": start_tagged(&f.ctx, id, "c10a-4-corrupt")});
@@ -1808,6 +1833,29 @@ fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_corrupt() {
     }
     assert_eq!(fs::read(&auth).unwrap(), b"corrupt", "left as found");
     fs::write(&auth, &good).unwrap();
+    owner_still_controls(&f.ctx, &job, id);
+}
+
+/// C10b nit 4: a poisoned worker store lock (a thread panicked holding it)
+/// fails closed too: through the router both entry points answer the
+/// cross-owner payload byte for byte and the job is untouched; once the
+/// singleton is reopened (evicted, as after a restart) the owner controls it.
+#[test]
+fn c10b_exec_task_entry_points_fail_closed_when_the_store_lock_is_poisoned() {
+    let f = Fixture::new();
+    let reference = routed_foreign_answer(&f);
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    let job = json!({"job_id": start_tagged(&f.ctx, id, "c10b-4-poisoned")});
+    WorkerStore::open_existing(&f.ctx.host)
+        .unwrap()
+        .expect("cached store")
+        .poison_for_test();
+    for (name, out) in entry_point_answers(&f.ctx, &job) {
+        assert_not_owned_like(&format!("poisoned lock: {name}"), &out, &reference);
+        assert!(!out.to_string().contains(id), "{name} leaked: {out}");
+    }
+    WorkerStore::evict_for_test(&f.ctx.host);
     owner_still_controls(&f.ctx, &job, id);
 }
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10b commit 1 (C10b nits 1-3: listing dirs via openat O_NOFOLLOW + fchmod on unix, O_EXCL temp pinned by test, stale own-temp sweep under the lock, dir fsync failure rolls the listing back, logged removal failures) on a1-c10a e2fb67e2, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10b commit 2 (C10b nit 4: exec_task owner-check tests go through the production router crate::tools::call_tool; poisoned worker store lock fails closed; tests only) on a1-c10b e586fac9, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "61d559dcfefb4c50862d0ee85355966133fa57d8",
-        "sha256": "dad9bae02d1a055be605fd4a8c70234c273fef36cdb6892bfb5a339dafc4b9ce"
+        "blob_sha": "e5c4ce6abb74e2c8cc8c964ce76325f1f9385fd9",
+        "sha256": "c3e095537745386951200aa2a821601761d9e4d60c0e7bde0e28dc1d104aa265"
       }
     },
     {
@@ -10644,8 +10644,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d532410a1b2063368b66515f1a7fff788c5f3f27",
-        "sha256": "9e99d62aba75354f635d8c719f0e2459ad0e473df0b4d08021f781df39b07a79"
+        "blob_sha": "dc4502ee1cb0f023317619c00770393321fc3393",
+        "sha256": "ded814079293394f7f2f5b13b0d79b031b34dac6ac98507efa6c2b60cb03aee4"
       }
     },
     {
