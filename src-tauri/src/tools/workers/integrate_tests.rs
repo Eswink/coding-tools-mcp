@@ -2013,6 +2013,37 @@ fn c10b_clear_attention_tightens_existing_0755_listing_dirs_to_0700() {
     assert_eq!(mode(&listing), 0o600, "listing file");
 }
 
+/// C10b nit 3: the sweep runs at the start of every prepare, under the
+/// store lock, even when the journal is short and no listing is written; a
+/// non-matching name next to it is kept.
+#[cfg(unix)]
+#[test]
+fn c10b_clear_attention_sweeps_stale_temp_files_even_without_a_listing() {
+    let f = Fixture::new();
+    long_attention(&f, 2, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    fs::create_dir_all(&dir).unwrap();
+    let stale = format!(".clear-attention-entries.{}.tmp", "0".repeat(32));
+    fs::write(dir.join(&stale), b"stale\n").unwrap();
+    fs::write(dir.join("other.tmp"), b"keep\n").unwrap();
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert!(
+        card.summary.get("entries_not_shown").is_none(),
+        "short journal: no listing needed"
+    );
+    assert!(!listing.exists(), "no listing written for a short journal");
+    assert!(
+        !dir.join(&stale).exists(),
+        "own stale temp file swept at prepare"
+    );
+    assert_eq!(
+        fs::read(dir.join("other.tmp")).ok().as_deref(),
+        Some(&b"keep\n"[..]),
+        "non-matching name kept"
+    );
+}
+
 /// C10b nit 3 + Grok (1): the prepare sweeps stale temp files, but only
 /// regular files whose name is exactly `.clear-attention-entries.<32 lowercase
 /// hex>.tmp`; it never follows a symlink (a matching symlink and its target
@@ -2052,8 +2083,8 @@ fn c10b_clear_attention_sweeps_only_its_own_stale_temp_files() {
     assert!(!dir.join(&stale).exists(), "own stale temp file swept");
     for name in &keep_files {
         assert_eq!(
-            fs::read(dir.join(name)).unwrap(),
-            b"keep\n",
+            fs::read(dir.join(name)).ok().as_deref(),
+            Some(&b"keep\n"[..]),
             "non-matching name {name} must be kept"
         );
     }
@@ -2062,8 +2093,8 @@ fn c10b_clear_attention_sweeps_only_its_own_stale_temp_files() {
         "a matching symlink must not be followed or removed"
     );
     assert_eq!(
-        fs::read(&victim).unwrap(),
-        b"keep\n",
+        fs::read(&victim).ok().as_deref(),
+        Some(&b"keep\n"[..]),
         "symlink target untouched"
     );
     assert!(
