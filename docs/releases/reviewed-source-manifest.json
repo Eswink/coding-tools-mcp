@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10a commit 3 (C10a nit 5: c8 projection test prints spawn_elapsed on every run; SPAWN_BUDGET 20 s -> 12 s from stress data, max 1.095 s under 12 pinned busy loops; test only) on a1-c10a 82042c49, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10b commit 1 (C10b nits 1-3: listing dirs via openat O_NOFOLLOW + fchmod on unix, O_EXCL temp pinned by test, stale own-temp sweep under the lock, dir fsync failure rolls the listing back, logged removal failures) on a1-c10a e2fb67e2, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "212d2c62d0b3680236c78d9f23ce44096bcc4620",
-        "sha256": "6ad82b279e215c06bd616114629ecce7f63cb756ec299beac42a1db0429b97ca"
+        "blob_sha": "61d559dcfefb4c50862d0ee85355966133fa57d8",
+        "sha256": "dad9bae02d1a055be605fd4a8c70234c273fef36cdb6892bfb5a339dafc4b9ce"
       }
     },
     {
@@ -10574,8 +10574,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "0b0ea53c452b411a471ebeda2c347eea9a093c02",
-        "sha256": "77cc5a62cf3c7adcaea1d67fdec33653ced672d9df4e9bad2d1b606c2d2a4b54"
+        "blob_sha": "a09d49b789d1b04b4dc4e2fa5aa2d7ddcc4bf6c1",
+        "sha256": "43861b7f0a4a7f1aa93df1e8ae7465047862f65799f8d3797cbd6be714cf241d"
       }
     },
     {
@@ -10584,8 +10584,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "55361b4d4b6035843875df8280f1b2349ad2e133",
-        "sha256": "7cca79aa8f046deae5532f0c86b154a6be513d352e15bc9531f7b9062c01b310"
+        "blob_sha": "8004ffd7f9be4424f5d88acb63b035e40c25369a",
+        "sha256": "e0ce230696b5b95e46ca512561c49281c9fb760f8d420f9662cab12db6d84955"
       }
     },
     {

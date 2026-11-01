@@ -1415,19 +1415,313 @@ pub(crate) fn attention_listing_path(host: &HostRoots) -> std::path::PathBuf {
         .join(&host.workspace_id)
         .join("clear-attention-entries.txt")
 }
-/// C10a nit 2: the listing directories, created 0700 on unix; a symlink (or
-/// anything that is not a plain directory) there is refused, not followed.
+/// C10b nit 3 / Grok (1): the exact temp name `write_attention_listing` uses:
+/// `.clear-attention-entries.<32 lowercase hex>.tmp`. Only regular files with
+/// this exact name are ever swept as stale.
+fn is_listing_tmp_name(name: &str) -> bool {
+    name.strip_prefix(".clear-attention-entries.")
+        .and_then(|rest| rest.strip_suffix(".tmp"))
+        .is_some_and(|hex| {
+            hex.len() == 32 && hex.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+        })
+}
+fn listing_tmp_name() -> String {
+    #[cfg(test)]
+    if let Some(name) = listing_fault::forced_tmp_name() {
+        return name;
+    }
+    format!(
+        ".clear-attention-entries.{}.tmp",
+        uuid::Uuid::new_v4().simple()
+    )
+}
+fn listing_text(doc: &JournalDoc, digest: &str) -> Result<String, WorkerError> {
+    let mut text = format!(
+        "# clear_integration_attention integration_id={} entries_total={} digest={digest}\n",
+        doc.integration_id.as_deref().unwrap_or(""),
+        doc.entries.len()
+    );
+    for e in &doc.entries {
+        text.push_str(&serde_json::to_string(&e.path).map_err(|_| super::unavailable())?);
+        text.push('\n');
+    }
+    Ok(text)
+}
+
+/// Test-only fault seam (C10b nits 1/3): force the temp name, or make the
+/// directory fsync after the rename fail. Per thread; the prepare path runs
+/// on the calling thread inside `root_work::dispatch`.
+#[cfg(test)]
+pub(crate) mod listing_fault {
+    use std::cell::RefCell;
+    #[derive(Clone, Default)]
+    pub(crate) struct Faults {
+        pub(crate) tmp_name: Option<String>,
+        pub(crate) dir_fsync_fails: bool,
+    }
+    thread_local!(static FAULTS: RefCell<Faults> = RefCell::default());
+    pub(crate) fn set(faults: Faults) {
+        FAULTS.with(|f| *f.borrow_mut() = faults);
+    }
+    pub(crate) fn forced_tmp_name() -> Option<String> {
+        FAULTS.with(|f| f.borrow().tmp_name.clone())
+    }
+    pub(crate) fn dir_fsync_fails() -> bool {
+        FAULTS.with(|f| f.borrow().dir_fsync_fails)
+    }
+}
+
+/// C10b nit 2: the unix listing code works on directory file descriptors.
+/// Each level is created with `mkdirat(.., 0700)` and opened with
+/// `openat(O_DIRECTORY | O_NOFOLLOW)`, so a symlink (or non-directory) at
+/// either level fails the open and is refused, never followed; the mode is
+/// then checked with `fstat` and tightened with `fchmod` on that same fd, so
+/// there is no lstat -> chmod window. Every later step (create, rename,
+/// fsync, unlink, the stale-temp sweep) is relative to the workspace-level fd.
+#[cfg(unix)]
+mod listing_fs {
+    use std::ffi::CString;
+    use std::fs::File;
+    use std::io::{self, Write};
+    use std::os::fd::{AsRawFd, FromRawFd};
+    use std::os::unix::ffi::OsStrExt;
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::Path;
+
+    fn c(name: &str) -> io::Result<CString> {
+        CString::new(name).map_err(|_| io::ErrorKind::InvalidInput.into())
+    }
+    /// A single path component, never `.`, `..` or containing `/`.
+    fn component(name: &str) -> io::Result<CString> {
+        if name.is_empty() || name == "." || name == ".." || name.contains('/') {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        c(name)
+    }
+    fn open_root(root: &Path) -> io::Result<File> {
+        let path = CString::new(root.as_os_str().as_bytes())
+            .map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+        // SAFETY: valid NUL-terminated path; the fd is owned by the File.
+        let fd = unsafe {
+            libc::open(
+                path.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: fd is a fresh, open descriptor that nothing else owns.
+        Ok(unsafe { File::from_raw_fd(fd) })
+    }
+    /// Opens `name` under `parent` as a directory without following a symlink.
+    fn open_dir_at(parent: &File, name: &str) -> io::Result<File> {
+        let name = component(name)?;
+        // SAFETY: parent is an open directory fd; name is NUL-terminated.
+        let fd = unsafe {
+            libc::openat(
+                parent.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            )
+        };
+        if fd < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: fd is a fresh, open descriptor that nothing else owns.
+        Ok(unsafe { File::from_raw_fd(fd) })
+    }
+    /// fstat + fchmod on the opened fd: a directory not 0700 is tightened.
+    fn tighten(dir: &File) -> io::Result<()> {
+        let meta = dir.metadata()?;
+        if !meta.is_dir() {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        if meta.permissions().mode() & 0o777 != 0o700 {
+            dir.set_permissions(std::fs::Permissions::from_mode(0o700))?;
+        }
+        Ok(())
+    }
+    /// `create`: make missing levels (0700). Without it a missing level is
+    /// `Ok(None)` and nothing is created.
+    pub(super) fn listing_dir(
+        store_root: &Path,
+        workspace_id: &str,
+        create: bool,
+    ) -> io::Result<Option<File>> {
+        let mut dir = open_root(store_root)?;
+        for name in ["integration-attention", workspace_id] {
+            if create {
+                let cname = component(name)?;
+                // SAFETY: dir is an open directory fd; cname is NUL-terminated.
+                let rc = unsafe { libc::mkdirat(dir.as_raw_fd(), cname.as_ptr(), 0o700) };
+                if rc != 0 {
+                    let e = io::Error::last_os_error();
+                    if e.kind() != io::ErrorKind::AlreadyExists {
+                        return Err(e);
+                    }
+                }
+            }
+            dir = match open_dir_at(&dir, name) {
+                Ok(next) => next,
+                Err(e) if !create && e.kind() == io::ErrorKind::NotFound => return Ok(None),
+                Err(e) => return Err(e),
+            };
+            tighten(&dir)?;
+        }
+        Ok(Some(dir))
+    }
+    /// `fstatat(AT_SYMLINK_NOFOLLOW)`: `None` when nothing is there.
+    fn lstat_at(dir: &File, name: &str) -> io::Result<Option<libc::stat>> {
+        let name = c(name)?;
+        let mut st = std::mem::MaybeUninit::<libc::stat>::uninit();
+        // SAFETY: dir is an open directory fd; st is written on success only.
+        let rc = unsafe {
+            libc::fstatat(
+                dir.as_raw_fd(),
+                name.as_ptr(),
+                st.as_mut_ptr(),
+                libc::AT_SYMLINK_NOFOLLOW,
+            )
+        };
+        if rc != 0 {
+            let e = io::Error::last_os_error();
+            return if e.kind() == io::ErrorKind::NotFound {
+                Ok(None)
+            } else {
+                Err(e)
+            };
+        }
+        // SAFETY: fstatat returned 0, so st is initialised.
+        Ok(Some(unsafe { st.assume_init() }))
+    }
+    fn is_regular(st: &libc::stat) -> bool {
+        st.st_mode & libc::S_IFMT == libc::S_IFREG
+    }
+    pub(super) fn is_regular_at(dir: &File, name: &str) -> io::Result<Option<bool>> {
+        Ok(lstat_at(dir, name)?.map(|st| is_regular(&st)))
+    }
+    pub(super) fn unlink_at(dir: &File, name: &str) -> io::Result<()> {
+        let name = c(name)?;
+        // SAFETY: dir is an open directory fd; flags 0 never removes a directory.
+        if unsafe { libc::unlinkat(dir.as_raw_fd(), name.as_ptr(), 0) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+    /// O_CREAT | O_EXCL | O_NOFOLLOW, mode 0600: an existing file or symlink
+    /// at `name` fails with AlreadyExists; nothing is followed or truncated.
+    pub(super) fn create_new_at(dir: &File, name: &str, text: &[u8]) -> io::Result<()> {
+        let cname = c(name)?;
+        // SAFETY: dir is an open directory fd; cname is NUL-terminated.
+        let fd = unsafe {
+            libc::openat(
+                dir.as_raw_fd(),
+                cname.as_ptr(),
+                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600 as libc::c_uint,
+            )
+        };
+        if fd < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: fd is a fresh, open descriptor that nothing else owns.
+        let mut file = unsafe { File::from_raw_fd(fd) };
+        file.write_all(text)?;
+        file.sync_all()
+    }
+    pub(super) fn rename_at(dir: &File, from: &str, to: &str) -> io::Result<()> {
+        let (from, to) = (c(from)?, c(to)?);
+        // SAFETY: both names are NUL-terminated and relative to the same dir fd.
+        let rc =
+            unsafe { libc::renameat(dir.as_raw_fd(), from.as_ptr(), dir.as_raw_fd(), to.as_ptr()) };
+        if rc != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
+    pub(super) fn fsync_dir(dir: &File) -> io::Result<()> {
+        #[cfg(test)]
+        if super::listing_fault::dir_fsync_fails() {
+            return Err(io::Error::other("injected directory fsync failure"));
+        }
+        dir.sync_all()
+    }
+    /// Removes stale temp files: only names matching `is_listing_tmp_name`
+    /// that `fstatat(AT_SYMLINK_NOFOLLOW)` reports as regular files. Names are
+    /// listed from the path, but every check and unlink is relative to `dir`.
+    pub(super) fn sweep_stale_tmp(dir: &File, listed_from: &Path) {
+        let Ok(entries) = std::fs::read_dir(listed_from) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            if !super::is_listing_tmp_name(name) {
+                continue;
+            }
+            if is_regular_at(dir, name).ok().flatten() != Some(true) {
+                continue;
+            }
+            if let Err(e) = unlink_at(dir, name) {
+                eprintln!("clear_integration_attention: stale listing temp file not removed: {e}");
+            }
+        }
+    }
+}
+
+/// C10a nits 1/2, C10b nits 2/3: written while the caller holds the worker
+/// store lock. Unix: the directories are opened by fd (see `listing_fs`);
+/// stale temp files of this exact naming are swept first; the temp file has a
+/// random name and is created O_EXCL | O_NOFOLLOW with mode 0600; a non-file
+/// at the final path is refused; after the rename the directory is fsynced,
+/// and if that fsync fails the renamed listing is removed again before
+/// STORE_UNAVAILABLE is returned (fail-closed, nothing left behind). The
+/// 0600 / 0700 modes are unix only: elsewhere the path-based code below is
+/// kept as it was in C10a and the files inherit the store root's ACL
+/// (Windows ACL tightening is a known gap, SPEC v5.12 §6.4).
+#[cfg(unix)]
+fn write_attention_listing(
+    host: &HostRoots,
+    doc: &JournalDoc,
+    digest: &str,
+) -> Result<std::path::PathBuf, WorkerError> {
+    const FINAL: &str = "clear-attention-entries.txt";
+    let unavailable = |_| super::unavailable();
+    let dir = listing_fs::listing_dir(&host.store_root, &host.workspace_id, true)
+        .map_err(unavailable)?
+        .ok_or_else(super::unavailable)?;
+    let path = attention_listing_path(host);
+    listing_fs::sweep_stale_tmp(&dir, path.parent().ok_or_else(super::unavailable)?);
+    if listing_fs::is_regular_at(&dir, FINAL).map_err(unavailable)? == Some(false) {
+        return Err(super::unavailable());
+    }
+    let text = listing_text(doc, digest)?;
+    let tmp = listing_tmp_name();
+    let written = listing_fs::create_new_at(&dir, &tmp, text.as_bytes())
+        .map_err(|e| (e, false))
+        .and_then(|()| listing_fs::rename_at(&dir, &tmp, FINAL).map_err(|e| (e, true)));
+    if let Err((_, created)) = written {
+        if created {
+            let _ = listing_fs::unlink_at(&dir, &tmp);
+        }
+        return Err(super::unavailable());
+    }
+    if listing_fs::fsync_dir(&dir).is_err() {
+        if let Err(e) = listing_fs::unlink_at(&dir, FINAL) {
+            eprintln!("clear_integration_attention: listing not removed after a failed directory fsync: {e}");
+        }
+        return Err(super::unavailable());
+    }
+    Ok(path)
+}
+/// Non-unix: unchanged from C10a (path based; see the unix doc above).
+#[cfg(not(unix))]
 fn attention_listing_dir(host: &HostRoots) -> Result<std::path::PathBuf, WorkerError> {
     let top = host.store_root.join("integration-attention");
     let dir = top.join(&host.workspace_id);
     for d in [&top, &dir] {
-        let mut builder = std::fs::DirBuilder::new();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
-        }
-        match builder.create(d) {
+        match std::fs::DirBuilder::new().create(d) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
             Err(_) => return Err(super::unavailable()),
@@ -1436,24 +1730,10 @@ fn attention_listing_dir(host: &HostRoots) -> Result<std::path::PathBuf, WorkerE
         if !meta.file_type().is_dir() {
             return Err(super::unavailable());
         }
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            if meta.permissions().mode() & 0o777 != 0o700 {
-                std::fs::set_permissions(d, std::fs::Permissions::from_mode(0o700))
-                    .map_err(|_| super::unavailable())?;
-            }
-        }
     }
     Ok(dir)
 }
-/// C10a nits 1/2: written while the caller holds the worker store lock. The
-/// temp file has a random name and is opened `create_new` (O_EXCL: an existing
-/// file or symlink there is refused, never followed or truncated), mode 0600
-/// from creation on unix; a symlink at the final path is refused; after the
-/// rename the directory is fsynced (unix). The 0600 / 0700 modes are cfg(unix)
-/// only: on Windows the files inherit the store root's ACL (no cfg(windows)
-/// code here).
+#[cfg(not(unix))]
 fn write_attention_listing(
     host: &HostRoots,
     doc: &JournalDoc,
@@ -1467,27 +1747,13 @@ fn write_attention_listing(
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(_) => return Err(super::unavailable()),
     }
-    let mut text = format!(
-        "# clear_integration_attention integration_id={} entries_total={} digest={digest}\n",
-        doc.integration_id.as_deref().unwrap_or(""),
-        doc.entries.len()
-    );
-    for e in &doc.entries {
-        text.push_str(&serde_json::to_string(&e.path).map_err(|_| super::unavailable())?);
-        text.push('\n');
-    }
-    let tmp = dir.join(format!(
-        ".clear-attention-entries.{}.tmp",
-        uuid::Uuid::new_v4().simple()
-    ));
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let file = options.open(&tmp).map_err(|_| super::unavailable())?;
+    let text = listing_text(doc, digest)?;
+    let tmp = dir.join(listing_tmp_name());
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)
+        .map_err(|_| super::unavailable())?;
     let written = (|| {
         use std::io::Write;
         let mut file = file;
@@ -1500,18 +1766,52 @@ fn write_attention_listing(
         let _ = std::fs::remove_file(&tmp);
         return Err(super::unavailable());
     }
-    #[cfg(unix)]
-    std::fs::File::open(&dir)
-        .and_then(|d| d.sync_all())
-        .map_err(|_| super::unavailable())?;
     Ok(path)
 }
+/// C10b nit 3: at prepare time, under the lock, stale temp files of the
+/// exact listing naming are swept (unix; only if the directories already
+/// exist, nothing is created). A sweep problem never fails the prepare.
+fn sweep_attention_listing_tmp(host: &HostRoots) {
+    #[cfg(unix)]
+    if let Ok(Some(dir)) = listing_fs::listing_dir(&host.store_root, &host.workspace_id, false) {
+        if let Some(parent) = attention_listing_path(host).parent() {
+            listing_fs::sweep_stale_tmp(&dir, parent);
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = host;
+}
 /// C10a nit 2: after a successful clear the listing is stale; removed (a
-/// missing file is fine; a removal failure does not undo the clear).
+/// missing file is fine; a removal failure does not undo the clear, and is
+/// logged, C10b nit 3).
 fn remove_attention_listing(host: &HostRoots) {
-    let path = attention_listing_path(host);
-    if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_file()) {
-        let _ = std::fs::remove_file(&path);
+    #[cfg(unix)]
+    {
+        const FINAL: &str = "clear-attention-entries.txt";
+        let dir = match listing_fs::listing_dir(&host.store_root, &host.workspace_id, false) {
+            Ok(Some(dir)) => dir,
+            Ok(None) => return,
+            Err(e) => {
+                eprintln!(
+                    "clear_integration_attention: listing directory not opened for removal: {e}"
+                );
+                return;
+            }
+        };
+        if listing_fs::is_regular_at(&dir, FINAL).ok().flatten() == Some(true) {
+            if let Err(e) = listing_fs::unlink_at(&dir, FINAL) {
+                eprintln!("clear_integration_attention: listing not removed after the clear: {e}");
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let path = attention_listing_path(host);
+        if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_file()) {
+            if let Err(e) = std::fs::remove_file(&path) {
+                eprintln!("clear_integration_attention: listing not removed after the clear: {e}");
+            }
+        }
     }
 }
 
@@ -1529,6 +1829,7 @@ pub(crate) fn prepare_clear_attention(
 ) -> Result<AttentionConfirmation, WorkerError> {
     let (_, store) = open(ctx)?;
     let mut inner = store.lock()?;
+    sweep_attention_listing_tmp(&ctx.host);
     let (doc, digest) = attention_journal(&mut inner, &ctx.host)?;
     let mut paths: Vec<&str> = Vec::new();
     let mut bytes = 0usize;

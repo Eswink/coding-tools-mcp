@@ -1918,6 +1918,210 @@ fn c10a_clear_attention_listing_never_follows_a_planted_symlink() {
     );
 }
 
+/// C10b: sets the listing fault seam for this thread, cleared on drop.
+struct ListingFaults;
+impl ListingFaults {
+    fn set(faults: integration::listing_fault::Faults) -> Self {
+        integration::listing_fault::set(faults);
+        ListingFaults
+    }
+}
+impl Drop for ListingFaults {
+    fn drop(&mut self) {
+        integration::listing_fault::set(Default::default());
+    }
+}
+fn listing_tmp_files(dir: &std::path::Path) -> Vec<String> {
+    let mut names: Vec<_> = fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".tmp"))
+        .collect();
+    names.sort();
+    names
+}
+
+/// C10b nit 1a: the temp file is opened O_EXCL. With the temp name forced
+/// (test seam) onto a regular file that already exists, the prepare is
+/// refused (STORE_UNAVAILABLE): the existing file is neither truncated nor
+/// renamed onto the listing path, and no listing is written. Without the
+/// fault the same journal gets its listing.
+#[test]
+fn c10b_clear_attention_temp_file_is_exclusive_and_an_existing_one_is_refused() {
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    fs::create_dir_all(&dir).unwrap();
+    let forced = ".clear-attention-entries.forced-by-test.tmp";
+    let planted = dir.join(forced);
+    fs::write(&planted, b"planted\n").unwrap();
+    let refused = {
+        let _faults = ListingFaults::set(integration::listing_fault::Faults {
+            tmp_name: Some(forced.into()),
+            ..Default::default()
+        });
+        attention_card(&f.ctx)
+    };
+    assert!(
+        refused.is_err(),
+        "an existing file at the temp name must be refused (O_EXCL)"
+    );
+    let err = refused.err().unwrap();
+    assert_eq!(code(&err), "STORE_UNAVAILABLE", "{err}");
+    assert_eq!(
+        fs::read(&planted).unwrap(),
+        b"planted\n",
+        "existing temp file untouched"
+    );
+    assert!(!listing.exists(), "no listing written");
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert!(card.summary["entries_not_shown"].as_u64().unwrap() > 0);
+    assert_eq!(fs::read_to_string(&listing).unwrap().lines().count(), 301);
+}
+
+/// C10b nit 1b: listing directories that already exist with mode 0755 are
+/// tightened to 0700 by the prepare (fchmod on the opened fd).
+#[cfg(unix)]
+#[test]
+fn c10b_clear_attention_tightens_existing_0755_listing_dirs_to_0700() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    let top = dir.parent().unwrap().to_path_buf();
+    fs::create_dir_all(&dir).unwrap();
+    for d in [&top, &dir] {
+        fs::set_permissions(d, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let mode = |p: &std::path::Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&dir), 0o755, "precondition");
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert!(card.summary["entries_not_shown"].as_u64().unwrap() > 0);
+    assert_eq!(
+        mode(&top),
+        0o700,
+        "pre-existing integration-attention dir tightened"
+    );
+    assert_eq!(
+        mode(&dir),
+        0o700,
+        "pre-existing workspace listing dir tightened"
+    );
+    assert_eq!(mode(&listing), 0o600, "listing file");
+}
+
+/// C10b nit 3 + Grok (1): the prepare sweeps stale temp files, but only
+/// regular files whose name is exactly `.clear-attention-entries.<32 lowercase
+/// hex>.tmp`; it never follows a symlink (a matching symlink and its target
+/// stay), and leaves non-matching names and directories alone.
+#[cfg(unix)]
+#[test]
+fn c10b_clear_attention_sweeps_only_its_own_stale_temp_files() {
+    use std::os::unix::fs::symlink;
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    fs::create_dir_all(&dir).unwrap();
+    let hex = |c: char| c.to_string().repeat(32);
+    let stale = format!(".clear-attention-entries.{}.tmp", hex('a'));
+    fs::write(dir.join(&stale), b"stale\n").unwrap();
+    let keep_files = [
+        ".clear-attention-entries.short.tmp".to_owned(),
+        format!(".clear-attention-entries.{}.tmp", hex('A')),
+        format!(".clear-attention-entries.{}.tmp.bak", hex('b')),
+        format!("clear-attention-entries.{}.tmp", hex('c')),
+        "other.tmp".to_owned(),
+    ];
+    for name in &keep_files {
+        fs::write(dir.join(name), b"keep\n").unwrap();
+    }
+    let elsewhere = tempfile::tempdir().unwrap();
+    let victim = elsewhere.path().join("victim.txt");
+    fs::write(&victim, b"keep\n").unwrap();
+    let link = format!(".clear-attention-entries.{}.tmp", hex('d'));
+    symlink(&victim, dir.join(&link)).unwrap();
+    let subdir = format!(".clear-attention-entries.{}.tmp", hex('e'));
+    fs::create_dir(dir.join(&subdir)).unwrap();
+    fs::write(dir.join(&subdir).join("inner.txt"), b"keep\n").unwrap();
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert!(card.summary["entries_not_shown"].as_u64().unwrap() > 0);
+    assert!(!dir.join(&stale).exists(), "own stale temp file swept");
+    for name in &keep_files {
+        assert_eq!(
+            fs::read(dir.join(name)).unwrap(),
+            b"keep\n",
+            "non-matching name {name} must be kept"
+        );
+    }
+    assert!(
+        fs::symlink_metadata(dir.join(&link)).is_ok_and(|m| m.file_type().is_symlink()),
+        "a matching symlink must not be followed or removed"
+    );
+    assert_eq!(
+        fs::read(&victim).unwrap(),
+        b"keep\n",
+        "symlink target untouched"
+    );
+    assert!(
+        dir.join(&subdir).join("inner.txt").exists(),
+        "matching directory kept"
+    );
+    let mut expected: Vec<String> = keep_files
+        .iter()
+        .filter(|n| n.ends_with(".tmp"))
+        .cloned()
+        .chain([link, subdir])
+        .collect();
+    expected.sort();
+    assert_eq!(listing_tmp_files(&dir), expected);
+}
+
+/// C10b nit 3 + Grok (2): when the directory fsync after the rename fails
+/// (injected), the renamed listing is removed again and the prepare answers
+/// STORE_UNAVAILABLE: no listing and no temp file remain, the journal is
+/// unchanged and still needs attention, and a retry fails the same way.
+/// Once the fault is gone the clear goes through.
+#[cfg(unix)]
+#[test]
+fn c10b_clear_attention_rolls_the_listing_back_when_the_dir_fsync_fails() {
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let before = journal_of(&f.ctx);
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    {
+        let _faults = ListingFaults::set(integration::listing_fault::Faults {
+            dir_fsync_fails: true,
+            ..Default::default()
+        });
+        for attempt in ["first", "retry"] {
+            let refused = attention_card(&f.ctx);
+            assert!(
+                refused.is_err(),
+                "{attempt}: a failed dir fsync must fail the prepare"
+            );
+            let err = refused.err().unwrap();
+            assert_eq!(code(&err), "STORE_UNAVAILABLE", "{attempt}: {err}");
+            assert!(
+                !listing.exists(),
+                "{attempt}: no listing left after the failed dir fsync"
+            );
+            assert!(
+                listing_tmp_files(listing.parent().unwrap()).is_empty(),
+                "{attempt}: no temp file left"
+            );
+            assert_eq!(journal_of(&f.ctx), before, "{attempt}: journal unchanged");
+        }
+    }
+    assert_eq!(before.state, JournalState::NeedsAttention);
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+    assert_eq!(out["state"], "none", "{out}");
+    assert!(!listing.exists(), "listing removed after the clear");
+}
+
 /// C9n nit 5 (Grok 22:25): changing an entry the dialog did not show (its
 /// content, same path) breaks the digest, so the approval of that card fails.
 #[test]
