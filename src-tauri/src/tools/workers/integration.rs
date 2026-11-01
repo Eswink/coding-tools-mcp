@@ -1415,14 +1415,58 @@ pub(crate) fn attention_listing_path(host: &HostRoots) -> std::path::PathBuf {
         .join(&host.workspace_id)
         .join("clear-attention-entries.txt")
 }
+/// C10a nit 2: the listing directories, created 0700 on unix; a symlink (or
+/// anything that is not a plain directory) there is refused, not followed.
+fn attention_listing_dir(host: &HostRoots) -> Result<std::path::PathBuf, WorkerError> {
+    let top = host.store_root.join("integration-attention");
+    let dir = top.join(&host.workspace_id);
+    for d in [&top, &dir] {
+        let mut builder = std::fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        match builder.create(d) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(_) => return Err(super::unavailable()),
+        }
+        let meta = std::fs::symlink_metadata(d).map_err(|_| super::unavailable())?;
+        if !meta.file_type().is_dir() {
+            return Err(super::unavailable());
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if meta.permissions().mode() & 0o777 != 0o700 {
+                std::fs::set_permissions(d, std::fs::Permissions::from_mode(0o700))
+                    .map_err(|_| super::unavailable())?;
+            }
+        }
+    }
+    Ok(dir)
+}
+/// C10a nits 1/2: written while the caller holds the worker store lock. The
+/// temp file has a random name and is opened `create_new` (O_EXCL: an existing
+/// file or symlink there is refused, never followed or truncated), mode 0600
+/// from creation on unix; a symlink at the final path is refused; after the
+/// rename the directory is fsynced (unix). The 0600 / 0700 modes are cfg(unix)
+/// only: on Windows the files inherit the store root's ACL (no cfg(windows)
+/// code here).
 fn write_attention_listing(
     host: &HostRoots,
     doc: &JournalDoc,
     digest: &str,
 ) -> Result<std::path::PathBuf, WorkerError> {
+    let dir = attention_listing_dir(host)?;
     let path = attention_listing_path(host);
-    let dir = path.parent().ok_or_else(super::unavailable)?;
-    std::fs::create_dir_all(dir).map_err(|_| super::unavailable())?;
+    match std::fs::symlink_metadata(&path) {
+        Ok(meta) if !meta.file_type().is_file() => return Err(super::unavailable()),
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return Err(super::unavailable()),
+    }
     let mut text = format!(
         "# clear_integration_attention integration_id={} entries_total={} digest={digest}\n",
         doc.integration_id.as_deref().unwrap_or(""),
@@ -1434,27 +1478,41 @@ fn write_attention_listing(
     }
     let tmp = dir.join(format!(
         ".clear-attention-entries.{}.tmp",
-        std::process::id()
+        uuid::Uuid::new_v4().simple()
     ));
     let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
+    options.write(true).create_new(true);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
-    let written = options.open(&tmp).and_then(|mut f| {
+    let file = options.open(&tmp).map_err(|_| super::unavailable())?;
+    let written = (|| {
         use std::io::Write;
-        f.write_all(text.as_bytes())?;
-        f.sync_all()
-    });
-    written
-        .and_then(|()| std::fs::rename(&tmp, &path))
-        .map_err(|_| {
-            let _ = std::fs::remove_file(&tmp);
-            super::unavailable()
-        })?;
+        let mut file = file;
+        file.write_all(text.as_bytes())?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::rename(&tmp, &path)
+    })();
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(super::unavailable());
+    }
+    #[cfg(unix)]
+    std::fs::File::open(&dir)
+        .and_then(|d| d.sync_all())
+        .map_err(|_| super::unavailable())?;
     Ok(path)
+}
+/// C10a nit 2: after a successful clear the listing is stale; removed (a
+/// missing file is fine; a removal failure does not undo the clear).
+fn remove_attention_listing(host: &HostRoots) {
+    let path = attention_listing_path(host);
+    if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_file()) {
+        let _ = std::fs::remove_file(&path);
+    }
 }
 
 /// Native, before the dialog: refuses unless the journal is `needs_attention`,
@@ -1464,14 +1522,14 @@ fn write_attention_listing(
 /// the state check refuses, and a truncated list writes the listing file below.
 /// C9n nit 5: the listed paths are bounded by count and bytes; past either
 /// bound the body says how many are not shown and where the full list was
-/// written, and the digest still binds all.
+/// written, and the digest still binds all. C10a nit 2: the listing is written
+/// while the store lock is held, so it matches the journal the digest binds.
 pub(crate) fn prepare_clear_attention(
     ctx: &ToolContext,
 ) -> Result<AttentionConfirmation, WorkerError> {
     let (_, store) = open(ctx)?;
     let mut inner = store.lock()?;
     let (doc, digest) = attention_journal(&mut inner, &ctx.host)?;
-    drop(inner);
     let mut paths: Vec<&str> = Vec::new();
     let mut bytes = 0usize;
     for e in doc.entries.iter().take(ATTENTION_LISTED) {
@@ -1504,6 +1562,7 @@ pub(crate) fn prepare_clear_attention(
             doc.entries.len()
         ));
     }
+    drop(inner);
     Ok(AttentionConfirmation {
         digest,
         title: "Clear the integration journal that needs attention".into(),
@@ -1529,6 +1588,8 @@ pub(crate) fn apply_clear_attention(
         return Err(confirmation_required());
     }
     journal_rw(&mut inner, &ctx.host)?.write(doc.idle())?;
+    remove_attention_listing(&ctx.host);
+    drop(inner);
     Ok(json!({
         "integration_id": doc.integration_id,
         "state": "none",

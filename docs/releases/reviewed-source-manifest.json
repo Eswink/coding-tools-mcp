@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c9n commit 2 (comments only: C9n nit 6 prepare_clear_attention is not read-only, it creates a fresh journal when none exists; C9n nit 3 WORKER_NOT_OWNED vs EXEC_TASK_NOT_FOUND reveals that a job exists, low risk with UUIDv4 job ids) on a1-c9n 1a066a62, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10a commit 1 (C10a nits 1-3: clear-attention listing temp file random name + create_new 0600 from creation, symlinks refused, dirs 0700 on unix, written under the store lock, parent dir fsync, removed after a successful clear; 300-short-path count-cap test) on a1-c9n cb1fed24, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "61343ec84f6a9bf56ea0a5cec5e15128148a1f0d",
-        "sha256": "f538c8c297bd91d09bfb4ad5150d60ad04be6f0e4c72c6fc3b8e56fce1039647"
+        "blob_sha": "54797d3c8e4b4e1709182a3e00a656d20f1566e5",
+        "sha256": "58278404bd773ef8552ae7b5273e9868c175a483f40fe174fdffbf8e6328d27f"
       }
     },
     {
@@ -10574,8 +10574,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "653b7b7a4dcbb6375c831b3c7b21beb770dbe02c",
-        "sha256": "e87df282986ddb1427c0c4acd1d1986bce15882cff22dd752869251f7a8df6ff"
+        "blob_sha": "0b0ea53c452b411a471ebeda2c347eea9a093c02",
+        "sha256": "77cc5a62cf3c7adcaea1d67fdec33653ced672d9df4e9bad2d1b606c2d2a4b54"
       }
     },
     {
@@ -10584,8 +10584,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ff3831b71c5df99a447e397bc0a50ed39b54a514",
-        "sha256": "78d1b10603bf1ada832e060ba9c7297ea975ad5ea8be3f769e605f183c10b5f5"
+        "blob_sha": "55361b4d4b6035843875df8280f1b2349ad2e133",
+        "sha256": "7cca79aa8f046deae5532f0c86b154a6be513d352e15bc9531f7b9062c01b310"
       }
     },
     {

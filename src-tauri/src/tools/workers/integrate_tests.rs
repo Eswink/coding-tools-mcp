@@ -1805,6 +1805,119 @@ fn c9n_clear_attention_truncates_a_long_list_and_the_approval_still_clears_every
     }
 }
 
+/// C10a nit 3: 300 short paths stay far under the byte bound, so the count cap
+/// (`ATTENTION_LISTED` = 256) is what cuts the list; the listing file is 0600
+/// and its directories 0700 (unix), and a successful clear removes it.
+#[test]
+fn c10a_clear_attention_count_cap_cuts_300_short_paths_and_the_listing_is_private() {
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let total = journal_of(&f.ctx).entries.len();
+    assert_eq!(total, 300);
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    let shown = card.summary["entries"].as_array().unwrap().len();
+    assert_eq!(shown, integration::ATTENTION_LISTED, "count cap");
+    assert_eq!(card.summary["entries_not_shown"], total - shown);
+    let notice = card.summary["entries_not_shown_notice"].as_str().unwrap();
+    assert!(notice.starts_with("还有 44 条路径未显示。"), "{notice}");
+    assert!(attention_body(&card).len() <= CONFIRM_BODY_LIMIT);
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    assert_eq!(
+        fs::read_to_string(&listing).unwrap().lines().count(),
+        total + 1
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |p: &std::path::Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&listing), 0o600, "listing file");
+        let dir = listing.parent().unwrap();
+        assert_eq!(mode(dir), 0o700, "workspace listing dir");
+        assert_eq!(
+            mode(dir.parent().unwrap()),
+            0o700,
+            "integration-attention dir"
+        );
+    }
+    let leftovers: Vec<_> = fs::read_dir(listing.parent().unwrap())
+        .unwrap()
+        .map(|e| e.unwrap().file_name())
+        .filter(|n| n.to_string_lossy().ends_with(".tmp"))
+        .collect();
+    assert!(leftovers.is_empty(), "{leftovers:?}");
+    let out = clear_attention(&f.ctx, &card, integration::ATTENTION_SCOPE);
+    assert_eq!(out["state"], "none", "{out}");
+    assert_eq!(out["entries_discarded"], total, "{out}");
+    assert!(!listing.exists(), "listing removed after the clear");
+}
+
+/// C10a nit 1: the temp file is not at a predictable name and is never
+/// followed: a symlink planted at the old pid-only temp name stays untouched
+/// and so does its target; a symlink at the final listing path or at the
+/// listing directory is refused (STORE_UNAVAILABLE) and nothing is written
+/// through it.
+#[cfg(unix)]
+#[test]
+fn c10a_clear_attention_listing_never_follows_a_planted_symlink() {
+    use std::os::unix::fs::symlink;
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    let elsewhere = tempfile::tempdir().unwrap();
+    let victim = elsewhere.path().join("victim.txt");
+    fs::write(&victim, b"keep\n").unwrap();
+    fs::create_dir_all(&dir).unwrap();
+    let old_tmp = dir.join(format!(
+        ".clear-attention-entries.{}.tmp",
+        std::process::id()
+    ));
+    symlink(&victim, &old_tmp).unwrap();
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert!(card.summary["entries_not_shown"].as_u64().unwrap() > 0);
+    assert_eq!(
+        fs::read(&victim).unwrap(),
+        b"keep\n",
+        "planted temp name followed"
+    );
+    assert!(fs::symlink_metadata(&old_tmp)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    fs::remove_file(&listing).unwrap();
+    symlink(&victim, &listing).unwrap();
+    let refused = attention_card(&f.ctx);
+    assert!(
+        refused.is_err(),
+        "symlink at the listing path must be refused"
+    );
+    let err = refused.err().unwrap();
+    assert_eq!(code(&err), "STORE_UNAVAILABLE", "{err}");
+    assert_eq!(fs::read(&victim).unwrap(), b"keep\n");
+    assert!(fs::symlink_metadata(&listing)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    fs::remove_dir_all(&dir).unwrap();
+    symlink(elsewhere.path(), &dir).unwrap();
+    let refused = attention_card(&f.ctx);
+    assert!(
+        refused.is_err(),
+        "symlink at the listing dir must be refused"
+    );
+    let err = refused.err().unwrap();
+    assert_eq!(code(&err), "STORE_UNAVAILABLE", "{err}");
+    let names: Vec<_> = fs::read_dir(elsewhere.path())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        names,
+        ["victim.txt"],
+        "nothing written through the dir link"
+    );
+}
+
 /// C9n nit 5 (Grok 22:25): changing an entry the dialog did not show (its
 /// content, same path) breaks the digest, so the approval of that card fails.
 #[test]
