@@ -1460,6 +1460,8 @@ pub(crate) mod listing_fault {
         pub(crate) tmp_name: Option<String>,
         #[cfg(unix)]
         pub(crate) dir_fsync_fails: bool,
+        #[cfg(unix)]
+        pub(crate) tmp_write_fails: bool,
     }
     thread_local!(static FAULTS: RefCell<Faults> = RefCell::default());
     pub(crate) fn set(faults: Faults) {
@@ -1472,15 +1474,23 @@ pub(crate) mod listing_fault {
     pub(crate) fn dir_fsync_fails() -> bool {
         FAULTS.with(|f| f.borrow().dir_fsync_fails)
     }
+    #[cfg(unix)]
+    pub(crate) fn tmp_write_fails() -> bool {
+        FAULTS.with(|f| f.borrow().tmp_write_fails)
+    }
 }
 
-/// C10b nit 2: the unix listing code works on directory file descriptors.
+/// C10b nit 2 / C10c: the unix listing code works on directory file descriptors.
 /// Each level is created with `mkdirat(.., 0700)` and opened with
 /// `openat(O_DIRECTORY | O_NOFOLLOW)`, so a symlink (or non-directory) at
 /// either level fails the open and is refused, never followed; the mode is
 /// then checked with `fstat` and tightened with `fchmod` on that same fd, so
-/// there is no lstat -> chmod window. Every later step (create, rename,
-/// fsync, unlink, the stale-temp sweep) is relative to the workspace-level fd.
+/// there is no lstat -> chmod window. Tightening runs only on the create/write
+/// path (C10c nit 3): the read-only sweep/remove path opens without fchmod.
+/// `open_root` also uses `O_NOFOLLOW` (C10c nit 4). Every later step (create,
+/// rename, fsync, unlink, the stale-temp sweep via `fdopendir`) is relative to
+/// the workspace-level fd. A failed write/sync after `create_new_at` unlinks
+/// the temp immediately (C10c nit 1).
 #[cfg(unix)]
 mod listing_fs {
     use std::ffi::CString;
@@ -1505,10 +1515,13 @@ mod listing_fs {
         let path = CString::new(root.as_os_str().as_bytes())
             .map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
         // SAFETY: valid NUL-terminated path; the fd is owned by the File.
+        // O_NOFOLLOW: refuse a symlinked store root (C10c nit 4), matching
+        // open_dir_at. AuthDocument already rejects ancestor symlinks; this
+        // keeps the listing path consistent when called on its own.
         let fd = unsafe {
             libc::open(
                 path.as_ptr(),
-                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC,
+                libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
             )
         };
         if fd < 0 {
@@ -1570,7 +1583,12 @@ mod listing_fs {
                 Err(e) if !create && e.kind() == io::ErrorKind::NotFound => return Ok(None),
                 Err(e) => return Err(e),
             };
-            tighten(&dir)?;
+            // C10c nit 3: only tighten modes on paths we create/own for the
+            // attention list (write path). The read-only sweep/remove path
+            // must not fchmod directories it did not create.
+            if create {
+                tighten(&dir)?;
+            }
         }
         Ok(Some(dir))
     }
@@ -1630,8 +1648,22 @@ mod listing_fs {
         }
         // SAFETY: fd is a fresh, open descriptor that nothing else owns.
         let mut file = unsafe { File::from_raw_fd(fd) };
-        file.write_all(text)?;
-        file.sync_all()
+        let written = (|| -> io::Result<()> {
+            #[cfg(test)]
+            if super::listing_fault::tmp_write_fails() {
+                return Err(io::Error::other("injected temp write/sync failure"));
+            }
+            file.write_all(text)?;
+            file.sync_all()?;
+            Ok(())
+        })();
+        // C10c nit 1: if write/sync fails after O_EXCL create, unlink the temp
+        // immediately rather than waiting for the next sweep.
+        if written.is_err() {
+            drop(file);
+            let _ = unlink_at(dir, name);
+        }
+        written
     }
     pub(super) fn rename_at(dir: &File, from: &str, to: &str) -> io::Result<()> {
         let (from, to) = (c(from)?, c(to)?);
@@ -1650,39 +1682,75 @@ mod listing_fs {
         }
         dir.sync_all()
     }
+    /// Lists names under `dir` via `dup` + `fdopendir` + `readdir` (C10c nit 2):
+    /// the listing is bound to the already-opened directory fd, not a path
+    /// that could be replaced underneath us.
+    fn list_dir_names(dir: &File) -> io::Result<Vec<String>> {
+        // SAFETY: dup yields a fresh fd we own; fdopendir takes ownership of it.
+        let dup = unsafe { libc::dup(dir.as_raw_fd()) };
+        if dup < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let dirp = unsafe { libc::fdopendir(dup) };
+        if dirp.is_null() {
+            let err = io::Error::last_os_error();
+            // SAFETY: fdopendir failed, so we still own dup.
+            unsafe { libc::close(dup) };
+            return Err(err);
+        }
+        let mut names = Vec::new();
+        loop {
+            // SAFETY: dirp is a live DIR* from fdopendir; readdir is called until null.
+            let entry = unsafe { libc::readdir(dirp) };
+            if entry.is_null() {
+                break;
+            }
+            // SAFETY: entry is non-null from readdir; d_name is NUL-terminated.
+            let cname = unsafe { std::ffi::CStr::from_ptr((*entry).d_name.as_ptr()) };
+            let Ok(name) = cname.to_str() else { continue };
+            if name == "." || name == ".." {
+                continue;
+            }
+            names.push(name.to_owned());
+        }
+        // SAFETY: closedir frees DIR* and the dup'd fd it owns.
+        unsafe { libc::closedir(dirp) };
+        Ok(names)
+    }
     /// Removes stale temp files: only names matching `is_listing_tmp_name`
     /// that `fstatat(AT_SYMLINK_NOFOLLOW)` reports as regular files. Names are
-    /// listed from the path, but every check and unlink is relative to `dir`.
-    pub(super) fn sweep_stale_tmp(dir: &File, listed_from: &Path) {
-        let Ok(entries) = std::fs::read_dir(listed_from) else {
+    /// listed via `fdopendir` on `dir` (C10c nit 2); every check and unlink is
+    /// relative to the same fd.
+    pub(super) fn sweep_stale_tmp(dir: &File) {
+        let Ok(names) = list_dir_names(dir) else {
             return;
         };
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let Some(name) = name.to_str() else { continue };
-            if !super::is_listing_tmp_name(name) {
+        for name in names {
+            if !super::is_listing_tmp_name(&name) {
                 continue;
             }
-            if is_regular_at(dir, name).ok().flatten() != Some(true) {
+            if is_regular_at(dir, &name).ok().flatten() != Some(true) {
                 continue;
             }
-            if let Err(e) = unlink_at(dir, name) {
+            if let Err(e) = unlink_at(dir, &name) {
                 eprintln!("clear_integration_attention: stale listing temp file not removed: {e}");
             }
         }
     }
 }
 
-/// C10a nits 1/2, C10b nits 2/3: written while the caller holds the worker
-/// store lock. Unix: the directories are opened by fd (see `listing_fs`);
-/// stale temp files of this exact naming are swept first; the temp file has a
-/// random name and is created O_EXCL | O_NOFOLLOW with mode 0600; a non-file
-/// at the final path is refused; after the rename the directory is fsynced,
-/// and if that fsync fails the renamed listing is removed again before
-/// STORE_UNAVAILABLE is returned (fail-closed, nothing left behind). The
-/// 0600 / 0700 modes are unix only: elsewhere the path-based code below is
-/// kept as it was in C10a and the files inherit the store root's ACL
-/// (Windows ACL tightening is a known gap, SPEC v5.12 §6.4).
+/// C10a nits 1/2, C10b nits 2/3, C10c nits 1–4: written while the caller holds
+/// the worker store lock. Unix: the directories are opened by fd (see
+/// `listing_fs`); stale temp files of this exact naming are swept first via
+/// `fdopendir`; the temp file has a random name and is created O_EXCL |
+/// O_NOFOLLOW with mode 0600, and a failed write/sync unlinks it immediately;
+/// a non-file at the final path is refused; after the rename the directory is
+/// fsynced, and if that fsync fails the renamed listing is removed again
+/// before STORE_UNAVAILABLE is returned (fail-closed, nothing left behind).
+/// Modes are tightened only on this create path. The 0600 / 0700 modes are
+/// unix only: elsewhere the path-based code below is kept as it was in C10a
+/// and the files inherit the store root's ACL (Windows ACL tightening is a
+/// known gap, SPEC v5.12 §6.4).
 #[cfg(unix)]
 fn write_attention_listing(
     host: &HostRoots,
@@ -1695,7 +1763,7 @@ fn write_attention_listing(
         .map_err(unavailable)?
         .ok_or_else(super::unavailable)?;
     let path = attention_listing_path(host);
-    listing_fs::sweep_stale_tmp(&dir, path.parent().ok_or_else(super::unavailable)?);
+    listing_fs::sweep_stale_tmp(&dir);
     if listing_fs::is_regular_at(&dir, FINAL).map_err(unavailable)? == Some(false) {
         return Err(super::unavailable());
     }
@@ -1774,12 +1842,27 @@ fn write_attention_listing(
 /// C10b nit 3: at prepare time, under the lock, stale temp files of the
 /// exact listing naming are swept (unix; only if the directories already
 /// exist, nothing is created). A sweep problem never fails the prepare.
+/// C10c: test helper so integrate_tests can open the listing dir (and thus
+/// exercise `open_root`) without going through prepare.
+#[cfg(all(test, unix))]
+pub(crate) fn listing_dir_open_for_test(
+    store_root: &std::path::Path,
+    workspace_id: &str,
+    create: bool,
+) -> std::io::Result<Option<std::fs::File>> {
+    listing_fs::listing_dir(store_root, workspace_id, create)
+}
+
+/// C10c: test helper for the fd-based stale-temp sweep.
+#[cfg(all(test, unix))]
+pub(crate) fn sweep_stale_tmp_for_test(dir: &std::fs::File) {
+    listing_fs::sweep_stale_tmp(dir)
+}
+
 fn sweep_attention_listing_tmp(host: &HostRoots) {
     #[cfg(unix)]
     if let Ok(Some(dir)) = listing_fs::listing_dir(&host.store_root, &host.workspace_id, false) {
-        if let Some(parent) = attention_listing_path(host).parent() {
-            listing_fs::sweep_stale_tmp(&dir, parent);
-        }
+        listing_fs::sweep_stale_tmp(&dir);
     }
     #[cfg(not(unix))]
     let _ = host;

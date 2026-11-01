@@ -2154,6 +2154,149 @@ fn c10b_clear_attention_rolls_the_listing_back_when_the_dir_fsync_fails() {
     assert!(!listing.exists(), "listing removed after the clear");
 }
 
+/// C10c nit 1: if write/sync of the temp file fails after O_EXCL create
+/// (injected), the temp is unlinked immediately: prepare answers
+/// STORE_UNAVAILABLE and no temp file (and no listing) remains.
+#[cfg(unix)]
+#[test]
+fn c10c_clear_attention_unlinks_temp_when_write_or_sync_fails() {
+    let f = Fixture::new();
+    long_attention(&f, 297, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    {
+        let _faults = ListingFaults::set(integration::listing_fault::Faults {
+            tmp_write_fails: true,
+            ..Default::default()
+        });
+        let refused = attention_card(&f.ctx);
+        assert!(
+            refused.is_err(),
+            "a failed temp write/sync must fail the prepare"
+        );
+        let err = refused.err().unwrap();
+        assert_eq!(code(&err), "STORE_UNAVAILABLE", "{err}");
+        assert!(!listing.exists(), "no listing left");
+        assert!(
+            listing_tmp_files(&dir).is_empty(),
+            "temp unlinked immediately, not left for the next sweep: {:?}",
+            listing_tmp_files(&dir)
+        );
+    }
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare after fault cleared: {e}"));
+    assert!(card.summary["entries_not_shown"].as_u64().unwrap() > 0);
+    assert!(listing.exists(), "listing written once the fault is gone");
+}
+
+/// C10c nit 2: the stale-temp sweep lists via fdopendir on the opened dir fd,
+/// so a path that is replaced under us still sweeps the directory the fd
+/// refers to (a path-based read_dir on the original path would see the empty
+/// replacement and leave the stale file).
+#[cfg(unix)]
+#[test]
+fn c10c_sweep_uses_the_dir_fd_not_a_replaced_path() {
+    let store = tempfile::tempdir().unwrap();
+    let top = store.path().join("integration-attention");
+    let dir_path = top.join("ws");
+    fs::create_dir_all(&dir_path).unwrap();
+    let stale = format!(".clear-attention-entries.{}.tmp", "f".repeat(32));
+    fs::write(dir_path.join(&stale), b"stale\n").unwrap();
+    fs::write(dir_path.join("other.tmp"), b"keep\n").unwrap();
+    let dir_fd = integration::listing_dir_open_for_test(store.path(), "ws", false)
+        .unwrap()
+        .expect("dir opens");
+    // Replace the path: rename the real workspace listing dir away and put an
+    // empty dir at the same path. A path-based read_dir would see the empty
+    // replacement; fdopendir on the still-open fd sees the moved directory.
+    let moved = top.join("ws.moved");
+    fs::rename(&dir_path, &moved).unwrap();
+    fs::create_dir(&dir_path).unwrap();
+    assert!(
+        !dir_path.join(&stale).exists(),
+        "replacement path has no stale file"
+    );
+    assert!(moved.join(&stale).exists(), "stale lives under the fd's dir");
+    integration::sweep_stale_tmp_for_test(&dir_fd);
+    assert!(
+        !moved.join(&stale).exists(),
+        "fd-based sweep removes the stale file in the fd's directory"
+    );
+    assert_eq!(
+        fs::read(moved.join("other.tmp")).ok().as_deref(),
+        Some(&b"keep\n"[..]),
+        "non-matching name kept"
+    );
+    assert!(
+        fs::read_dir(&dir_path).unwrap().next().is_none(),
+        "replacement path still empty (sweep did not look there)"
+    );
+}
+
+/// C10c nit 3: the read-only sweep/remove path does not fchmod listing
+/// directories. A short journal only sweeps (create=false); pre-existing 0755
+/// dirs stay 0755. The write path still tightens (covered by the C10b test).
+#[cfg(unix)]
+#[test]
+fn c10c_clear_attention_does_not_tighten_dirs_on_the_read_only_sweep() {
+    use std::os::unix::fs::PermissionsExt;
+    let f = Fixture::new();
+    long_attention(&f, 2, |i| format!("s{i:04}.txt"));
+    let listing = integration::attention_listing_path(&f.ctx.host);
+    let dir = listing.parent().unwrap().to_path_buf();
+    let top = dir.parent().unwrap().to_path_buf();
+    fs::create_dir_all(&dir).unwrap();
+    let stale = format!(".clear-attention-entries.{}.tmp", "0".repeat(32));
+    fs::write(dir.join(&stale), b"stale\n").unwrap();
+    for d in [&top, &dir] {
+        fs::set_permissions(d, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let mode = |p: &std::path::Path| fs::metadata(p).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&dir), 0o755, "precondition");
+    let card = attention_card(&f.ctx).unwrap_or_else(|e| panic!("prepare: {e}"));
+    assert!(
+        card.summary.get("entries_not_shown").is_none(),
+        "short journal: sweep only, no listing write"
+    );
+    assert!(!dir.join(&stale).exists(), "stale swept");
+    assert_eq!(
+        mode(&top),
+        0o755,
+        "read-only sweep must not tighten integration-attention"
+    );
+    assert_eq!(
+        mode(&dir),
+        0o755,
+        "read-only sweep must not tighten the workspace listing dir"
+    );
+}
+
+/// C10c nit 4: open_root refuses a store root that is itself a symlink
+/// (O_NOFOLLOW), consistent with open_dir_at.
+#[cfg(unix)]
+#[test]
+fn c10c_listing_open_root_refuses_a_symlinked_store_root() {
+    use std::os::unix::fs::symlink;
+    let real = tempfile::tempdir().unwrap();
+    fs::create_dir(real.path().join("integration-attention")).unwrap();
+    fs::create_dir(real.path().join("integration-attention").join("ws")).unwrap();
+    let parent = tempfile::tempdir().unwrap();
+    let link = parent.path().join("store-link");
+    symlink(real.path(), &link).unwrap();
+    let err = integration::listing_dir_open_for_test(&link, "ws", false)
+        .expect_err("symlinked store root must be refused");
+    // Linux may return ELOOP or ENOTDIR for O_DIRECTORY|O_NOFOLLOW on a symlink;
+    // either means the symlink was not followed.
+    let code = err.raw_os_error();
+    assert!(
+        code == Some(libc::ELOOP) || code == Some(libc::ENOTDIR),
+        "O_NOFOLLOW on a symlink must refuse (ELOOP or ENOTDIR), got {err:?}"
+    );
+    let opened = integration::listing_dir_open_for_test(real.path(), "ws", false)
+        .unwrap()
+        .expect("real store root still opens");
+    drop(opened);
+}
+
 /// C9n nit 5 (Grok 22:25): changing an entry the dialog did not show (its
 /// content, same path) breaks the digest, so the approval of that card fails.
 #[test]
