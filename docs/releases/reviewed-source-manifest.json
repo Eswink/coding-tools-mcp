@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10a commit 2 (C10a nit 4: tagged-job owner fail-closed branches covered through the get_exec_task / cancel_exec_task entry points, store missing or corrupt after eviction, full-payload compare kept; tests only) on a1-c10a 2f99134c, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10a commit 3 (C10a nit 5: c8 projection test prints spawn_elapsed on every run; SPAWN_BUDGET 20 s -> 12 s from stress data, max 1.095 s under 12 pinned busy loops; test only) on a1-c10a 82042c49, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a26342fdfb8407cc003cb14b20c58e730fef31cd",
-        "sha256": "9bd540352ad8e5108c7a2ace2994ac8614397dc07354a115092ba399ce47d2a9"
+        "blob_sha": "212d2c62d0b3680236c78d9f23ce44096bcc4620",
+        "sha256": "6ad82b279e215c06bd616114629ecce7f63cb756ec299beac42a1db0429b97ca"
       }
     },
     {
@@ -9944,8 +9944,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e079c64330c466d204ef3369762d2f72cbdb3397",
-        "sha256": "906a86465716a14a9cf7d6876e9523cd8bed49420c714d90a4307a302ef65c93"
+        "blob_sha": "ae88bb288b81f6b4f6105cd49f383cfd9316cb59",
+        "sha256": "5a6ab83cbc774c14e707faf24d73def66a7e939c54d930999671ff7c80f358c4"
       }
     },
     {

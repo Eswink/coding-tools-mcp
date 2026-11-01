@@ -20,7 +20,11 @@ const SCOPES: [&str; 3] = ["agents.manage", "files.read", "files.write"];
 /// Own budget for the eligibility wait (the frozen `Harness::wait` has 18 s).
 const STATE_WAIT: Duration = Duration::from_secs(60);
 /// Own budget for the spawn round trip (it holds a bounded 3 s projection wait).
-const SPAWN_BUDGET: Duration = Duration::from_secs(20);
+/// C10a nit 5: 20 s -> 12 s. Measured spawn_elapsed (C10a, 8 CPUs): 4 busy
+/// loops pinned with the test to one CPU 30/30, max 0.558 s; 4 unpinned 20/20,
+/// max 0.570 s; 12 pinned 20/20, max 1.095 s. 12 s still covers the 3 s wait
+/// with ~10x margin over the worst measured run.
+const SPAWN_BUDGET: Duration = Duration::from_secs(12);
 
 /// Phase timeline since the test began; printed on every failure.
 struct Trail {
@@ -150,7 +154,14 @@ async fn c8_runner_tick_gateway_ack_releases_cloud_spawn_as_applied() {
             json!({ "request_id": "c8-e2e-1" }),
         )
         .await;
+    let spawn_elapsed = t.elapsed();
     trail.mark("spawned");
+    // C10a nit 5: printed on every run (shown with --nocapture or on failure),
+    // so the digests record the measured spawn time against the budget.
+    eprintln!(
+        "c8_projection_wss spawn_elapsed={:.3}s budget={SPAWN_BUDGET:?}; {trail}",
+        spawn_elapsed.as_secs_f64()
+    );
     assert_eq!(spawned["ok"], true, "{spawned} {trail}");
     assert_eq!(
         spawned["projection"],
@@ -160,9 +171,8 @@ async fn c8_runner_tick_gateway_ack_releases_cloud_spawn_as_applied() {
         link_state(&h)
     );
     assert!(
-        t.elapsed() < SPAWN_BUDGET,
-        "spawn took {:?} (budget {SPAWN_BUDGET:?}); {trail}",
-        t.elapsed()
+        spawn_elapsed < SPAWN_BUDGET,
+        "spawn took {spawn_elapsed:?} (budget {SPAWN_BUDGET:?}); {trail}"
     );
     let worker = spawned["worker"]["worker_id"].as_str().unwrap().to_owned();
 
