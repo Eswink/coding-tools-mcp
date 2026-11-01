@@ -1931,6 +1931,7 @@ impl Drop for ListingFaults {
         integration::listing_fault::set(Default::default());
     }
 }
+#[cfg(unix)]
 fn listing_tmp_files(dir: &std::path::Path) -> Vec<String> {
     let mut names: Vec<_> = fs::read_dir(dir)
         .unwrap()

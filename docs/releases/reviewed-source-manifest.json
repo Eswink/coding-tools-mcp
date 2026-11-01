@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10b commit 2 (C10b nit 4: exec_task owner-check tests go through the production router crate::tools::call_tool; poisoned worker store lock fails closed; tests only) on a1-c10b e586fac9, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10b commit 3 (C10b: cfg(unix)-gate the unix-only listing helpers and test seam so the windows-gnu build has no new dead-code warnings; no logic change) on a1-c10b 1283bf0a, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e5c4ce6abb74e2c8cc8c964ce76325f1f9385fd9",
-        "sha256": "c3e095537745386951200aa2a821601761d9e4d60c0e7bde0e28dc1d104aa265"
+        "blob_sha": "62bd13f2b3363256fbb5a1fa2188cfefd7102a09",
+        "sha256": "aabc51ea5e188a31fafead49fb6a728adbfb7a0de3076adc3ef0c5af83e5bbb4"
       }
     },
     {
@@ -10574,8 +10574,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a09d49b789d1b04b4dc4e2fa5aa2d7ddcc4bf6c1",
-        "sha256": "43861b7f0a4a7f1aa93df1e8ae7465047862f65799f8d3797cbd6be714cf241d"
+        "blob_sha": "2927ad7264e5dfeaf281e16de21202dee92dd2f2",
+        "sha256": "aa93029b2dfbf5772dedc06e32e9de742b68e18de23afcd91dde51346f651d9f"
       }
     },
     {
@@ -10584,8 +10584,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8004ffd7f9be4424f5d88acb63b035e40c25369a",
-        "sha256": "e0ce230696b5b95e46ca512561c49281c9fb760f8d420f9662cab12db6d84955"
+        "blob_sha": "9e698ece3170567301f23f6335e0001aa59a8aa4",
+        "sha256": "08fb3508cb4b49d593e2f13d71f4f86dcdba26cb00385f1033fbbf99719a8be9"
       }
     },
     {

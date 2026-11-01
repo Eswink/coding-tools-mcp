@@ -1418,6 +1418,7 @@ pub(crate) fn attention_listing_path(host: &HostRoots) -> std::path::PathBuf {
 /// C10b nit 3 / Grok (1): the exact temp name `write_attention_listing` uses:
 /// `.clear-attention-entries.<32 lowercase hex>.tmp`. Only regular files with
 /// this exact name are ever swept as stale.
+#[cfg(unix)]
 fn is_listing_tmp_name(name: &str) -> bool {
     name.strip_prefix(".clear-attention-entries.")
         .and_then(|rest| rest.strip_suffix(".tmp"))
@@ -1457,6 +1458,7 @@ pub(crate) mod listing_fault {
     #[derive(Clone, Default)]
     pub(crate) struct Faults {
         pub(crate) tmp_name: Option<String>,
+        #[cfg(unix)]
         pub(crate) dir_fsync_fails: bool,
     }
     thread_local!(static FAULTS: RefCell<Faults> = RefCell::default());
@@ -1466,6 +1468,7 @@ pub(crate) mod listing_fault {
     pub(crate) fn forced_tmp_name() -> Option<String> {
         FAULTS.with(|f| f.borrow().tmp_name.clone())
     }
+    #[cfg(unix)]
     pub(crate) fn dir_fsync_fails() -> bool {
         FAULTS.with(|f| f.borrow().dir_fsync_fails)
     }
