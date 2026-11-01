@@ -1747,6 +1747,70 @@ fn c9n_tagged_job_owner_fails_closed_when_the_store_is_corrupt() {
     assert_eq!(fs::read(&auth).unwrap(), b"corrupt", "left as found");
 }
 
+/// C10a nit 4: the same fail-closed branches reached through the
+/// `get_exec_task` / `cancel_exec_task` entry points on a real tagged job: with
+/// the worker store gone or corrupt when it is next opened (the process
+/// singleton evicted, as after a restart; while it is cached the disk is not
+/// read), both answer the cross-owner payload byte for byte, and the job is
+/// untouched (the owner can still read and cancel it
+/// once the store is back). A malformed tag cannot reach the entry points: the
+/// tag comes from a parsed `WorkerId` and `record::restore` rejects any other
+/// shape (任务记录v2.rs:88), so that branch stays covered at the check above.
+fn entry_point_answers(ctx: &ToolContext, job: &Value) -> [(&'static str, Value); 2] {
+    [
+        ("get", exec_task(ctx, "get", job)),
+        ("cancel", exec_task(ctx, "cancel", job)),
+    ]
+}
+fn owner_still_controls(ctx: &ToolContext, job: &Value, id: &str) {
+    let after = exec_task(ctx, "get", job);
+    assert_eq!(after["ok"], true, "{after}");
+    assert_eq!(after["cancel_requested"], false, "{after}");
+    let cancelled = exec_task(ctx, "cancel", job);
+    assert_eq!(cancelled["ok"], true, "{cancelled}");
+    assert_eq!(cancelled["worker_id"], id, "{cancelled}");
+}
+
+#[test]
+fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_missing() {
+    let reference = foreign_owner_answer();
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    let job = json!({"job_id": start_tagged(&f.ctx, id, "c10a-4-missing")});
+    let dir = namespace(&f.ctx.host);
+    let aside = dir.with_extension("aside");
+    fs::rename(&dir, &aside).unwrap();
+    WorkerStore::evict_for_test(&f.ctx.host);
+    for (name, out) in entry_point_answers(&f.ctx, &job) {
+        assert_not_owned_like(&format!("missing store: {name}"), &out, &reference);
+        assert!(!out.to_string().contains(id), "{name} leaked: {out}");
+    }
+    assert!(!dir.exists(), "the entry points create no store");
+    fs::rename(&aside, &dir).unwrap();
+    owner_still_controls(&f.ctx, &job, id);
+}
+
+#[test]
+fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_corrupt() {
+    let reference = foreign_owner_answer();
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "req", "w");
+    let id = worker.worker_id.as_str();
+    let job = json!({"job_id": start_tagged(&f.ctx, id, "c10a-4-corrupt")});
+    let auth = namespace(&f.ctx.host).join("auth.json");
+    let good = fs::read(&auth).unwrap();
+    fs::write(&auth, b"corrupt").unwrap();
+    WorkerStore::evict_for_test(&f.ctx.host);
+    for (name, out) in entry_point_answers(&f.ctx, &job) {
+        assert_not_owned_like(&format!("corrupt store: {name}"), &out, &reference);
+        assert!(!out.to_string().contains(id), "{name} leaked: {out}");
+    }
+    assert_eq!(fs::read(&auth).unwrap(), b"corrupt", "left as found");
+    fs::write(&auth, &good).unwrap();
+    owner_still_controls(&f.ctx, &job, id);
+}
+
 #[test]
 fn c9_untagged_exec_tasks_answer_every_caller_byte_identically() {
     let f = Fixture::new();

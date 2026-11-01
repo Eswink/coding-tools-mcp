@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10a commit 1 (C10a nits 1-3: clear-attention listing temp file random name + create_new 0600 from creation, symlinks refused, dirs 0700 on unix, written under the store lock, parent dir fsync, removed after a successful clear; 300-short-path count-cap test) on a1-c9n cb1fed24, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c10a commit 2 (C10a nit 4: tagged-job owner fail-closed branches covered through the get_exec_task / cancel_exec_task entry points, store missing or corrupt after eviction, full-payload compare kept; tests only) on a1-c10a 2f99134c, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4540,8 +4540,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "54797d3c8e4b4e1709182a3e00a656d20f1566e5",
-        "sha256": "58278404bd773ef8552ae7b5273e9868c175a483f40fe174fdffbf8e6328d27f"
+        "blob_sha": "a26342fdfb8407cc003cb14b20c58e730fef31cd",
+        "sha256": "9bd540352ad8e5108c7a2ace2994ac8614397dc07354a115092ba399ce47d2a9"
       }
     },
     {
@@ -10644,8 +10644,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "8d192da3966bc4890317fe11714884a5b97c194f",
-        "sha256": "0804ddb48d19c9022c4fa9d8e6ee2f0d7a344555e55889a0d6e7913eb802b581"
+        "blob_sha": "d532410a1b2063368b66515f1a7fff788c5f3f27",
+        "sha256": "9e99d62aba75354f635d8c719f0e2459ad0e473df0b4d08021f781df39b07a79"
       }
     },
     {
