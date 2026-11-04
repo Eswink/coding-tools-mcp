@@ -83,6 +83,20 @@ impl Drop for ProcessTree {
 }
 
 pub(super) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTree)> {
+    spawn_under(command, None).await
+}
+
+/// A1 C3-win (SPEC §4.1): when `worker_id` is set, assign the suspended child to
+/// that worker's **parent Job first**, then to the per-command Job (Win8+ nesting).
+/// Parent Jobs must not use `JobObjectBasicUIRestrictions` (see `worker_job`).
+pub(super) async fn spawn_under(
+    command: &mut Command,
+    worker_id: Option<&str>,
+) -> io::Result<(Child, ProcessTree)> {
+    let parent = match worker_id {
+        Some(id) => Some(crate::tools::worker_job::for_worker(id)?),
+        None => None,
+    };
     let job = ProcessTree::new()?;
     // Preserve existing console flags and keep the child suspended until assigned.
     // No command byte can execute before the descendant ownership boundary exists.
@@ -100,6 +114,10 @@ pub(super) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTr
             "managed-child-start pid={id} cwd={:?}",
             command.as_std().get_current_dir()
         );
+        // Nesting order is load-bearing: parent Job → command Job → resume.
+        if let Some(parent) = parent.as_ref() {
+            parent.assign_process(HANDLE(raw))?;
+        }
         unsafe { AssignProcessToJobObject(handle(job.0.as_ref().expect("new job")), HANDLE(raw)) }
             .map_err(winerr)?;
         resume_primary_thread(id)

@@ -303,9 +303,20 @@ impl Drop for ProcessTree {
 }
 
 pub(crate) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTree)> {
+    spawn_under(command, None).await
+}
+
+/// A1 C3-win: on Windows, nest the child under the worker's parent Job when
+/// `worker_id` is present. On Unix the worker_id is ignored here (cgroup attach
+/// lives in `execution_sandbox` / local-agent).
+pub(crate) async fn spawn_under(
+    command: &mut Command,
+    worker_id: Option<&str>,
+) -> io::Result<(Child, ProcessTree)> {
     command.kill_on_drop(true);
     #[cfg(unix)]
     {
+        let _ = worker_id;
         command.process_group(0);
         let child = command.spawn()?;
         let id = child
@@ -316,7 +327,7 @@ pub(crate) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTr
     }
     #[cfg(windows)]
     {
-        platform::spawn(command).await
+        platform::spawn_under(command, worker_id).await
     }
 }
 

@@ -1227,6 +1227,11 @@ pub(crate) fn cancel(
     // pidfd shows it unreaped).
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     let _ = coding_tools_local_agent::kill_worker_cgroup(id.as_str());
+    // A1 C3-win (SPEC §4.1): parent Job Terminate is the Windows kill-tree
+    // authority (mirrors cgroup.kill). Per-command session kills below settle
+    // bookkeeping; without a prepared parent Job they remain the path.
+    #[cfg(windows)]
+    let _ = crate::tools::worker_job::terminate_worker_job(id.as_str());
     // Killed outside the store lock: a KILL waits up to 1 s per session.
     let mut sources = store.background_sources(&id);
     let own = BackgroundSource::of(ctx);
@@ -1295,6 +1300,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         store.flight().background.remove(&id);
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
         coding_tools_local_agent::release_worker_cgroup(id.as_str());
+        #[cfg(windows)]
+        crate::tools::worker_job::release_worker_job(id.as_str());
     }
     Ok(out)
 }
