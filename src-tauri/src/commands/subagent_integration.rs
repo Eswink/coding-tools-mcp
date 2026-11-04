@@ -9,7 +9,7 @@ use crate::{
     error::AppResult,
     tools::{
         root_work::blocking_context,
-        worktree_tools::workers::{error_value, integration, WorkerError},
+        worktree_tools::workers::{self, error_value, integration, WorkerError},
         ToolContext,
     },
 };
@@ -183,4 +183,143 @@ pub async fn clear_integration_attention(app: AppHandle, id: String) -> AppResul
     })
     .await?;
     Ok(Some(value(out)))
+}
+
+/// A1 C9-ui-remainder §6.1 (NARROW-B): local-only worker list for the desktop
+/// cards. Same listener/lease gate as `list_pending_integrations`. Strips `cwd`
+/// and `integration` so the FE cannot render paths or grow a merge UI from this
+/// payload. `windows` tells the card whether to show the fixed unsandboxed label.
+#[tauri::command]
+pub async fn list_subagent_workers(state: State<'_, AppState>, id: String) -> AppResult<Value> {
+    let ctx = context(&state, &id)?;
+    let out = native(ctx, |c| Ok(list_workers_payload(c)?)).await?;
+    Ok(value(out))
+}
+
+/// Optional card action: cancel a ready worker (thin wrap of `workers::cancel`).
+#[tauri::command]
+pub async fn cancel_subagent_worker(
+    state: State<'_, AppState>,
+    id: String,
+    worker_id: String,
+) -> AppResult<Value> {
+    let ctx = context(&state, &id)?;
+    let out = native(ctx, move |c| {
+        let (record, killed) = workers::cancel(c, &worker_id)?;
+        Ok(json!({
+            "worker": worker_card(&record),
+            "killed_tasks": killed,
+        }))
+    })
+    .await?;
+    Ok(value(out))
+}
+
+/// Optional card action: discard a worker worktree (thin wrap of `workers::discard`).
+/// DIRTY passes through so the FE can show a second confirm / refusal; this
+/// command never force-removes a dirty tree.
+#[tauri::command]
+pub async fn discard_subagent_worker(
+    state: State<'_, AppState>,
+    id: String,
+    worker_id: String,
+) -> AppResult<Value> {
+    let ctx = context(&state, &id)?;
+    let out = native(ctx, move |c| {
+        let record = workers::discard(c, &worker_id)?;
+        Ok(json!({ "worker": worker_card(&record) }))
+    })
+    .await?;
+    Ok(value(out))
+}
+
+/// Card JSON for one worker (no cwd / no integration blob).
+pub(crate) fn worker_card(record: &workers::WorkerRecord) -> Value {
+    let view = workers::subagent::view(record);
+    json!({
+        "worker_id": view.get("worker_id").cloned().unwrap_or(Value::Null),
+        "label": view.get("label").cloned().unwrap_or(Value::Null),
+        "state": view.get("state").cloned().unwrap_or(Value::Null),
+        "base_head": view.get("base_head").cloned().unwrap_or(Value::Null),
+        "created_at": view.get("created_at").cloned().unwrap_or(Value::Null),
+        "last_activity_at": view.get("last_activity_at").cloned().unwrap_or(Value::Null),
+        "changed_files": Value::Null,
+    })
+}
+
+fn list_workers_payload(ctx: &ToolContext) -> Result<Value, WorkerError> {
+    let records = workers::status(ctx, None)?;
+    Ok(json!({
+        "workers": records.iter().map(worker_card).collect::<Vec<_>>(),
+        "windows": cfg!(windows),
+    }))
+}
+
+#[cfg(test)]
+mod list_workers_tests {
+    use super::worker_card;
+    use crate::tools::worktree_tools::workers::{WorkerOwner, WorkerRecord, WorkerState};
+    use serde_json::json;
+
+    fn sample(state: WorkerState) -> WorkerRecord {
+        WorkerRecord {
+            worker_id: crate::tools::worktree_tools::workers::WorkerId::parse(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            )
+            .unwrap(),
+            worktree_id: Some("wt-secret".into()),
+            workspace_id: "ws".into(),
+            owner: WorkerOwner::local(),
+            spawn_request_id: "req".into(),
+            spawn_fingerprint: "fp".into(),
+            label: "demo".into(),
+            base_head: Some("0123456789abcdef0123456789abcdef01234567".into()),
+            state,
+            cwd: "/secret/absolute/path".into(),
+            created_at: 1_700_000_000,
+            last_activity_at: 1_700_000_100,
+            ops: vec![],
+            ops_seq: 0,
+            integrations: vec![],
+            main_fingerprint: None,
+        }
+    }
+
+    #[test]
+    fn worker_card_strips_cwd_and_keeps_state_label() {
+        let card = worker_card(&sample(WorkerState::Ready));
+        assert_eq!(card["label"], json!("demo"));
+        assert_eq!(card["state"], json!("ready"));
+        assert_eq!(
+            card["base_head"],
+            json!("0123456789abcdef0123456789abcdef01234567")
+        );
+        assert_eq!(card["changed_files"], json!(null));
+        assert!(card.get("cwd").is_none(), "cwd must not reach the FE card");
+        assert!(
+            card.get("integration").is_none(),
+            "integration belongs to §6.2, not the card list"
+        );
+        assert!(
+            card.get("worktree_id").is_none(),
+            "worktree id must not reach the FE card"
+        );
+    }
+
+    #[test]
+    fn worker_card_covers_tip_worker_states() {
+        use WorkerState::*;
+        for (state, label) in [
+            (Creating, "creating"),
+            (Ready, "ready"),
+            (Cancelled, "cancelled"),
+            (Failed, "failed"),
+            (PendingCleanup, "pending_cleanup"),
+            (Discarded, "discarded"),
+            (IntegratePending, "integrate_pending"),
+            (Integrated, "integrated"),
+        ] {
+            assert_eq!(worker_card(&sample(state))["state"], json!(label));
+        }
+    }
 }
