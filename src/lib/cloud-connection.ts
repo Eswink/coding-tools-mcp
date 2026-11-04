@@ -42,6 +42,14 @@ function checkedStatus(value: CloudStatus): CloudStatus {
   return { ...value, link, linkAttempt: attempt, linkError: error };
 }
 export function canStartCloud(view: CloudView): boolean {
+  if (view.busy || view.uncertain || !view.status?.configured || view.status.connected) return false;
+  const { phase, link } = view.status;
+  if (phase === 'configured') return true;
+  // NARROW-B: manual Start after Agent link stopped (FailedDrained → phase recovery).
+  return phase === 'recovery' && (link === 'needs_operator' || link === 'failed');
+}
+/** Initialize stays strict: journals only when phase is configured (no recovery widen). */
+export function canInitializeCloud(view: CloudView): boolean {
   return !view.busy && !view.uncertain && !!view.status?.configured && !view.status.connected && view.status.phase === 'configured';
 }
 export function createCloudConnectionController(id: string, invoke: Invoke, publish: (view: CloudView) => void) {
@@ -60,7 +68,8 @@ export function createCloudConnectionController(id: string, invoke: Invoke, publ
   }
   async function operate(kind: 'start' | 'initialize' | 'stop' | 'import', authorize: () => Promise<boolean>, selectFiles?: (stillActive: () => boolean) => Promise<{ configPath: string; privateKeyPath: string } | null>) {
     if (!alive || view.busy) return;
-    if ((kind === 'start' || kind === 'initialize') && !canStartCloud(view)) return;
+    if (kind === 'start' && !canStartCloud(view)) return;
+    if (kind === 'initialize' && !canInitializeCloud(view)) return;
     if (kind === 'import' && (view.status?.configured !== false || view.uncertain)) return;
     if (kind === 'stop' && !view.status) return;
     ++revision; emit({ busy: true, error: '' });

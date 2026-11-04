@@ -4,14 +4,57 @@ import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../src/lib/cloud-connection.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
-const { createCloudConnectionController, canStartCloud, cloudPhaseLabels, cloudLinkLabels, cloudLinkErrorText, cloudLinkText } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const { createCloudConnectionController, canStartCloud, canInitializeCloud, cloudPhaseLabels, cloudLinkLabels, cloudLinkErrorText, cloudLinkText } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 const state = (phase = 'configured', connected = false) => ({ phase, connected, generation: null, configured: phase !== 'unconfigured' });
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b; }); return { promise, resolve, reject }; };
 const setup = (fn) => { const calls = []; let view; const controller = createCloudConnectionController('workspace-a', (command,args) => { calls.push({command,args}); return fn(command,args); }, next => { view=next; }); return {controller,calls,get view(){return view;}}; };
 test('renders every native phase distinctly, connectivity is not approval', () => {
   assert.equal(Object.keys(cloudPhaseLabels).length, 9);
   assert.match(cloudPhaseLabels.connected, /未授权/);
-  for (const phase of Object.keys(cloudPhaseLabels)) assert.equal(canStartCloud({status:state(phase),busy:false,uncertain:false}), phase==='configured');
+  // Baseline: without recovery+needs_operator/failed, Start only when phase===configured.
+  for (const phase of Object.keys(cloudPhaseLabels)) {
+    assert.equal(canStartCloud({status:state(phase),busy:false,uncertain:false}), phase==='configured');
+    assert.equal(canInitializeCloud({status:state(phase),busy:false,uncertain:false}), phase==='configured');
+  }
+});
+test('NARROW-B: Start widens for recovery+needs_operator/failed; Initialize stays configured-only', () => {
+  const idle = { busy: false, uncertain: false };
+  const mk = (phase, link, connected = false) => ({ status: { ...state(phase, connected), link, linkAttempt: null, linkError: null }, ...idle });
+  // Start allowed
+  assert.equal(canStartCloud(mk('recovery', 'needs_operator')), true);
+  assert.equal(canStartCloud(mk('recovery', 'failed')), true);
+  assert.equal(canStartCloud(mk('configured', 'none')), true);
+  assert.equal(canStartCloud(mk('configured', 'stopped')), true);
+  // Start denied: other recovery links / other phases / connected / busy / uncertain
+  for (const link of ['none', 'connecting', 'online', 'reconnecting', 'stopped']) {
+    assert.equal(canStartCloud(mk('recovery', link)), false, `recovery+${link}`);
+  }
+  assert.equal(canStartCloud(mk('recovery', 'needs_operator', true)), false);
+  assert.equal(canStartCloud({ ...mk('recovery', 'failed'), busy: true }), false);
+  assert.equal(canStartCloud({ ...mk('recovery', 'failed'), uncertain: true }), false);
+  assert.equal(canStartCloud(mk('starting', 'needs_operator')), false);
+  assert.equal(canStartCloud(mk('draining', 'failed')), false);
+  assert.equal(canStartCloud(mk('connected', 'online', true)), false);
+  // Initialize never inherits recovery widen
+  assert.equal(canInitializeCloud(mk('recovery', 'needs_operator')), false);
+  assert.equal(canInitializeCloud(mk('recovery', 'failed')), false);
+  assert.equal(canInitializeCloud(mk('configured', 'none')), true);
+  assert.equal(canInitializeCloud(mk('configured', 'stopped')), true);
+  assert.equal(canInitializeCloud(mk('configured', 'none', true)), false);
+});
+test('operate: recovery+needs_operator can start but not initialize', async () => {
+  const recoveryStatus = { ...state('recovery'), link: 'needs_operator', linkAttempt: null, linkError: 'agent_device_revoked' };
+  const s = setup(async (cmd) => {
+    if (cmd === 'get_cloud_connection_status') return recoveryStatus;
+    return { ...state('starting'), link: 'connecting', linkAttempt: null, linkError: null };
+  });
+  await s.controller.refresh();
+  assert.equal(canStartCloud(s.view), true);
+  assert.equal(canInitializeCloud(s.view), false);
+  await s.controller.operate('initialize', async () => true);
+  assert.equal(s.calls.filter(x => x.command === 'start_cloud_connection').length, 0);
+  await s.controller.operate('start', async () => true);
+  assert.deepEqual(s.calls.at(-1), { command: 'start_cloud_connection', args: { id: 'workspace-a', initializeJournals: false } });
 });
 test('read-only mount never starts, initializes, imports or approves', async () => {
   const s=setup(async()=>state()); await s.controller.refresh();
@@ -64,6 +107,8 @@ test('existing native approvals are retained and new UI never renders credential
   const existing=readFileSync(new URL('../src/lib/components/聊天授权面板v1.svelte',import.meta.url),'utf8');
   assert.match(existing,/<CloudConnectionPanel \{workspaceId\} \/>/); assert.match(existing,/chat_authorization_control/);
   assert.match(panel,/clearInterval\(timer\)/); assert.match(panel,/current\.dispose\(\)/);
+  assert.match(panel,/disabled=\{!canStartCloud\(view\)\}/);
+  assert.match(panel,/disabled=\{!canInitializeCloud\(view\)\}/);
   assert.doesNotMatch(panel,/console\.|localStorage|sessionStorage|type="password"|JSON\.stringify/);
 });
 test('dispose during file selection supplies a cancellation fence and prevents import', async () => {
