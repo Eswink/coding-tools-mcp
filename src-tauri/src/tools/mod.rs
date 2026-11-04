@@ -6,6 +6,7 @@ pub(crate) mod native_drain;
 pub(crate) mod policy_hooks;
 #[path = "进程树v2.rs"]
 pub(crate) mod process_tree;
+pub(crate) mod worker_job;
 pub(crate) mod root_work;
 // Crate-private adapter: not exposed without an owned Agent supervisor.
 #[cfg_attr(not(test), allow(dead_code))]

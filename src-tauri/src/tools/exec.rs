@@ -268,9 +268,11 @@ async fn run_command(
 
     let mut native_work = super::native_drain::child(ctx)?;
     super::native_drain::begin(&mut native_work)?;
+    let worker_id = ctx.worker.as_ref().map(|w| w.worker_id.as_str());
     let spawned =
         if ctx.managed_task || super::execution_sandbox::required(ctx) || native_work.is_some() {
-            crate::tools::process_tree::spawn(&mut command)
+            // A1 C3-win: Windows nests under the per-worker parent Job when set.
+            crate::tools::process_tree::spawn_under(&mut command, worker_id)
                 .await
                 .map(|(child, tree)| (child, Some(tree)))
         } else {
