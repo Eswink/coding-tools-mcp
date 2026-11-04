@@ -24,7 +24,9 @@ pub fn classify_retry(error: AgentError) -> RetryClass {
         Transport | LocalAuthority | Capacity | Protocol | ExecutionUnknown => {
             RetryClass::Retryable
         }
-        Configuration | Credentials | Journal | Authentication | Tls => RetryClass::NeedsOperator,
+        Configuration | Credentials | Journal | Authentication | Tls | DeviceRevoked => {
+            RetryClass::NeedsOperator
+        }
         Arguments | Cancelled | Exhausted | Duplicate => RetryClass::Fatal,
     }
 }
@@ -436,9 +438,24 @@ mod tests {
     }
     #[test]
     fn operator_fixable_errors_stop_retrying() {
-        for e in [Configuration, Credentials, Journal, Authentication, Tls] {
+        for e in [
+            Configuration,
+            Credentials,
+            Journal,
+            Authentication,
+            Tls,
+            DeviceRevoked,
+        ] {
             assert_eq!(classify_retry(e), RetryClass::NeedsOperator, "{e:?}");
         }
+    }
+    #[test]
+    fn device_revoked_needs_operator_with_no_soft_budget_path() {
+        // Soft budget only applies to Authentication + soft_rejection probe flags.
+        // DeviceRevoked is NeedsOperator and must stop reconnect immediately.
+        assert_eq!(classify_retry(DeviceRevoked), RetryClass::NeedsOperator);
+        assert_ne!(DeviceRevoked, Authentication);
+        assert_eq!(DeviceRevoked.to_string(), "agent_device_revoked");
     }
     #[test]
     fn internal_invariant_errors_are_fatal() {
@@ -454,7 +471,7 @@ mod tests {
                 Transport | LocalAuthority | Capacity | Protocol | ExecutionUnknown => {
                     RetryClass::Retryable
                 }
-                Configuration | Credentials | Journal | Authentication | Tls => {
+                Configuration | Credentials | Journal | Authentication | Tls | DeviceRevoked => {
                     RetryClass::NeedsOperator
                 }
                 Arguments | Cancelled | Exhausted | Duplicate => RetryClass::Fatal,
@@ -475,6 +492,7 @@ mod tests {
             Capacity,
             Duplicate,
             ExecutionUnknown,
+            DeviceRevoked,
         ] {
             assert_eq!(classify_retry(e), exhaustive(e));
         }

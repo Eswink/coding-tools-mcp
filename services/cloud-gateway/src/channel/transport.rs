@@ -3,7 +3,7 @@ use super::{protocol::*, ChannelController, ChannelSession};
 use crate::{IdentityError, Result};
 use axum::{
     extract::{
-        ws::{Message, WebSocket},
+        ws::{CloseFrame, Message, WebSocket},
         State, WebSocketUpgrade,
     },
     http::{header, HeaderMap, StatusCode, Uri},
@@ -139,11 +139,14 @@ async fn upgrade(
             let _permit = permit;
             let mut session = None;
             let mut stop = s.stop.subscribe();
+            let mut outcome = Ok(());
             if !*stop.borrow() {
                 tokio::select! {
                     biased;
                     _ = stop.changed() => {},
-                    _ = run_socket(&s.control, &mut socket, pending, &mut session) => {},
+                    result = run_socket(&s.control, &mut socket, pending, &mut session) => {
+                        outcome = result;
+                    },
                 }
             }
             if let Some(session) = session {
@@ -151,8 +154,16 @@ async fn upgrade(
                     tokio::time::timeout(Duration::from_secs(3), s.control.disconnect(&session))
                         .await;
             }
-            let _ = tokio::time::timeout(Duration::from_secs(2), socket.send(Message::Close(None)))
-                .await;
+            // Emit 4001 only after DeviceRevoked (confirmed ctm_devices.revoked).
+            // Other InvalidProof / stop / clean ends keep Close(None).
+            let close = match outcome {
+                Err(IdentityError::DeviceRevoked) => Message::Close(Some(CloseFrame {
+                    code: 4001,
+                    reason: "device_revoked".into(),
+                })),
+                _ => Message::Close(None),
+            };
+            let _ = tokio::time::timeout(Duration::from_secs(2), socket.send(close)).await;
         })
 }
 fn denied(status: StatusCode) -> Response {

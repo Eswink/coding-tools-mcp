@@ -21,6 +21,8 @@ pub enum AgentError {
     Capacity,
     Duplicate,
     ExecutionUnknown,
+    /// Gateway confirmed device revoke (WSS close 4001 / device_revoked).
+    DeviceRevoked,
 }
 impl std::fmt::Display for AgentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -39,6 +41,7 @@ impl std::fmt::Display for AgentError {
             Self::Capacity => "agent_local_capacity_exhausted",
             Self::Duplicate => "agent_request_already_claimed",
             Self::ExecutionUnknown => "agent_execution_outcome_unknown",
+            Self::DeviceRevoked => "agent_device_revoked",
         })
     }
 }

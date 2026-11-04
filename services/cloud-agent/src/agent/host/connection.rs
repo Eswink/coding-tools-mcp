@@ -13,7 +13,7 @@ use tokio_tungstenite::{
     tungstenite::{
         self,
         client::IntoClientRequest,
-        protocol::{Message, WebSocketConfig},
+        protocol::{CloseFrame, Message, WebSocketConfig},
     },
     Connector, MaybeTlsStream, WebSocketStream,
 };
@@ -152,6 +152,16 @@ pub(super) async fn send(s: &mut Socket, value: &impl Serialize) -> Result<(), A
         .map_err(|_| AgentError::Transport)?
         .map_err(classify)
 }
+/// Map a WebSocket close frame to AgentError.
+/// Code 4001 is primary (proxies may strip reason); reason `device_revoked` is secondary.
+pub(super) fn classify_close(frame: Option<&CloseFrame>) -> AgentError {
+    match frame {
+        Some(f) if u16::from(f.code) == 4001 || f.reason.as_str() == "device_revoked" => {
+            AgentError::DeviceRevoked
+        }
+        _ => AgentError::Transport,
+    }
+}
 pub(super) async fn receive(s: &mut Socket) -> Result<Incoming, AgentError> {
     tokio::time::timeout(super::reconnect::scaled(Duration::from_secs(12)), async {
         for _ in 0..16 {
@@ -164,7 +174,7 @@ pub(super) async fn receive(s: &mut Socket) -> Result<Incoming, AgentError> {
                 Message::Text(t) if !t.is_empty() && t.len() <= MAX_MESSAGE => {
                     return serde_json::from_str(&t).map_err(|_| AgentError::Protocol)
                 }
-                Message::Close(_) => return Err(AgentError::Transport),
+                Message::Close(frame) => return Err(classify_close(frame.as_ref())),
                 Message::Ping(_) | Message::Pong(_) => {
                     tokio::time::timeout(Duration::from_secs(2), s.flush())
                         .await
@@ -282,5 +292,35 @@ mod tests {
             assert!(!is_soft_rejection(&http(status)), "{status}");
         }
         assert!(!is_soft_rejection(&tungstenite::Error::ConnectionClosed));
+    }
+    #[test]
+    fn close_code_4001_is_device_revoked_primary() {
+        let frame = CloseFrame {
+            code: 4001.into(),
+            reason: "device_revoked".into(),
+        };
+        assert_eq!(classify_close(Some(&frame)), AgentError::DeviceRevoked);
+        let code_only = CloseFrame {
+            code: 4001.into(),
+            reason: "".into(),
+        };
+        assert_eq!(classify_close(Some(&code_only)), AgentError::DeviceRevoked);
+    }
+    #[test]
+    fn close_reason_device_revoked_is_secondary_without_4001() {
+        let frame = CloseFrame {
+            code: 1000.into(),
+            reason: "device_revoked".into(),
+        };
+        assert_eq!(classify_close(Some(&frame)), AgentError::DeviceRevoked);
+    }
+    #[test]
+    fn close_none_or_other_codes_stay_transport() {
+        assert_eq!(classify_close(None), AgentError::Transport);
+        let frame = CloseFrame {
+            code: 1001.into(),
+            reason: "going_away".into(),
+        };
+        assert_eq!(classify_close(Some(&frame)), AgentError::Transport);
     }
 }

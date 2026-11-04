@@ -146,6 +146,60 @@ async fn closed(ws: &mut Client) {
         .expect("socket must close in bounded time");
     assert!(!matches!(r, Some(Ok(Message::Text(_)))));
 }
+/// Assert close code 4001 (reason secondary). Drains non-close frames briefly.
+async fn closed_revoked(ws: &mut Client) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(7);
+    loop {
+        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+        let r = tokio::time::timeout(left, ws.next())
+            .await
+            .expect("revoked socket must close in bounded time");
+        match r {
+            Some(Ok(Message::Close(Some(frame)))) => {
+                assert_eq!(
+                    u16::from(frame.code),
+                    4001,
+                    "revoke close code must be 4001 (reason may be stripped)"
+                );
+                // Reason is secondary; when present it must be the fixed literal.
+                if !frame.reason.is_empty() {
+                    assert_eq!(frame.reason.as_str(), "device_revoked");
+                }
+                return;
+            }
+            Some(Ok(Message::Close(None))) => {
+                panic!("expected close code 4001, got Close(None)");
+            }
+            Some(Ok(Message::Ping(_) | Message::Pong(_))) => continue,
+            other => panic!("expected revoke close 4001, got {other:?}"),
+        }
+    }
+}
+async fn closed_not_revoked(ws: &mut Client) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(7);
+    loop {
+        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+        let r = tokio::time::timeout(left, ws.next())
+            .await
+            .expect("socket must close in bounded time");
+        match r {
+            Some(Ok(Message::Close(Some(frame)))) => {
+                assert_ne!(
+                    u16::from(frame.code),
+                    4001,
+                    "non-revoke failure must not look like device_revoked"
+                );
+                return;
+            }
+            Some(Ok(Message::Close(None))) | None => return,
+            Some(Ok(Message::Ping(_) | Message::Pong(_))) => continue,
+            Some(Ok(Message::Text(_))) => {
+                panic!("expected close, got text");
+            }
+            other => panic!("expected non-revoke close, got {other:?}"),
+        }
+    }
+}
 #[tokio::test]
 async fn websocket_authenticated_heartbeat_and_projection_roundtrip() {
     let s = Server::start().await;
@@ -250,7 +304,23 @@ async fn websocket_revoked_device_cannot_heartbeat() {
     let mut w = s.connected().await;
     s.h.f.store.revoke_device(s.h.device.id).await.unwrap();
     write(&mut w, &json!({"type":"heartbeat","seq":1})).await;
-    closed(&mut w).await;
+    closed_revoked(&mut w).await;
+}
+#[tokio::test]
+async fn websocket_revoked_device_authenticate_closes_4001() {
+    let s = Server::start().await;
+    s.h.f.store.revoke_device(s.h.device.id).await.unwrap();
+    let mut w = s.socket(None, false).await.unwrap();
+    let challenge: ConnectChallenge =
+        serde_json::from_value(read(&mut w).await["challenge"].clone()).unwrap();
+    // epoch may have bumped on revoke; sign with current device row would fail proof.
+    // Use pre-revoke epoch from harness — lock_device still sees revoked=true → 4001.
+    let proof = sign(
+        &claims(&challenge, s.h.device.id, s.h.device.epoch),
+        &s.h.key,
+    );
+    write(&mut w, &serde_json::to_value(proof).unwrap()).await;
+    closed_revoked(&mut w).await;
 }
 #[tokio::test]
 async fn websocket_oversized_message_is_rejected() {
@@ -298,7 +368,8 @@ async fn websocket_expired_presence_cannot_be_renewed() {
         .await
         .unwrap();
     write(&mut w, &json!({"type":"heartbeat","seq":1})).await;
-    closed(&mut w).await;
+    // Lease expiry stays InvalidProof → Close(None)/non-4001, not device_revoked.
+    closed_not_revoked(&mut w).await;
 }
 #[tokio::test]
 async fn websocket_upgrade_pool_is_bounded() {

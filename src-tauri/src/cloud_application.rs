@@ -551,6 +551,7 @@ mod supervision_tests {
             Arguments,
             Exhausted,
             Cancelled,
+            DeviceRevoked,
         ] {
             let mut n = 0;
             assert_eq!(
