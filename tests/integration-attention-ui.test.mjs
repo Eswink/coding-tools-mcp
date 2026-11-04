@@ -1,9 +1,15 @@
 // A1 C9-2: one list_pending_integrations per profile load and the local-only
 // clear_integration_attention flow (SPEC-A1 §0.9 nit 1).
+// C9 soft-nits: list shared with MergeConfirm via pending-integrations-shared.
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import ts from 'typescript';
 const source=readFileSync(new URL('../src/lib/integration-attention.ts',import.meta.url),'utf8');
+const sharedSource=readFileSync(new URL('../src/lib/pending-integrations-shared.ts',import.meta.url),'utf8');
+const sharedCode=ts.transpileModule(sharedSource,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const sharedUrl=`data:text/javascript;base64,${Buffer.from(sharedCode).toString('base64')}`;
 const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
-const {createIntegrationAttentionController,needsAttention}=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+const patched=code.replaceAll('$lib/pending-integrations-shared',sharedUrl);
+const {createIntegrationAttentionController,needsAttention}=await import(`data:text/javascript;base64,${Buffer.from(patched).toString('base64')}`);
+const {resetPendingListSlotsForTests}=await import(sharedUrl);
 const ID='workspace-1';
 const first={recovery:{state:'needs_attention',from:'rolling_back',files_restored:0,rows:[{path:'m.txt',row:3}]},pending:[]};
 const sticky={recovery:{state:'none',journal:'needs_attention'},pending:[]};
@@ -11,6 +17,7 @@ const idle={recovery:{state:'none',journal:'none'},pending:[]};
 const cleared={integration_id:'b'.repeat(32),state:'none',entries_discarded:3,workspace_files_written:false};
 function deferred(){let resolve;const promise=new Promise(r=>{resolve=r});return{promise,resolve}}
 function setup(reply=async cmd=>cmd==='list_pending_integrations'?sticky:cleared){
+  resetPendingListSlotsForTests();
   const s={calls:[],views:[],view:undefined};
   s.controller=createIntegrationAttentionController(ID,async(command,args)=>{s.calls.push({command,args});return reply(command,args)},v=>{s.view=v;s.views.push(v)});
   return s;
@@ -77,6 +84,9 @@ test('the workspace page mounts one attention panel per profile and the panel on
   const panel=readFileSync(new URL('../src/lib/components/IntegrationAttention.svelte',import.meta.url),'utf8');
   for(const term of ['本机对话框','合并编号和文件路径','不会写入或还原任何工作区文件','原内容被丢弃'])assert.ok(panel.includes(term),term);
   assert.doesNotMatch(panel,/console\.|localStorage|sessionStorage|setInterval|setTimeout/);
+  // clear remains a direct invoke; list is owned by the shared helper
   const invoked=[...source.matchAll(/invoke<[^>]*>\('([a-z_]+)'/g)].map(m=>m[1]);
-  assert.deepEqual(invoked,['list_pending_integrations','clear_integration_attention']);
+  assert.deepEqual(invoked,['clear_integration_attention']);
+  assert.equal([...sharedSource.matchAll(/'list_pending_integrations'/g)].length,1);
+  assert.ok(source.includes('acquirePendingList'));
 });

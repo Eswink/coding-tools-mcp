@@ -2,6 +2,7 @@
   import { untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import {
+    actionsDisabled,
     createMergeConfirmController,
     emptyMergeConfirmView,
     type MergeConfirmView,
@@ -59,10 +60,10 @@
             {/if}
             <div class="actions">
               <button class="tx-btn-secondary" type="button"
-                disabled={view.busy || view.uncertain}
+                disabled={actionsDisabled(view, item)}
                 onclick={() => void controller?.confirm(item.integrationId, item.kind)}>{primaryLabel(item.kind)}</button>
               <button class="tx-btn-secondary" type="button"
-                disabled={view.busy || view.uncertain}
+                disabled={actionsDisabled(view, item)}
                 onclick={() => void controller?.reject(item.integrationId, item.kind)}>拒绝</button>
             </div>
           </li>
