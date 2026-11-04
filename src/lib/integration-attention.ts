@@ -2,6 +2,9 @@
 // workspace profile loads (it runs recovery first, so it is the startup scan),
 // and the owner's local-only clear of a `needs_attention` journal. The clear is
 // confirmed in a native dialog by the Rust command; this controller only asks.
+// C9 soft-nits: list is shared with MergeConfirm via acquirePendingList.
+import { acquirePendingList } from '$lib/pending-integrations-shared';
+
 export type AttentionView = { attention: boolean; busy: boolean; uncertain: boolean; error: string; notice: string };
 type Invoke = <T>(command: string, args: Record<string, unknown>) => Promise<T>;
 type Reply = { ok?: boolean; error?: { code?: string }; recovery?: { state?: string; journal?: string }; state?: string } | null;
@@ -13,12 +16,13 @@ export function needsAttention(reply: Reply): boolean {
 export function createIntegrationAttentionController(id: string, invoke: Invoke, publish: (view: AttentionView) => void) {
   let alive = true, loaded = false;
   let view = emptyAttentionView();
+  const pending = acquirePendingList(id, invoke);
   const emit = (patch: Partial<AttentionView>) => { if (alive) { view = { ...view, ...patch }; publish(view); } };
   async function load() {
     if (!alive || loaded) return;
     loaded = true;
     try {
-      const reply = await invoke<Reply>('list_pending_integrations', { id });
+      const reply = await pending.listOnce<Reply>();
       if (alive) emit({ attention: needsAttention(reply) });
     } catch { /* listener not running: no scan this load, nothing shown */ }
   }
@@ -36,5 +40,12 @@ export function createIntegrationAttentionController(id: string, invoke: Invoke,
       emit({ uncertain: true, error: '本机操作未确认成功。不要重复提交；请重新打开工作区后核实。' });
     } finally { emit({ busy: false }); }
   }
-  return { load, clear, dispose() { alive = false; } };
+  return {
+    load,
+    clear,
+    dispose() {
+      alive = false;
+      pending.release();
+    },
+  };
 }

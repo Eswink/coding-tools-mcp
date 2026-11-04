@@ -1,6 +1,9 @@
 // A1 C9-§6.2 merge-confirm (NARROW-B): local-only pending integrate/rollback cards.
 // Consumes list_pending_integrations.pending[]; confirms via existing native digest cmds.
+// C9 soft-nits: shared list with Attention; filesCount number-only; closedReason locks actions.
 // No MCP expansion; no per-file diff preview; never echoes SECRET / error.message.
+import { acquirePendingList } from '$lib/pending-integrations-shared';
+
 export type PendingKind = 'integrate' | 'rollback' | string;
 
 export type PendingCard = {
@@ -64,9 +67,9 @@ function shortDiffSha(value: unknown): string {
   return sha.length >= 12 ? sha.slice(0, 12) : sha;
 }
 
-function filesCount(value: unknown): string {
+/** Backend files is u64; reject string / non-finite → em dash. */
+export function filesCount(value: unknown): string {
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  if (typeof value === 'string' && value.trim()) return value;
   return '—';
 }
 
@@ -109,6 +112,11 @@ export function mapPendingCard(raw: RawPending): PendingCard {
   };
 }
 
+/** Soft nit: closed_reason text locks confirm/reject together with busy/uncertain. */
+export function actionsDisabled(view: Pick<MergeConfirmView, 'busy' | 'uncertain'>, card: Pick<PendingCard, 'closedReasonText'>): boolean {
+  return view.busy || view.uncertain || !!card.closedReasonText;
+}
+
 function actionError(reply: ActionReply): string {
   const code = reply && reply.ok === false ? reply.error?.code : undefined;
   if (code === 'WORKER_STATE') return '当前状态不允许该操作。';
@@ -127,25 +135,30 @@ export function createMergeConfirmController(
 ) {
   let alive = true, loaded = false;
   let view = emptyMergeConfirmView();
+  const pending = acquirePendingList(id, invoke);
   const emit = (patch: Partial<MergeConfirmView>) => {
     if (!alive) return;
     view = { ...view, ...patch };
     publish(view);
   };
 
+  async function applyList(reply: ListReply) {
+    if (!alive) return;
+    if (reply && reply.ok === false) {
+      emit({ items: [], unavailable: true, error: '无法列出待确认项。请重新打开工作区后重试。' });
+      return;
+    }
+    const items = Array.isArray(reply?.pending)
+      ? reply!.pending!.map(mapPendingCard).filter(card => !!card.integrationId)
+      : [];
+    emit({ items, unavailable: false, error: '' });
+  }
+
   async function refresh() {
     if (!alive) return;
     try {
-      const reply = await invoke<ListReply>('list_pending_integrations', { id });
-      if (!alive) return;
-      if (reply && reply.ok === false) {
-        emit({ items: [], unavailable: true, error: '无法列出待确认项。请重新打开工作区后重试。' });
-        return;
-      }
-      const items = Array.isArray(reply?.pending)
-        ? reply!.pending!.map(mapPendingCard).filter(card => !!card.integrationId)
-        : [];
-      emit({ items, unavailable: false, error: '' });
+      const reply = await pending.listFresh<ListReply>();
+      await applyList(reply);
     } catch {
       if (alive) emit({ items: [], unavailable: true, error: '工作区监听未就绪，暂无法列出待确认项。' });
     }
@@ -154,11 +167,21 @@ export function createMergeConfirmController(
   async function load() {
     if (!alive || loaded) return;
     loaded = true;
-    await refresh();
+    try {
+      const reply = await pending.listOnce<ListReply>();
+      await applyList(reply);
+    } catch {
+      if (alive) emit({ items: [], unavailable: true, error: '工作区监听未就绪，暂无法列出待确认项。' });
+    }
+  }
+
+  function cardLocked(integrationId: string): boolean {
+    const card = view.items.find(c => c.integrationId === integrationId);
+    return !!card?.closedReasonText;
   }
 
   async function confirm(integrationId: string, kind: PendingKind) {
-    if (!alive || !integrationId || view.busy || view.uncertain || view.unavailable) return;
+    if (!alive || !integrationId || view.busy || view.uncertain || view.unavailable || cardLocked(integrationId)) return;
     emit({ busy: true, error: '', notice: '' });
     try {
       const command = kind === 'rollback' ? 'confirm_subagent_rollback' : 'confirm_subagent_integration';
@@ -184,7 +207,7 @@ export function createMergeConfirmController(
   }
 
   async function reject(integrationId: string, kind: PendingKind) {
-    if (!alive || !integrationId || view.busy || view.uncertain || view.unavailable) return;
+    if (!alive || !integrationId || view.busy || view.uncertain || view.unavailable || cardLocked(integrationId)) return;
     emit({ busy: true, error: '', notice: '' });
     try {
       const command = kind === 'rollback' ? 'reject_subagent_rollback' : 'reject_subagent_integration';
@@ -211,6 +234,9 @@ export function createMergeConfirmController(
     load,
     confirm,
     reject,
-    dispose() { alive = false; },
+    dispose() {
+      alive = false;
+      pending.release();
+    },
   };
 }

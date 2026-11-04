@@ -1,21 +1,31 @@
-// A1 C9-§6.2 merge-confirm NARROW-B: pending[] cards + confirm/reject (no hunk / no MCP).
+// A1 C9-§6.2 merge-confirm NARROW-B + C9 soft-nits: pending[] cards + confirm/reject (no hunk / no MCP).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
 const source = readFileSync(new URL('../src/lib/merge-confirm.ts', import.meta.url), 'utf8');
+const sharedSource = readFileSync(new URL('../src/lib/pending-integrations-shared.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
 }).outputText;
+// Rewrite $lib import to a data URL of the shared module so node:test can load it.
+const sharedCode = ts.transpileModule(sharedSource, {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 },
+}).outputText;
+const sharedUrl = `data:text/javascript;base64,${Buffer.from(sharedCode).toString('base64')}`;
+const patched = code.replaceAll('$lib/pending-integrations-shared', sharedUrl);
 const {
   createMergeConfirmController,
   mapPendingCard,
   closedReasonLabel,
   formatExpiresAt,
+  filesCount,
+  actionsDisabled,
   ROLLBACK_AVAILABLE_NOTICE,
   DO_NOT_RETRY_ERROR,
-} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+} = await import(`data:text/javascript;base64,${Buffer.from(patched).toString('base64')}`);
+const { resetPendingListSlotsForTests } = await import(sharedUrl);
 
 const ID = 'workspace-1';
 const IID = 'b'.repeat(32);
@@ -47,6 +57,7 @@ function deferred() {
   return { promise, resolve };
 }
 function setup(reply = async cmd => cmd === 'list_pending_integrations' ? listed : { ok: true }) {
+  resetPendingListSlotsForTests();
   const s = { calls: [], views: [], view: undefined };
   s.controller = createMergeConfirmController(
     ID,
@@ -70,6 +81,16 @@ test('maps pending cards: diff prefix 12, files count, missing sha is em dash', 
   assert.equal(empty.label, '—');
 });
 
+test('filesCount accepts only finite number; string input becomes em dash', () => {
+  assert.equal(filesCount(3), '3');
+  assert.equal(filesCount(0), '0');
+  assert.equal(filesCount('3'), '—');
+  assert.equal(filesCount('12'), '—');
+  assert.equal(filesCount(Number.NaN), '—');
+  assert.equal(filesCount(null), '—');
+  assert.equal(mapPendingCard({ integration_id: IID, files: '9' }).filesCount, '—');
+});
+
 test('closed_reason maps to Chinese without echoing ids', () => {
   assert.match(closedReasonLabel('head_moved'), /主工作区已变更/);
   assert.match(closedReasonLabel('superseded'), /后续合入/);
@@ -77,6 +98,13 @@ test('closed_reason maps to Chinese without echoing ids', () => {
   assert.match(closedReasonLabel('other'), /已关闭/);
   assert.equal(closedReasonLabel(''), '');
   assert.doesNotMatch(closedReasonLabel('head_moved'), /SECRET|session/);
+});
+
+test('actionsDisabled when closedReasonText is set (soft nit)', () => {
+  assert.equal(actionsDisabled({ busy: false, uncertain: false }, { closedReasonText: '' }), false);
+  assert.equal(actionsDisabled({ busy: false, uncertain: false }, { closedReasonText: '回滚窗口已关闭' }), true);
+  assert.equal(actionsDisabled({ busy: true, uncertain: false }, { closedReasonText: '' }), true);
+  assert.equal(actionsDisabled({ busy: false, uncertain: true }, { closedReasonText: '' }), true);
 });
 
 test('expires stamps format in Asia/Shanghai', () => {
@@ -165,6 +193,19 @@ test('busy/uncertain blocks duplicate confirm clicks', async () => {
   assert.equal(commands(s).filter(c => c === 'confirm_subagent_integration').length, 1);
 });
 
+test('closed_reason on a card blocks confirm and reject invokes', async () => {
+  const closedListed = {
+    recovery: { state: 'none' },
+    pending: [{ ...integratePending, closed_reason: 'head_moved' }],
+  };
+  const s = setup(async cmd => cmd === 'list_pending_integrations' ? closedListed : { ok: true });
+  await s.controller.load();
+  assert.match(s.view.items[0].closedReasonText, /主工作区已变更/);
+  await s.controller.confirm(IID, 'integrate');
+  await s.controller.reject(IID, 'integrate');
+  assert.deepEqual(commands(s), ['list_pending_integrations']);
+});
+
 test('unconfirmed invoke is redacted and locked against retry', async () => {
   const s = setup(async cmd => {
     if (cmd === 'list_pending_integrations') return listed;
@@ -195,6 +236,7 @@ test('no hunk / path-preview helpers and panel forbids Workers merge bleed', () 
   assert.ok(panel.includes('合并确认'));
   assert.ok(panel.includes('合入当前分支'));
   assert.ok(panel.includes('拒绝'));
+  assert.ok(panel.includes('actionsDisabled(view, item)'));
   assert.doesNotMatch(panel, /逐文件|diff preview|renderHunk/i);
   assert.doesNotMatch(panel, /console\.|localStorage|sessionStorage|setInterval|setTimeout/);
   const workers = readFileSync(new URL('../src/lib/components/SubagentWorkersPanel.svelte', import.meta.url), 'utf8');
@@ -208,11 +250,12 @@ test('workspace page mounts MergeConfirm beside Attention/Workers; page itself h
   assert.equal(page.match(/<SubagentWorkersPanel workspaceId=\{profile\.id\} \/>/g)?.length, 1);
   assert.doesNotMatch(page, /list_pending_integrations|confirm_subagent_integration|reject_subagent_integration|confirm_subagent_rollback|reject_subagent_rollback/);
   for (const cmd of [
-    'list_pending_integrations',
     'confirm_subagent_integration',
     'confirm_subagent_rollback',
     'reject_subagent_integration',
     'reject_subagent_rollback',
   ]) assert.ok(source.includes(`'${cmd}'`), cmd);
-  assert.equal([...source.matchAll(/invoke<[^>]*>\('list_pending_integrations'/g)].length, 1);
+  // list lives in the shared helper (exactly one command string there)
+  assert.equal([...sharedSource.matchAll(/'list_pending_integrations'/g)].length, 1);
+  assert.doesNotMatch(source, /invoke<[^>]*>\('list_pending_integrations'/);
 });
