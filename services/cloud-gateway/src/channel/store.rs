@@ -332,8 +332,19 @@ impl ChannelController {
         id: Uuid,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<EnrolledDevice> {
-        let r=sqlx::query("SELECT id,connector,public_key,epoch FROM ctm_devices WHERE id=$1 AND connector=$2 AND NOT revoked FOR SHARE")
-            .bind(id).bind(self.identity.identity.connector()).fetch_optional(&mut **tx).await?.ok_or(IdentityError::InvalidProof)?;
+        // Confirm revoked explicitly: missing/wrong-connector rows stay InvalidProof;
+        // only a true `revoked` flag becomes DeviceRevoked (WSS close 4001).
+        let r = sqlx::query(
+            "SELECT id,connector,public_key,epoch,revoked FROM ctm_devices WHERE id=$1 AND connector=$2 FOR SHARE",
+        )
+        .bind(id)
+        .bind(self.identity.identity.connector())
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or(IdentityError::InvalidProof)?;
+        if r.get::<bool, _>("revoked") {
+            return Err(IdentityError::DeviceRevoked);
+        }
         Ok(EnrolledDevice {
             id: r.get("id"),
             connector: r.get("connector"),

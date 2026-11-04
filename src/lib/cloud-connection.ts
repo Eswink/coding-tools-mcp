@@ -17,7 +17,8 @@ export const cloudLinkErrorLabels: Record<string, string> = {
   agent_journal_requires_local_review: '安全日志需要本机核查', agent_protocol_rejected: '协议不兼容', agent_authentication_rejected: '网关认证被拒绝',
   agent_tls_rejected: 'TLS 校验失败', agent_transport_interrupted: '传输中断', agent_retry_budget_exhausted: '重试次数已用尽',
   agent_cancelled: '已取消', agent_local_authority_changed: '本机授权已变更', agent_local_capacity_exhausted: '本机容量已满',
-  agent_request_already_claimed: '请求已被领取', agent_execution_outcome_unknown: '执行结果未知'
+  agent_request_already_claimed: '请求已被领取', agent_execution_outcome_unknown: '执行结果未知',
+  agent_device_revoked: '已吊销，需重新登记'
 };
 const errorCode = /^[a-z0-9_]{1,64}$/;
 // Known codes get a label; unknown well-formed codes are shown verbatim; anything else is never rendered.

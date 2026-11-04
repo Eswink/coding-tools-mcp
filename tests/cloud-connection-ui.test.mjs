@@ -90,6 +90,7 @@ test('agent link: unknown link value or malformed error fails closed', async () 
 });
 test('agent link: known codes labelled, unknown codes shown verbatim only', () => {
   assert.match(cloudLinkErrorText('agent_tls_rejected'), /TLS.*agent_tls_rejected/);
+  assert.match(cloudLinkErrorText('agent_device_revoked'), /已吊销.*agent_device_revoked/);
   assert.equal(cloudLinkErrorText('agent_future_code'), 'agent_future_code');
   assert.equal(cloudLinkErrorText(null), '');
 });

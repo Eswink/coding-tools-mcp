@@ -12,6 +12,9 @@ pub enum IdentityError {
     InvalidToken,
     Conflict,
     InvalidProof,
+    /// Device row exists for this connector but `ctm_devices.revoked` is true.
+    /// Distinct from InvalidProof so transport can emit WSS close 4001.
+    DeviceRevoked,
 }
 pub type Result<T> = std::result::Result<T, IdentityError>;
 impl fmt::Display for IdentityError {
@@ -29,6 +32,7 @@ impl fmt::Display for IdentityError {
                 Self::InvalidToken => "invalid_token",
                 Self::Conflict => "identity_conflict",
                 Self::InvalidProof => "invalid_proof",
+                Self::DeviceRevoked => "device_revoked",
             }
         )
     }
