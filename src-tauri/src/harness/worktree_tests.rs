@@ -845,20 +845,22 @@ fn c12_remove_fail_at_leaves_marker_and_list_stays_ok() {
         "marker file present"
     );
 
-    // list() must stay Ok (marker + valid registration still listed, or skip).
+    // list() must stay Ok. Step 0 fails before anything is deleted, so the
+    // registration is still valid: the tree stays listed and holds exactly one
+    // slot (count_removing_under must not double-count a listed entry).
     let listed = fixture.manager.list().expect("list ok with marker");
-    // Either still listed (registration valid) or skipped but slots count it.
-    let (used, _) = fixture.manager.slots_in_use_for_test();
     assert!(
-        used >= 1 || listed.iter().any(|w| w.id == item.id),
-        "in-progress delete must still consume a slot; listed={} used={used}",
-        listed.len()
+        listed.iter().any(|w| w.id == item.id),
+        "valid registration with marker stays listed"
     );
+    assert_eq!(listed.len(), 1);
+    let (used, _) = fixture.manager.slots_in_use_for_test();
+    assert_eq!(used, 1, "in-progress delete holds exactly one slot");
 
-    // Resume succeeds once the fail hook is cleared.
+    // Resume succeeds once the fail hook is cleared (owner-record entry point).
     fixture
         .manager
-        .remove_clean(&item.id)
+        .remove_clean_owned(&item.id)
         .expect("resume after fail-at");
     assert!(!metadata.exists(), "metadata dir gone after resume");
     assert!(fixture.manager.list().unwrap().is_empty());
@@ -881,7 +883,11 @@ fn c12_resume_refuses_when_file_modified_after_marker() {
     // After the marker exists, write a new file → deletion-tolerant clean fails.
     fs::write(target.join("sneaky.txt"), "after-marker\n").unwrap();
     assert_eq!(
-        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        fixture
+            .manager
+            .remove_clean_owned(&item.id)
+            .unwrap_err()
+            .code(),
         "DIRTY"
     );
     assert!(
@@ -894,7 +900,7 @@ fn c12_resume_refuses_when_file_modified_after_marker() {
     fs::remove_file(target.join("sneaky.txt")).unwrap();
     fixture
         .manager
-        .remove_clean(&item.id)
+        .remove_clean_owned(&item.id)
         .expect("resume after reverting post-marker write");
 }
 
@@ -914,10 +920,197 @@ fn c12_resume_allows_partial_target_deletion() {
 
     // Simulate a partial delete: remove a tracked file from the worktree.
     // That surfaces as WT_DELETED, which M9 tolerates.
-    let _ = fs::remove_file(target.join("README.md"));
+    fs::remove_file(target.join("README.md")).expect("tracked README.md removed");
+    assert!(!target.join("README.md").exists());
+    // Fresh porcelain (no owner record) sees the deletion and refuses.
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "DIRTY"
+    );
+    assert!(has_removing_marker(&metadata));
+    fixture
+        .manager
+        .remove_clean_owned(&item.id)
+        .expect("resume with only WT_DELETED remaining");
+    assert!(!metadata.exists());
+    assert!(!target.exists());
+}
+
+// ---- A1 C12b nit 0: Grok S1 M11 probe (fail at steps 1..=5), merged ----
+#[test]
+fn c12b_fail_at_steps_1_to_5_list_ok_slot_counted_resume_ok() {
+    use super::super::worktree_git::{has_removing_marker, set_delete_fail_at_for_test};
+    for step in 1..=5usize {
+        let fixture = TestRepo::new();
+        let item = fixture.manager.create_detached().expect("create");
+        let target = fixture.manager.managed_root.join(&item.id);
+        let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+        set_delete_fail_at_for_test(Some(step));
+        let err = fixture.manager.remove_clean(&item.id).unwrap_err();
+        set_delete_fail_at_for_test(None);
+        assert_eq!(err.code(), "IO_FAILED", "step={step}");
+        assert!(!target.exists(), "target gone at step={step}");
+        assert!(has_removing_marker(&metadata), "marker kept step={step}");
+        let listed = fixture.manager.list().expect("list ok");
+        let listed_has = listed.iter().any(|w| w.id == item.id);
+        let (used, _) = fixture.manager.slots_in_use_for_test();
+        assert!(!listed_has, "broken registration skipped step={step}");
+        assert_eq!(used, 1, "slot still counted step={step}");
+        fixture
+            .manager
+            .remove_clean_owned(&item.id)
+            .expect("resume");
+        assert!(!metadata.exists(), "metadata gone step={step}");
+        assert_eq!(
+            fixture.manager.slots_in_use_for_test().0,
+            0,
+            "slot freed step={step}"
+        );
+    }
+}
+
+#[test]
+fn c12b_unmarked_broken_registration_still_errs() {
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let target = fixture.manager.managed_root.join(&item.id);
+    fs::remove_file(target.join(".git")).unwrap();
+    assert!(
+        fixture.manager.list().is_err(),
+        "unmarked failure must stay Err"
+    );
+}
+
+/// A1 C12b nit 3 (M9): `worktree_remove` (no owner record) never resumes from a
+/// marker. An orphan marker whose registration is broken is left alone; the
+/// pre-marker absence rules apply and nothing under `.git/worktrees/<id>` moves.
+#[test]
+fn c12b_marker_without_owner_record_does_not_resume() {
+    use super::super::worktree_git::{
+        has_removing_marker, set_delete_fail_at_for_test, REMOVING_MARKER,
+    };
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let target = fixture.manager.managed_root.join(&item.id);
+    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+    // Fail after the target is gone and gitdir removal fails (step 1):
+    // registration is now broken, marker present, list() skips it.
+    set_delete_fail_at_for_test(Some(1));
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "IO_FAILED"
+    );
+    set_delete_fail_at_for_test(None);
+    assert!(!target.exists());
+    assert!(has_removing_marker(&metadata));
+    let before: Vec<_> = {
+        let mut v: Vec<_> = fs::read_dir(&metadata)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        v.sort();
+        v
+    };
+    assert!(before.iter().any(|n| n == REMOVING_MARKER));
+    // Non-owner remove: absence rule (tree gone) → Ok, but no resume happens.
     fixture
         .manager
         .remove_clean(&item.id)
-        .expect("resume with only WT_DELETED remaining");
+        .expect("absent tree stays retry-safe");
+    let after: Vec<_> = {
+        let mut v: Vec<_> = fs::read_dir(&metadata)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        v.sort();
+        v
+    };
+    assert_eq!(before, after, "orphan marker entry untouched");
+    assert!(has_removing_marker(&metadata));
+    assert_eq!(
+        fixture.manager.slots_in_use_for_test().0,
+        1,
+        "still counted"
+    );
+    // A target re-appearing under the id is a boundary refusal, not a resume.
+    fs::create_dir(&target).unwrap();
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "BOUNDARY_VIOLATION"
+    );
+    fs::remove_dir(&target).unwrap();
+    assert!(has_removing_marker(&metadata));
+    // The owner entry point does resume.
+    fixture
+        .manager
+        .remove_clean_owned(&item.id)
+        .expect("owner resume");
     assert!(!metadata.exists());
+    assert_eq!(fixture.manager.slots_in_use_for_test().0, 0);
+}
+
+/// A1 C12b nit 5: resume clean check fails closed when the origin snapshot
+/// (`managed-origin-head`) cannot be read.
+#[test]
+fn c12b_resume_rejects_unreadable_origin_snapshot() {
+    use super::super::worktree_git::{has_removing_marker, set_delete_fail_at_for_test};
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let target = fixture.manager.managed_root.join(&item.id);
+    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+    set_delete_fail_at_for_test(Some(0));
+    let _ = fixture.manager.remove_clean(&item.id).unwrap_err();
+    set_delete_fail_at_for_test(None);
+    assert!(has_removing_marker(&metadata));
+    assert!(target.exists());
+    let origin = metadata.join("managed-origin-head");
+    let saved = fs::read(&origin).expect("origin snapshot present");
+    fs::remove_file(&origin).unwrap();
+    assert_eq!(
+        fixture
+            .manager
+            .remove_clean_owned(&item.id)
+            .unwrap_err()
+            .code(),
+        "DIRTY",
+        "missing origin snapshot must fail closed"
+    );
+    assert!(target.exists() && has_removing_marker(&metadata));
+    // Restoring the snapshot lets the resume finish.
+    fs::write(&origin, saved).unwrap();
+    fixture
+        .manager
+        .remove_clean_owned(&item.id)
+        .expect("resume with origin restored");
+    assert!(!metadata.exists());
+}
+
+/// A1 C12b nit 4: the metadata dir comes from the same libgit2-side `Source`
+/// as worktree_git (`source.git/worktrees/<id>`). A gitfile `.git` source is
+/// refused by `open_source` (NOT_REPOSITORY), so remove fails closed before any
+/// marker probe instead of guessing `<root>/.git/worktrees`.
+#[test]
+fn c12b_metadata_dir_follows_source_and_gitfile_fails_closed() {
+    use super::super::worktree_git::managed_metadata_dir;
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let canonical = fixture.repo.path().canonicalize().unwrap();
+    let derived = managed_metadata_dir(&canonical, &item.id).expect("derived");
+    assert_eq!(
+        derived,
+        canonical.join(".git").join("worktrees").join(&item.id)
+    );
+    assert!(derived.is_dir());
+
+    // Separate-git-dir repo: `.git` is a gitfile pointing elsewhere.
+    let work = tempfile::tempdir().unwrap();
+    let store = tempfile::tempdir().unwrap();
+    let gitdir = store.path().join("repo.git");
+    git(
+        work.path(),
+        &["init", "-q", "--separate-git-dir", gitdir.to_str().unwrap()],
+    );
+    assert!(work.path().join(".git").is_file(), "gitfile .git");
+    let err = managed_metadata_dir(work.path(), "0123456789abcdef0123456789abcdef").unwrap_err();
+    assert_eq!(err.code(), "NOT_REPOSITORY");
 }

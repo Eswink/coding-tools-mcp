@@ -370,7 +370,7 @@ impl WorktreeManager {
             Ok(manager) => manager,
             Err(e) => return (LegacyState::Failed, Some(e.code())),
         };
-        match manager.remove_clean_locked(&candidate.id) {
+        match manager.remove_clean_locked(&candidate.id, false) {
             Ok(()) => {
                 // Only an empty `worktrees-v1/<ws>`; `chat-v1/<key>` itself stays.
                 let _ = fs::remove_dir(&candidate.root);

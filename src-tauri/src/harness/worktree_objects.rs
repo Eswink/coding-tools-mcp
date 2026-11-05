@@ -312,11 +312,14 @@ pub(super) fn deletion_tolerant_clean(
     validate_tree(target, MAX_ENTRIES + 2, MAX_TREE_BYTES as u64)?;
     checked_path(metadata, &metadata.join("HEAD"))?;
     let head_raw = read_file(&metadata.join("HEAD"), 128)?;
-    // HEAD must still equal the origin snapshot when present.
-    if let Ok(origin) = read_file(&metadata.join("managed-origin-head"), 128) {
-        if head_raw != origin {
-            return Ok(false);
-        }
+    // HEAD must still equal the origin snapshot. A1 C12b nit 5: an unreadable or
+    // missing origin snapshot fails closed (not clean). The remove order deletes
+    // metadata files only after the target, so it is present while target exists.
+    let Ok(origin) = read_file(&metadata.join("managed-origin-head"), 128) else {
+        return Ok(false);
+    };
+    if head_raw != origin {
+        return Ok(false);
     }
     let baseline = tree_entries(source, oid(&head_raw)?)?;
     let index = configured_index(source, target, metadata)?;

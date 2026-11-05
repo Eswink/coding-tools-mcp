@@ -989,8 +989,16 @@ impl Inner {
         let mut done = Vec::new();
         let mut failed = Vec::new();
         for (id, tree) in stuck {
+            // A1 C12b nit 2 (M6 rules): one non-blocking registry-only Job probe,
+            // already under the store lock, never creates a Job, never polled. No Job
+            // → empty; busy or query error → skip this round (backoff below retries).
+            if !matches!(job_probe_empty(id.as_str()), Ok(true)) {
+                failed.push(id);
+                continue;
+            }
             let removed = match tree.as_deref() {
-                Some(tree) => manager.remove_clean(tree).is_ok(),
+                // A1 C12b nit 3 (M9): owner PendingCleanup record proven → resumable.
+                Some(tree) => manager.remove_clean_owned(tree).is_ok(),
                 None => true,
             };
             if removed {
@@ -1042,6 +1050,31 @@ fn finish_discarded(store: &WorkerStore, id: &WorkerId) {
     coding_tools_local_agent::release_worker_cgroup(id.as_str());
     #[cfg(windows)]
     crate::tools::worker_job::release_worker_job(id.as_str());
+}
+
+/// A1 C12b nit 2: the under-lock registry-only probe (cleanup and discard). Tests
+/// may inject a result per thread; production always asks `worker_job`.
+fn job_probe_empty(worker_id: &str) -> std::io::Result<bool> {
+    #[cfg(test)]
+    if let Some(probe) = job_probe_hook::get() {
+        return probe(worker_id);
+    }
+    crate::tools::worker_job::probe_worker_job_empty(worker_id)
+}
+
+#[cfg(test)]
+pub(crate) mod job_probe_hook {
+    use std::cell::Cell;
+    pub(crate) type Probe = fn(&str) -> std::io::Result<bool>;
+    thread_local! {
+        static PROBE: Cell<Option<Probe>> = const { Cell::new(None) };
+    }
+    pub(super) fn get() -> Option<Probe> {
+        PROBE.with(|c| c.get())
+    }
+    pub(crate) fn set(probe: Option<Probe>) {
+        PROBE.with(|c| c.set(probe));
+    }
 }
 
 /// A1 C12 M6: drain this worker's parent Job. Blocking polls hold no store/root lock.
@@ -1567,7 +1600,7 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         return Err(worker_busy());
     }
     // A1 C12 M6: one non-blocking registry probe under the lock, immediately before removal.
-    match crate::tools::worker_job::probe_worker_job_empty(id.as_str()) {
+    match job_probe_empty(id.as_str()) {
         Ok(true) => {}
         Ok(false) | Err(_) => {
             let out = inner.update(&owner, &id, |record| {
@@ -1581,7 +1614,8 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         }
     }
     let removal = match record.worktree_id.as_deref() {
-        Some(tree) => manager.remove_clean(tree),
+        // A1 C12b nit 3 (M9): owner record proven above; ends Discarded or PendingCleanup.
+        Some(tree) => manager.remove_clean_owned(tree),
         None => Ok(()),
     };
     let next = match removal {
