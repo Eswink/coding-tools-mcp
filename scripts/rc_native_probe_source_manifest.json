@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "cfd06fc325d382fbb0eed91e44f692377fb88de5",
-   "bytes": 436594,
+   "blob": "5251e0970aa85fec47a892a598326a7ed3cbb93b",
+   "bytes": 436565,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "c66cf9b233858fc1810f2c9e47f66bbe07964e45aa1c176596ea7a21e9aa7ed8"
+   "sha256": "a4e03ee1eea2c4e4ed36582582a21fb42ff735e57060f510364b8f61744f1bae"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
