@@ -2382,7 +2382,7 @@ fn c11b_collect_and_integrate_write_the_snap_and_the_card_shows_it() {
     let id = worker.worker_id.clone();
     let tree = worker_tree(&f.ctx, &worker);
     let card = |ctx: &ToolContext| -> Value {
-        let rows = status_with_changed(ctx).unwrap();
+        let rows = status_with_changed(ctx, None).unwrap();
         let (record, snap) = rows.iter().find(|(r, _)| r.worker_id == id).unwrap();
         crate::commands::subagent_integration::worker_card(record, *snap)
     };

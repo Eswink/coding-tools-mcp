@@ -354,7 +354,9 @@ test('HINT_FAILED_WARN constant and panel title / no second confirm / no abs pat
   assert.ok(panel.includes('清理旧版 worktree'));
   assert.ok(panel.includes('HINT_FAILED_WARN'));
   assert.ok(panel.includes('class="badge interrupted"'));
-  assert.ok(panel.includes('中断续删'));
+  assert.ok(panel.includes('INTERRUPTED_BADGE'));
+  assert.ok(panel.includes('{INTERRUPTED_BADGE}'));
+  assert.doesNotMatch(panel, />中断续删</);
   assert.doesNotMatch(panel, />interrupted</);
   assert.ok(panel.includes('nativeDialogRequired'));
   assert.ok(panel.includes('cleanupDisabled(view)'));

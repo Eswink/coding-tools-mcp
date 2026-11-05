@@ -2722,7 +2722,7 @@ fn c11_changed_files_cache_hit_and_ops_seq_invalidation() {
     let worker = spawn_ok(&f.ctx, "c11-hit", "hit");
     let id = worker.worker_id.clone();
     remember_changed(&f.ctx, &id, 4, worker.ops_seq);
-    let rows = status_with_changed(&f.ctx).unwrap();
+    let rows = status_with_changed(&f.ctx, None).unwrap();
     let mine = rows
         .iter()
         .find(|(r, _)| r.worker_id == id)
@@ -2741,7 +2741,7 @@ fn c11_changed_files_cache_hit_and_ops_seq_invalidation() {
             Ok(())
         })
         .unwrap();
-    let rows = status_with_changed(&f.ctx).unwrap();
+    let rows = status_with_changed(&f.ctx, None).unwrap();
     let mine = rows.iter().find(|(r, _)| r.worker_id == id).unwrap();
     assert_eq!(
         resolve_changed_files(&mine.0, mine.1),
@@ -2828,14 +2828,14 @@ fn c11_changed_files_owner_isolation_on_list() {
     remember_changed(&f.ctx, &foreign_id, 5, 0);
 
     // Local list must not surface the foreign worker or its snap.
-    let local_rows = status_with_changed(&f.ctx).unwrap();
+    let local_rows = status_with_changed(&f.ctx, None).unwrap();
     assert!(
         local_rows.iter().all(|(r, _)| r.worker_id != foreign_id),
         "foreign owner worker must not appear in local status_with_changed"
     );
 
     // Remote chat list sees it (and can read its snap).
-    let remote_rows = scoped(&chat, |c| status_with_changed(c)).unwrap();
+    let remote_rows = scoped(&chat, |c| status_with_changed(c, None)).unwrap();
     let mine = remote_rows
         .iter()
         .find(|(r, _)| r.worker_id == foreign_id)
@@ -2870,7 +2870,7 @@ fn c11b_cleanup_to_discarded_forgets_the_snap_and_card_is_null() {
         changed_snap_for(&f.ctx, &stuck).is_none(),
         "cleanup must forget the snap like discard"
     );
-    let rows = status_with_changed(&f.ctx).unwrap();
+    let rows = status_with_changed(&f.ctx, None).unwrap();
     let (record, snap) = rows.iter().find(|(r, _)| r.worker_id == stuck).unwrap();
     assert!(snap.is_none());
     let card = crate::commands::subagent_integration::worker_card(record, *snap);
@@ -2963,4 +2963,180 @@ fn c12b_cleanup_probe_is_registry_only_and_precedes_remove() {
     let wrapper = &src[w..w + src[w..].find("\n}\n").unwrap()];
     assert!(wrapper.contains("probe_worker_job_empty("));
     assert!(!wrapper.contains("for_worker"));
+}
+
+
+/// A1 C18: MCP `subagent_*` fills `changed_files` via the same
+/// `resolve_changed_files` as the local card (snapshot integer|null, not live).
+#[test]
+fn c18_mcp_spawn_changed_files_is_null() {
+    let f = Fixture::new();
+    let out = subagent(
+        &f.ctx,
+        "subagent_spawn",
+        json!({"request_id": "c18-spawn", "label": "s", "base": "HEAD"}),
+    );
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["worker"]["changed_files"], Value::Null);
+    assert!(out["worker"].get("worktree_id").is_none());
+    assert!(
+        out["worker"]["cwd"].is_string(),
+        "MCP keeps cwd; card strips it"
+    );
+}
+
+#[test]
+fn c18_mcp_status_returns_number_after_remember_changed() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c18-hit", "hit");
+    let id = worker.worker_id.clone();
+    remember_changed(&f.ctx, &id, 6, worker.ops_seq);
+    let listed = subagent(&f.ctx, "subagent_status", json!({}));
+    assert_eq!(listed["ok"], true, "{listed}");
+    let row = listed["workers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|w| w["worker_id"] == id.as_str())
+        .expect("listed");
+    assert_eq!(row["changed_files"], json!(6));
+    let one = subagent(&f.ctx, "subagent_status", json!({"worker_id": id}));
+    assert_eq!(one["workers"][0]["changed_files"], json!(6), "{one}");
+    assert!(one["workers"][0].get("worktree_id").is_none());
+}
+
+#[test]
+fn c18_mcp_ops_seq_invalidate_falls_back_to_integration_or_null() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c18-inv", "inv");
+    let id = worker.worker_id.clone();
+    remember_changed(&f.ctx, &id, 9, worker.ops_seq);
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let owner = WorkerOwner::local();
+    store
+        .lock()
+        .unwrap()
+        .update(&owner, &id, |r| {
+            r.ops_seq += 1;
+            Ok(())
+        })
+        .unwrap();
+    let listed = subagent(&f.ctx, "subagent_status", json!({"worker_id": id}));
+    assert_eq!(
+        listed["workers"][0]["changed_files"],
+        Value::Null,
+        "ops_seq mismatch + no integration → null: {listed}"
+    );
+
+    let mut record = status(&f.ctx, Some(id.as_str())).unwrap().remove(0);
+    record.state = WorkerState::IntegratePending;
+    record.integrations.push(integration::IntegrationRecord {
+        integration_id: "a".repeat(32),
+        request_id: "req-int".into(),
+        diff_sha256: "b".repeat(64),
+        state: integration::IntegrationState::Pending,
+        prior_state: WorkerState::Ready,
+        created_at: now(),
+        expires_at: u64::MAX / 2,
+        files: 4,
+        main_changed_since_spawn: false,
+        journal_epoch: None,
+        closed_reason: None,
+        error_code: None,
+        rollback_request_id: None,
+        rollback_expires_at: None,
+    });
+    let snap = Some(ChangedSnap {
+        files: 9,
+        ops_seq: worker.ops_seq,
+    });
+    assert_eq!(
+        resolve_changed_files(&record, snap),
+        Some(4),
+        "stale snap + Pending integration → files"
+    );
+    assert_eq!(
+        subagent::view(&record, snap)["changed_files"],
+        json!(4),
+        "MCP view shares resolve"
+    );
+}
+
+#[test]
+fn c18_mcp_discard_returns_null_changed_files() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c18-disc", "d");
+    let id = worker.worker_id.clone();
+    remember_changed(&f.ctx, &id, 3, worker.ops_seq);
+    let out = subagent(&f.ctx, "subagent_discard", json!({"worker_id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["worker"]["state"], "discarded");
+    assert_eq!(out["worker"]["changed_files"], Value::Null);
+}
+
+#[test]
+fn c18_mcp_gated_states_force_null_even_with_snap() {
+    use WorkerState::*;
+    let snap = Some(ChangedSnap {
+        files: 11,
+        ops_seq: 0,
+    });
+    for state in [Creating, Failed, PendingCleanup, Discarded] {
+        let record = WorkerRecord {
+            worker_id: WorkerId::parse("cccccccccccccccccccccccccccccccc").unwrap(),
+            worktree_id: Some("wt-secret".into()),
+            workspace_id: "ws".into(),
+            owner: WorkerOwner::local(),
+            spawn_request_id: "req".into(),
+            spawn_fingerprint: "fp".into(),
+            label: "gated".into(),
+            base_head: Some("0123456789abcdef0123456789abcdef01234567".into()),
+            state,
+            cwd: "/secret".into(),
+            created_at: 1,
+            last_activity_at: 2,
+            ops: vec![],
+            ops_seq: 0,
+            main_fingerprint: None,
+            integrations: vec![],
+        };
+        assert_eq!(resolve_changed_files(&record, snap), None, "{state:?}");
+        let v = subagent::view(&record, snap);
+        assert_eq!(v["changed_files"], Value::Null, "{state:?}");
+        assert!(v.get("worktree_id").is_none(), "{state:?}");
+    }
+}
+
+#[test]
+fn c18_mcp_cancel_uses_same_resolve_as_card() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c18-cancel", "c");
+    let id = worker.worker_id.clone();
+    remember_changed(&f.ctx, &id, 5, worker.ops_seq);
+    let out = subagent(&f.ctx, "subagent_cancel", json!({"worker_id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["worker"]["state"], "cancelled");
+    // Cancelled is in the resolve allow-list; snap still valid → number.
+    assert_eq!(out["worker"]["changed_files"], json!(5), "{out}");
+}
+
+
+#[test]
+fn c18_subagent_status_path_uses_status_with_changed_not_diff() {
+    let src = include_str!("subagent.rs");
+    let start = src.find("\"subagent_status\"").expect("status arm");
+    let rest = &src[start..];
+    let end = rest.find("\"subagent_cancel\"").expect("next arm");
+    let body = &rest[..end];
+    assert!(
+        body.contains("status_with_changed"),
+        "status must use status_with_changed:\n{body}"
+    );
+    for banned in ["worker_diff", "Command::new", "git2::", "remember_changed"] {
+        assert!(
+            !body.contains(banned),
+            "subagent_status must not use `{banned}`:\n{body}"
+        );
+    }
 }
