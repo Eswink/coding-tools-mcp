@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C13d soft nits tip (topology paths + v1 refuse + chain nodes + C16 ok-only memo + C14 hint) — LOCAL ONLY not pushed",
+  "review_reference": "A1 C17 legacy cleanup FE tip (controller+panel+tests+mount) — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "03f90edc27d2183850aee259c6ee867be0987994",
-        "sha256": "73cc60ca3fb722ad5a6f94bd2a803223a7f720606a6a42e65d9c3f94257d7c78"
+        "blob_sha": "d6bc6737c5fdb4b9e649c10442fb6e32b8a79103",
+        "sha256": "54e63ea0aecccc4b1839661e0666962d7784013f2c34429fbe2788760e3e0c3d"
       }
     },
     {
@@ -11343,6 +11343,16 @@
       }
     },
     {
+      "path": "src/lib/components/LegacyCleanupPanel.svelte",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "34abd7bdb7589630d6f14ed1e55c6d06a839130f",
+        "sha256": "0994dfba3af9072f9722d716dc32df459de964997b3bb821435e737edcd9938a"
+      }
+    },
+    {
       "path": "src/lib/components/MergeConfirmPanel.svelte",
       "status": "A",
       "before": null,
@@ -11404,6 +11414,16 @@
         "mode": "100644",
         "blob_sha": "4d9dc2154566c07d132ba95f0bf6af416eb6e644",
         "sha256": "113dcdc566c446b05268993a6a301349e112cb132b3a78aa504a337b49e6f4a5"
+      }
+    },
+    {
+      "path": "src/lib/legacy-cleanup.ts",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c3344f33e2016ce7f4da7a201ebd4ac06004d477",
+        "sha256": "9adf7519c985d91fede48ae4b8416570daf798b044352e20bb24785ff55c9884"
       }
     },
     {
@@ -11480,8 +11500,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "cf26427a429825ec7785d6188f924038125b4a6c",
-        "sha256": "0badca28d98c1cab7b13309575e807f6cda52f1feb0a899cdd0cadac38a9ca2b"
+        "blob_sha": "def42507c4428a836447311acc4af89d38fab072",
+        "sha256": "22f6b7bf3786cb99ee08e9d4b697e2559b854bb8a05f38ad869621c86e1b8bc2"
       }
     },
     {
@@ -11934,6 +11954,16 @@
         "mode": "100644",
         "blob_sha": "cb5141e5d5bb64b7de7637c0b51fb3195c7d453f",
         "sha256": "dd80b9588640738141e90fc1189dfa44f3e4c9ca824d1b9137a9e19764d91e61"
+      }
+    },
+    {
+      "path": "tests/legacy-cleanup-ui.test.mjs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "42b6f2271eb765a97b83d030fce438e9ec1d241e",
+        "sha256": "f417ebda67f91be168606d747c129c07b0b2ec68f7e2ed30a5c1f670416d6a38"
       }
     },
     {
