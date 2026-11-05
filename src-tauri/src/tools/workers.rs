@@ -312,6 +312,14 @@ struct Document {
     workers: Vec<WorkerRecord>,
 }
 
+/// A1 C11: memory-only snapshot of `diff.changes.len()` from collect/integrate.
+/// Never serialized; keyed by worker id and invalidated via `ops_seq`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ChangedSnap {
+    pub(crate) files: u64,
+    pub(crate) ops_seq: u64,
+}
+
 struct Inner {
     disk: AuthDocument,
     doc: Document,
@@ -320,6 +328,8 @@ struct Inner {
     /// A1 C5 (§5.3): the main root's integration journal, opened on first use
     /// and held (with its document lock) for the life of the store.
     journal: Option<journal::Journal>,
+    /// A1 C11: collect/integrate hitchhiked `changes.len()` (memory only).
+    changed: HashMap<WorkerId, ChangedSnap>,
 }
 /// One per main root for the life of the process (v4 N3): loaded and decrypted
 /// once; the document lock is held until the process exits.
@@ -503,6 +513,7 @@ impl WorkerStore {
                 doc,
                 states_recovered: false,
                 journal: None,
+                changed: HashMap::new(),
             }),
             flight: Mutex::default(),
             generation: GENERATION.fetch_add(1, Ordering::Relaxed),
@@ -810,7 +821,24 @@ impl Inner {
         let out = change(&mut next)?;
         self.disk.save(&next).map_err(|_| unavailable())?;
         self.doc = next;
+        // A1 C11: drop snaps whose records left via make_room / removal.
+        self.prune_changed();
         Ok(out)
+    }
+    fn remember_changed(&mut self, id: &WorkerId, files: u64, ops_seq: u64) {
+        self.changed
+            .insert(id.clone(), ChangedSnap { files, ops_seq });
+        self.prune_changed();
+    }
+    fn forget_changed(&mut self, id: &WorkerId) {
+        self.changed.remove(id);
+    }
+    fn prune_changed(&mut self) {
+        self.changed
+            .retain(|id, _| self.doc.workers.iter().any(|r| &r.worker_id == id));
+    }
+    fn changed_snap(&self, id: &WorkerId) -> Option<ChangedSnap> {
+        self.changed.get(id).copied()
     }
     fn owned(&self, owner: &WorkerOwner, id: &WorkerId) -> Result<&WorkerRecord, WorkerError> {
         self.doc
@@ -1176,6 +1204,72 @@ pub(crate) fn pending_for_test(worker_id: &str) -> bool {
     pending().contains_key(worker_id)
 }
 
+/// A1 C11: card `changed_files` from hitchhiked cache → integration.files → null.
+/// Non-null only for Ready/Cancelled/IntegratePending/Integrated.
+pub(crate) fn resolve_changed_files(
+    record: &WorkerRecord,
+    snap: Option<ChangedSnap>,
+) -> Option<u64> {
+    match record.state {
+        WorkerState::Ready
+        | WorkerState::Cancelled
+        | WorkerState::IntegratePending
+        | WorkerState::Integrated => {}
+        WorkerState::Creating
+        | WorkerState::Failed
+        | WorkerState::PendingCleanup
+        | WorkerState::Discarded => return None,
+    }
+    if let Some(snap) = snap {
+        if snap.ops_seq == record.ops_seq {
+            return Some(snap.files);
+        }
+    }
+    let effective = integration::effective(record, now());
+    let last = effective.integrations.last()?;
+    match last.state {
+        integration::IntegrationState::Pending
+        | integration::IntegrationState::Committed
+        | integration::IntegrationState::RollbackPending => Some(last.files),
+        _ => None,
+    }
+}
+
+/// A1 C11: best-effort write after a successful worker_diff (collect/integrate).
+/// Stores the ops_seq read **before** the diff; never fails the caller.
+pub(crate) fn remember_changed(ctx: &ToolContext, id: &WorkerId, files: u64, ops_seq: u64) {
+    let Ok(Some(store)) = WorkerStore::open_existing(&ctx.host) else {
+        return;
+    };
+    let Ok(mut inner) = store.lock() else {
+        return;
+    };
+    inner.remember_changed(id, files, ops_seq);
+}
+
+/// A1 C11: owner-filtered records paired with memory-only changed snaps (one lock).
+pub(crate) fn status_with_changed(
+    ctx: &ToolContext,
+) -> Result<Vec<(WorkerRecord, Option<ChangedSnap>)>, WorkerError> {
+    let owner = WorkerOwner::from_context(ctx)?;
+    let (_, store) = open(ctx)?;
+    let inner = store.lock()?;
+    Ok(inner
+        .doc
+        .workers
+        .iter()
+        .filter(|r| r.owner == owner)
+        .map(|r| (r.clone(), inner.changed_snap(&r.worker_id)))
+        .collect())
+}
+
+/// A1 C11: one worker's memory-only snap (best-effort; None if store unavailable).
+pub(crate) fn changed_snap_for(ctx: &ToolContext, id: &WorkerId) -> Option<ChangedSnap> {
+    let store = WorkerStore::open_existing(&ctx.host).ok().flatten()?;
+    let inner = store.lock().ok()?;
+    inner.changed_snap(id)
+}
+
 pub(crate) fn status(
     ctx: &ToolContext,
     worker_id: Option<&str>,
@@ -1294,6 +1388,9 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         record.last_activity_at = now();
         Ok(record.clone())
     })?;
+    // A1 C11: Discarded/PendingCleanup must never show a hitchhiked count
+    // (ops_seq does not move on discard, so the cache would otherwise still hit).
+    inner.forget_changed(&id);
     // A1 C7-3: discarded leaves the projected set (pending_cleanup stays active).
     projection_bus::mark_dirty(&ctx.host);
     if out.state == WorkerState::Discarded {

@@ -46,7 +46,7 @@ pub(crate) fn view(record: &WorkerRecord) -> Value {
         "cwd": record.cwd,
         "created_at": record.created_at,
         "last_activity_at": record.last_activity_at,
-        // Diff accounting arrives with collect (C5).
+        // MCP view intentionally null; local card uses snapshot (C11).
         "changed_files": null,
     })
 }

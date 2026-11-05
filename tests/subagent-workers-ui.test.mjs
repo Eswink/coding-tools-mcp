@@ -12,6 +12,7 @@ const {
   createSubagentWorkersController,
   mapWorkerCard,
   formatActivityAt,
+  formatChangedFiles,
   workerStateLabels,
   WINDOWS_UNSANDBOXED_CARD_LABEL,
   LINUX_SANDBOX_DEFERRED_LABEL,
@@ -167,4 +168,25 @@ test('workspace page mounts the panel beside IntegrationAttention and forbids me
   assert.doesNotMatch(panel, /console\.|localStorage|sessionStorage|setInterval|setTimeout/);
   const invoked = [...source.matchAll(/invoke<[^>]*>\('([a-z_]+)'/g)].map(m => m[1]);
   assert.deepEqual(invoked, ['list_subagent_workers', 'cancel_subagent_worker', 'discard_subagent_worker']);
+});
+
+test('changed_files: non-negative integers render as snapshot; invalid values as em dash', () => {
+  assert.equal(formatChangedFiles(0), '0（快照）');
+  assert.equal(formatChangedFiles(3), '3（快照）');
+  assert.equal(mapWorkerCard({ ...worker, changed_files: 2 }, false).changedFilesText, '2（快照）');
+  assert.equal(mapWorkerCard({ ...worker, changed_files: 0 }, false).changedFilesText, '0（快照）');
+  for (const bad of [null, undefined, -1, 1.5, NaN, Infinity, '3', '0', {}, [1], true, false]) {
+    assert.equal(formatChangedFiles(bad), '—', `bad=${String(bad)}`);
+    assert.equal(
+      mapWorkerCard({ ...worker, changed_files: bad }, false).changedFilesText,
+      '—',
+      `map bad=${String(bad)}`,
+    );
+  }
+});
+
+test('panel tooltip documents snapshot excludes withheld/unsupported', () => {
+  const panel = readFileSync(new URL('../src/lib/components/SubagentWorkersPanel.svelte', import.meta.url), 'utf8');
+  assert.match(panel, /不含 withheld\/unsupported/);
+  assert.match(panel, /可合入改动文件数（快照/);
 });

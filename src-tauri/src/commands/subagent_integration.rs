@@ -206,8 +206,9 @@ pub async fn cancel_subagent_worker(
     let ctx = context(&state, &id)?;
     let out = native(ctx, move |c| {
         let (record, killed) = workers::cancel(c, &worker_id)?;
+        let snap = workers::changed_snap_for(c, &record.worker_id);
         Ok(json!({
-            "worker": worker_card(&record),
+            "worker": worker_card(&record, snap),
             "killed_tasks": killed,
         }))
     })
@@ -227,15 +228,21 @@ pub async fn discard_subagent_worker(
     let ctx = context(&state, &id)?;
     let out = native(ctx, move |c| {
         let record = workers::discard(c, &worker_id)?;
-        Ok(json!({ "worker": worker_card(&record) }))
+        // A1 C11 M5: discard return is always null (cache cleared inside discard).
+        Ok(json!({ "worker": worker_card(&record, None) }))
     })
     .await?;
     Ok(value(out))
 }
 
 /// Card JSON for one worker (no cwd / no integration blob).
-pub(crate) fn worker_card(record: &workers::WorkerRecord) -> Value {
+/// A1 C11: `changed_files` is hitchhiked cache → integration.files → null.
+pub(crate) fn worker_card(
+    record: &workers::WorkerRecord,
+    snap: Option<workers::ChangedSnap>,
+) -> Value {
     let view = workers::subagent::view(record);
+    let changed = workers::resolve_changed_files(record, snap);
     json!({
         "worker_id": view.get("worker_id").cloned().unwrap_or(Value::Null),
         "label": view.get("label").cloned().unwrap_or(Value::Null),
@@ -243,14 +250,19 @@ pub(crate) fn worker_card(record: &workers::WorkerRecord) -> Value {
         "base_head": view.get("base_head").cloned().unwrap_or(Value::Null),
         "created_at": view.get("created_at").cloned().unwrap_or(Value::Null),
         "last_activity_at": view.get("last_activity_at").cloned().unwrap_or(Value::Null),
-        "changed_files": Value::Null,
+        "changed_files": changed.map_or(Value::Null, |n| json!(n)),
     })
 }
 
 fn list_workers_payload(ctx: &ToolContext) -> Result<Value, WorkerError> {
-    let records = workers::status(ctx, None)?;
+    // A1 C11 M1: status_with_changed only clones store records + memory snaps;
+    // it never computes a worktree diff and never spawns a git subprocess.
+    let rows = workers::status_with_changed(ctx)?;
     Ok(json!({
-        "workers": records.iter().map(worker_card).collect::<Vec<_>>(),
+        "workers": rows
+            .iter()
+            .map(|(record, snap)| worker_card(record, *snap))
+            .collect::<Vec<_>>(),
         "windows": cfg!(windows),
     }))
 }
@@ -258,7 +270,10 @@ fn list_workers_payload(ctx: &ToolContext) -> Result<Value, WorkerError> {
 #[cfg(test)]
 mod list_workers_tests {
     use super::worker_card;
-    use crate::tools::worktree_tools::workers::{WorkerOwner, WorkerRecord, WorkerState};
+    use crate::tools::worktree_tools::workers::{
+        integration::{IntegrationRecord, IntegrationState},
+        resolve_changed_files, ChangedSnap, WorkerOwner, WorkerRecord, WorkerState,
+    };
     use serde_json::json;
 
     fn sample(state: WorkerState) -> WorkerRecord {
@@ -285,9 +300,28 @@ mod list_workers_tests {
         }
     }
 
+    fn integration(state: IntegrationState, files: u64, expires_at: u64) -> IntegrationRecord {
+        IntegrationRecord {
+            integration_id: "i".repeat(32),
+            request_id: "req-int".into(),
+            diff_sha256: "d".repeat(64),
+            state,
+            prior_state: WorkerState::Ready,
+            created_at: 1_700_000_000,
+            expires_at,
+            files,
+            main_changed_since_spawn: false,
+            journal_epoch: None,
+            closed_reason: None,
+            error_code: None,
+            rollback_request_id: None,
+            rollback_expires_at: None,
+        }
+    }
+
     #[test]
     fn worker_card_strips_cwd_and_keeps_state_label() {
-        let card = worker_card(&sample(WorkerState::Ready));
+        let card = worker_card(&sample(WorkerState::Ready), None);
         assert_eq!(card["label"], json!("demo"));
         assert_eq!(card["state"], json!("ready"));
         assert_eq!(
@@ -319,7 +353,145 @@ mod list_workers_tests {
             (IntegratePending, "integrate_pending"),
             (Integrated, "integrated"),
         ] {
-            assert_eq!(worker_card(&sample(state))["state"], json!(label));
+            assert_eq!(worker_card(&sample(state), None)["state"], json!(label));
         }
+    }
+
+    #[test]
+    fn cache_hit_returns_files_when_ops_seq_matches() {
+        let record = sample(WorkerState::Ready);
+        let snap = Some(ChangedSnap {
+            files: 3,
+            ops_seq: 0,
+        });
+        assert_eq!(resolve_changed_files(&record, snap), Some(3));
+        assert_eq!(worker_card(&record, snap)["changed_files"], json!(3));
+    }
+
+    #[test]
+    fn ops_seq_mismatch_invalidates_cache() {
+        let mut record = sample(WorkerState::Ready);
+        record.ops_seq = 2;
+        let snap = Some(ChangedSnap {
+            files: 9,
+            ops_seq: 1,
+        });
+        assert_eq!(resolve_changed_files(&record, snap), None);
+        assert_eq!(worker_card(&record, snap)["changed_files"], json!(null));
+    }
+
+    #[test]
+    fn integration_files_fallback_for_pending_committed_rollback() {
+        // Far-future expiry so effective() keeps Pending.
+        let far = u64::MAX / 2;
+        for (state, worker_state, files) in [
+            (
+                IntegrationState::Pending,
+                WorkerState::IntegratePending,
+                4u64,
+            ),
+            (IntegrationState::Committed, WorkerState::Integrated, 5),
+            (
+                IntegrationState::RollbackPending,
+                WorkerState::Integrated,
+                6,
+            ),
+        ] {
+            let mut record = sample(worker_state);
+            record.integrations = vec![integration(state, files, far)];
+            assert_eq!(
+                resolve_changed_files(&record, None),
+                Some(files),
+                "{state:?}"
+            );
+            assert_eq!(
+                worker_card(&record, None)["changed_files"],
+                json!(files),
+                "{state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn expired_rolled_back_rejected_are_null() {
+        let far = u64::MAX / 2;
+        // Expired Pending: expires_at in the past → effective() flips to Expired.
+        let mut expired = sample(WorkerState::Ready);
+        expired.integrations = vec![integration(IntegrationState::Pending, 7, 1)];
+        assert_eq!(resolve_changed_files(&expired, None), None);
+
+        for state in [
+            IntegrationState::RolledBack,
+            IntegrationState::Rejected,
+            IntegrationState::Expired,
+            IntegrationState::Failed,
+        ] {
+            let mut record = sample(WorkerState::Ready);
+            record.integrations = vec![integration(state, 8, far)];
+            assert_eq!(
+                resolve_changed_files(&record, None),
+                None,
+                "{state:?} must not fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn gated_states_are_always_null_even_with_cache() {
+        let snap = Some(ChangedSnap {
+            files: 11,
+            ops_seq: 0,
+        });
+        for state in [
+            WorkerState::Creating,
+            WorkerState::Failed,
+            WorkerState::PendingCleanup,
+            WorkerState::Discarded,
+        ] {
+            let record = sample(state);
+            assert_eq!(resolve_changed_files(&record, snap), None, "{state:?}");
+            assert_eq!(
+                worker_card(&record, snap)["changed_files"],
+                json!(null),
+                "{state:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn cache_preferred_over_integration_fallback() {
+        let far = u64::MAX / 2;
+        let mut record = sample(WorkerState::IntegratePending);
+        record.ops_seq = 4;
+        record.integrations = vec![integration(IntegrationState::Pending, 99, far)];
+        let snap = Some(ChangedSnap {
+            files: 2,
+            ops_seq: 4,
+        });
+        assert_eq!(resolve_changed_files(&record, snap), Some(2));
+    }
+
+    #[test]
+    fn list_path_source_does_not_compute_diff_or_spawn_git() {
+        let src = include_str!("subagent_integration.rs");
+        // Only production code: the cfg(test) module's own assert strings
+        // mention the forbidden tokens and would poison a whole-file scan.
+        let prod = src.split("#[cfg(test)]").next().unwrap_or(src);
+        assert!(
+            !prod.contains("worker_diff_of"),
+            "list/card path must not call worker_diff_of"
+        );
+        assert!(
+            !prod.contains("worker_diff("),
+            "list/card path must not call worker_diff"
+        );
+        assert!(
+            !prod.contains(r#"Command::new("git")"#),
+            "list/card path must not spawn git"
+        );
+        assert!(
+            prod.contains("status_with_changed"),
+            "list must read snaps via status_with_changed"
+        );
     }
 }

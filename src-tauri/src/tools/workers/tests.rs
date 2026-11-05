@@ -2714,3 +2714,131 @@ fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
     );
     assert!(!projected_workers(&f.ctx.host, &owner, 8).contains(&id));
 }
+
+/// A1 C11: memory-only changed_files cache (hitchhiked from collect/integrate).
+#[test]
+fn c11_changed_files_cache_hit_and_ops_seq_invalidation() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c11-hit", "hit");
+    let id = worker.worker_id.clone();
+    remember_changed(&f.ctx, &id, 4, worker.ops_seq);
+    let rows = status_with_changed(&f.ctx).unwrap();
+    let mine = rows
+        .iter()
+        .find(|(r, _)| r.worker_id == id)
+        .expect("spawned worker listed");
+    assert_eq!(resolve_changed_files(&mine.0, mine.1), Some(4));
+
+    // Simulate a worker write bumping ops_seq (record_op path).
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let owner = WorkerOwner::local();
+    store
+        .lock()
+        .unwrap()
+        .update(&owner, &id, |r| {
+            r.ops_seq += 1;
+            Ok(())
+        })
+        .unwrap();
+    let rows = status_with_changed(&f.ctx).unwrap();
+    let mine = rows.iter().find(|(r, _)| r.worker_id == id).unwrap();
+    assert_eq!(
+        resolve_changed_files(&mine.0, mine.1),
+        None,
+        "ops_seq bump must invalidate the hitchhiked snap"
+    );
+}
+
+#[test]
+fn c11_changed_files_discard_clears_cache_and_card_is_null() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c11-discard", "discard-me");
+    let id = worker.worker_id.clone();
+    remember_changed(&f.ctx, &id, 7, worker.ops_seq);
+    assert!(changed_snap_for(&f.ctx, &id).is_some());
+
+    let discarded = scoped(&f.ctx, |c| discard(c, id.as_str())).unwrap();
+    assert_eq!(discarded.state, WorkerState::Discarded);
+    assert!(
+        changed_snap_for(&f.ctx, &id).is_none(),
+        "discard must forget the snap (ops_seq does not move)"
+    );
+    assert_eq!(
+        resolve_changed_files(
+            &discarded,
+            Some(ChangedSnap {
+                files: 7,
+                ops_seq: 0
+            })
+        ),
+        None,
+        "Discarded state gate forces null even if a stale snap were passed"
+    );
+}
+
+#[test]
+fn c11_changed_files_make_room_prunes_removed_worker_snap() {
+    let f = Fixture::new();
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let oldest = store
+        .inject_for_test(&WorkerOwner::local(), None, WorkerState::Failed, 1)
+        .unwrap();
+    // Fill to capacity (MAX_RECORDS = 64): 1 oldest + 63 more Failed.
+    for n in 0..63 {
+        store
+            .inject_for_test(&WorkerOwner::local(), None, WorkerState::Failed, 10 + n)
+            .unwrap();
+    }
+    {
+        let mut inner = store.lock().unwrap();
+        inner.remember_changed(&oldest, 12, 0);
+        assert!(inner.changed_snap(&oldest).is_some());
+        // inject_for_test does not call make_room; exercise it under apply so
+        // prune_changed runs after the oldest Failed record is removed.
+        inner
+            .apply(|doc| {
+                make_room(doc)?;
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            inner.changed_snap(&oldest).is_none(),
+            "make_room removal must prune the snap via apply"
+        );
+        assert!(
+            !inner.doc.workers.iter().any(|r| r.worker_id == oldest),
+            "oldest record gone"
+        );
+    }
+}
+
+#[test]
+fn c11_changed_files_owner_isolation_on_list() {
+    let f = Fixture::new();
+    let chat = remote(&f.ctx, "c11-foreign-owner");
+    let remote_owner = WorkerOwner::from_context(&chat).unwrap();
+    assert_ne!(remote_owner, WorkerOwner::local());
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let foreign_id = store
+        .inject_for_test(&remote_owner, None, WorkerState::Ready, 50)
+        .unwrap();
+    remember_changed(&f.ctx, &foreign_id, 5, 0);
+
+    // Local list must not surface the foreign worker or its snap.
+    let local_rows = status_with_changed(&f.ctx).unwrap();
+    assert!(
+        local_rows.iter().all(|(r, _)| r.worker_id != foreign_id),
+        "foreign owner worker must not appear in local status_with_changed"
+    );
+
+    // Remote chat list sees it (and can read its snap).
+    let remote_rows = scoped(&chat, |c| status_with_changed(c)).unwrap();
+    let mine = remote_rows
+        .iter()
+        .find(|(r, _)| r.worker_id == foreign_id)
+        .expect("remote owner sees own worker");
+    assert_eq!(resolve_changed_files(&mine.0, mine.1), Some(5));
+}
