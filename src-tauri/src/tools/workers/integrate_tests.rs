@@ -2372,3 +2372,52 @@ fn c9_clear_attention_is_not_an_mcp_tool() {
         );
     }
 }
+
+/// A1 C11b nit 2: end to end, collect and integrate really write the snap and
+/// the list card shows the count.
+#[test]
+fn c11b_collect_and_integrate_write_the_snap_and_the_card_shows_it() {
+    let f = Fixture::new();
+    let worker = spawn_ok(&f.ctx, "c11b-e2e", "w");
+    let id = worker.worker_id.clone();
+    let tree = worker_tree(&f.ctx, &worker);
+    let card = |ctx: &ToolContext| -> Value {
+        let rows = status_with_changed(ctx).unwrap();
+        let (record, snap) = rows.iter().find(|(r, _)| r.worker_id == id).unwrap();
+        crate::commands::subagent_integration::worker_card(record, *snap)
+    };
+    assert_eq!(card(&f.ctx)["changed_files"], Value::Null, "no snap yet");
+
+    let clean = collect(&f.ctx, id.as_str(), json!({}));
+    assert_eq!(clean["ok"], true, "{clean}");
+    assert_eq!(card(&f.ctx)["changed_files"], json!(0), "clean collect → 0");
+
+    fs::write(tree.join("fixture.txt"), "c11b\n").unwrap();
+    write(&tree, "src/c11b.rs", b"fn c11b() {}\n");
+    let page = collect(&f.ctx, id.as_str(), json!({}));
+    assert_eq!(page["ok"], true, "{page}");
+    assert_eq!(changed_snap_for(&f.ctx, &id).unwrap().files, 2);
+    assert_eq!(card(&f.ctx)["changed_files"], json!(2), "collect → card N");
+
+    // Drop the collect snap so the integrate write is observed on its own.
+    {
+        let (_, store) = open(&f.ctx).unwrap();
+        store.lock().unwrap().forget_changed(&id);
+    }
+    assert!(changed_snap_for(&f.ctx, &id).is_none());
+    let sha = page["diff_sha256"].as_str().unwrap().to_owned();
+    let before = record_of(&f.ctx, id.as_str()).ops_seq;
+    let out = integrate(&f.ctx, id.as_str(), &sha, "c11b-i1");
+    assert_eq!(out["ok"], true, "{out}");
+    assert_eq!(out["state"], "integrate_pending", "{out}");
+    let snap = changed_snap_for(&f.ctx, &id).expect("integrate writes the snap");
+    assert_eq!(snap.files, 2);
+    assert_eq!(snap.ops_seq, before, "snap keeps the pre-diff ops_seq");
+    // integrate itself may bump ops_seq; then the card falls back to the
+    // pending integration.files, which must agree with the snap count.
+    assert_eq!(
+        card(&f.ctx)["changed_files"],
+        json!(2),
+        "integrate → card N"
+    );
+}

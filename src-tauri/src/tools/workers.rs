@@ -894,7 +894,12 @@ impl Inner {
                 record.state = WorkerState::Discarded;
             }
             Ok(())
-        })
+        })?;
+        // A1 C11b: same as discard — ops_seq does not move, so drop the snap.
+        for id in &done {
+            self.forget_changed(id);
+        }
+        Ok(())
     }
 }
 fn make_room(doc: &mut Document) -> Result<(), WorkerError> {
