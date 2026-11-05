@@ -584,11 +584,11 @@
    "sha256": "a58f14ba9c278b240362eee53d25a3894cff45c022477a693927f673c1032370"
   },
   {
-   "blob": "503640f3501c4b162bf0f665eba3f488614efc20",
+   "blob": "950b6b44b825beb6c72d4abd83775f745741aeaf",
    "bytes": 2442,
    "mode": "100644",
    "path": ".github/workflows/rc080-pretag-topology-checks.yml",
-   "sha256": "898938d4d810c77a53a5c52a39703f0792b3f6c820162aa11b4538268cd219e8"
+   "sha256": "68c406e1242f0174eca3f7ddd0b190cd8b4ec5fe402fb12d5a30c5a6f09e7d4d"
   },
   {
    "blob": "292e3c2417d3a882fcea14759304f3d5781c4870",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "33ac7b788d987f4c709f38d982a58ffdfff1f85d",
-   "bytes": 436242,
+   "blob": "cfd06fc325d382fbb0eed91e44f692377fb88de5",
+   "bytes": 436594,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "b6870998b60db5b0daa16f3e9ce691179c2450d749a1efca238f3021cb4ce130"
+   "sha256": "c66cf9b233858fc1810f2c9e47f66bbe07964e45aa1c176596ea7a21e9aa7ed8"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -7199,18 +7199,18 @@
    "sha256": "81aa8bbe75aa4de50b339286b82d21315aa033d45a8663b6c5144250aa3536be"
   },
   {
-   "blob": "f849a7be9247527da58c21de9f6ecbeb6cb5d39a",
-   "bytes": 7631,
+   "blob": "224f8ec479f1961d4c325b31f8798fc319cc8956",
+   "bytes": 8762,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile.py",
-   "sha256": "cb701f35f8ba2d55645446e3f283723eb62b2469648f6e86649129f83a985a18"
+   "sha256": "f2e7a2836191d4bf1589cccaaeef483dc088235cb92952d4204b4e3e757b71f5"
   },
   {
-   "blob": "85efba9ddcf02aca09645b7036531419342c478a",
-   "bytes": 12672,
+   "blob": "9fd148e714110d258009cdcd226f05f340b2847b",
+   "bytes": 16658,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile_tests.py",
-   "sha256": "200c95dcd9a5e780a6f23ec08eccfc8ba744810a07c00b27ea979194725f15e7"
+   "sha256": "a8c6ccb10ff94942fc9ebd39ef23e455eb0b54e85e47ead6cb8751a754126957"
   },
   {
    "blob": "50b6b211fac0aa81812898217d8c19eebcbb1ec5",
