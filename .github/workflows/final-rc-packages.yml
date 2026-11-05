@@ -149,9 +149,10 @@ jobs:
           npm audit --omit=dev --json > "$RUNNER_TEMP/npm-audit-prod.json"
           prod_code=$?
           set -e
-          python scripts/rc_npm_audit_gate.py \
+          python scripts/rc_npm_audit_gate.py --repo . \
             --full "$RUNNER_TEMP/rc-contracts/npm-audit.json" --full-exit-code "$code" \
-            --prod "$RUNNER_TEMP/npm-audit-prod.json" --prod-exit-code "$prod_code"
+            --prod "$RUNNER_TEMP/npm-audit-prod.json" --prod-exit-code "$prod_code" \
+            --npm-version "$(npm --version)" --node-version "$(node --version)"
       - name: Preserve real raw audits and independent desktop backport provenance
         if: always()
         shell: bash

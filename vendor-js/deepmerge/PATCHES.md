@@ -22,8 +22,8 @@ Wiring: root `devDependencies.deepmerge = "file:vendor-js/deepmerge"` +
 `overrides.deepmerge = "$deepmerge"`. The lockfile entry is a `link` with **no
 integrity**; content is pinned only by the git tree.
 
-**Audit scope:** npm audit does not audit `file:` dependencies, so a zero audit is
-**not** evidence of the fix — deepmerge is vendored, outside npm audit scope.
+**Audit scope:** npm 11 skips `file:` dependencies; npm 10 still reports this advisory.
+The release gate (`scripts/rc_npm_audit_gate.py`) judges mitigation by pinned hashes, not by a zero audit.
 Evidence is `tests/deepmerge-vendor.test.mjs` (T1–T6 fail on upstream 4.3.1, pass
 here; P1–P4 parity; R1 proves vite-plugin-svelte resolves this copy) and upstream's
 own suite. Recheck GHSA-gcqx-w48m-w2h4 `withdrawn_at` at every RC.
