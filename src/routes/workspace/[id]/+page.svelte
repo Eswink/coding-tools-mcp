@@ -557,9 +557,7 @@
       <ChatAuthorizationPanel workspaceId={profile.id} />
       <IntegrationAttention workspaceId={profile.id} />
       <MergeConfirmPanel workspaceId={profile.id} />
-      {#key profile.id}
-        <LegacyCleanupPanel workspaceId={profile.id} />
-      {/key}
+      <LegacyCleanupPanel workspaceId={profile.id} />
       <SubagentWorkersPanel workspaceId={profile.id} />
       <ServiceSwitcher value={activeService} mcpState={mcpStatus} actionsState={actionsStatus}
         disabled={switchingService || configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy} onchange={(next) => void changeService(next)} />

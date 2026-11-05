@@ -81,6 +81,28 @@ export const DO_NOT_RETRY_ERROR = '本机操作未确认成功。不要重复提
 export const STALE_ERROR = '候选列表已变更。请重新预览后再勾选清理。';
 export const HINT_FAILED_WARN = '确认会 Failed、零删除';
 export const CANCEL_NOTICE = '已取消。未做任何更改。';
+export const CLEANUP_SUCCESS_NOTICE = '清理已完成。请核对下方结果。';
+export const INTERRUPTED_BADGE = '中断续删';
+
+/** Count outcomes whose state equals "failed" (case-insensitive). */
+export function countFailedOutcomes(outcomes: ReadonlyArray<{ state: string }>): number {
+  return outcomes.filter(o => o.state.toLowerCase() === 'failed').length;
+}
+
+/** Shared apply-success notice for both emit sites. */
+export function cleanupApplyNotice(outcomes: ReadonlyArray<{ state: string }>): string {
+  const n = countFailedOutcomes(outcomes);
+  if (n > 0) return `清理结束：有 ${n} 项失败，请核对下方结果。`;
+  return CLEANUP_SUCCESS_NOTICE;
+}
+
+/** Error when post-apply preview refresh fails; never claims bare success if failures. */
+export function cleanupRefreshFailedError(outcomes: ReadonlyArray<{ state: string }>): string {
+  if (countFailedOutcomes(outcomes) > 0) {
+    return '清理结束（有失败项），但无法刷新预览。请手动刷新。';
+  }
+  return '清理已完成，但无法刷新预览。请手动刷新。';
+}
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -219,7 +241,7 @@ export function createLegacyCleanupController(
         ? reply!.outcomes!.map(mapOutcome)
         : [];
       emit({
-        notice: '清理已完成。请核对下方结果。',
+        notice: cleanupApplyNotice(outcomes),
         outcomes,
         selectedIds: [],
       });
@@ -228,11 +250,11 @@ export function createLegacyCleanupController(
         const preview = await invoke<PreviewReply>('preview_legacy_cleanup', { sourceId });
         if (!alive) return;
         applyPreview(preview, true);
-        emit({ outcomes, selectedIds: [], notice: '清理已完成。请核对下方结果。' });
+        emit({ outcomes, selectedIds: [], notice: cleanupApplyNotice(outcomes) });
       } catch {
         if (alive) {
           emit({
-            error: '清理已完成，但无法刷新预览。请手动刷新。',
+            error: cleanupRefreshFailedError(outcomes),
             outcomes,
             selectedIds: [],
           });

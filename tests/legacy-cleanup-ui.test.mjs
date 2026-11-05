@@ -20,6 +20,11 @@ const {
   DO_NOT_RETRY_ERROR,
   STALE_ERROR,
   HINT_FAILED_WARN,
+  CLEANUP_SUCCESS_NOTICE,
+  INTERRUPTED_BADGE,
+  countFailedOutcomes,
+  cleanupApplyNotice,
+  cleanupRefreshFailedError,
 } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 const SOURCE = 'workspace-1';
@@ -193,7 +198,49 @@ test('dirty cannot be selected; clean can; apply args are {sourceId,ids,digest} 
   assert.doesNotMatch(JSON.stringify(applyCall.args), /path|root|display_path|\/agents/);
 });
 
-test('apply success: outcomes shown, selection cleared, preview refreshed', async () => {
+test('notice helpers: failed count + apply/refresh copy', () => {
+  assert.equal(countFailedOutcomes([{ state: 'removed' }, { state: 'Failed' }]), 1);
+  assert.equal(countFailedOutcomes([{ state: 'removed' }]), 0);
+  assert.equal(cleanupApplyNotice([{ state: 'removed' }]), CLEANUP_SUCCESS_NOTICE);
+  assert.equal(
+    cleanupApplyNotice([{ state: 'removed' }, { state: 'failed', code: 'LOCKED' }]),
+    '清理结束：有 1 项失败，请核对下方结果。',
+  );
+  assert.equal(
+    cleanupApplyNotice([{ state: 'FAILED' }, { state: 'failed' }]),
+    '清理结束：有 2 项失败，请核对下方结果。',
+  );
+  assert.equal(cleanupRefreshFailedError([{ state: 'removed' }]), '清理已完成，但无法刷新预览。请手动刷新。');
+  assert.equal(
+    cleanupRefreshFailedError([{ state: 'failed' }]),
+    '清理结束（有失败项），但无法刷新预览。请手动刷新。',
+  );
+  assert.equal(INTERRUPTED_BADGE, '中断续删');
+});
+
+test('apply all removed → success notice; selection cleared; preview refreshed', async () => {
+  let previewCount = 0;
+  const s = setup(async cmd => {
+    if (cmd === 'preview_legacy_cleanup') {
+      previewCount += 1;
+      if (previewCount === 1) return previewFull;
+      return { candidates: [dirtyCandidate], digest: 'b'.repeat(64), warnings: [], native_dialog_required: true };
+    }
+    return { outcomes: [{ id: ID_CLEAN, state: 'removed' }] };
+  });
+  await s.controller.refresh();
+  s.controller.setSelected(ID_CLEAN, true);
+  await s.controller.apply();
+  assert.equal(s.view.selectedIds.length, 0);
+  assert.equal(s.view.outcomes.length, 1);
+  assert.equal(s.view.outcomes[0].state, 'removed');
+  assert.equal(s.view.notice, CLEANUP_SUCCESS_NOTICE);
+  assert.ok(previewCount >= 2);
+  assert.equal(s.view.candidates.length, 1);
+  assert.equal(s.view.candidates[0].id, ID_DIRTY);
+});
+
+test('apply with failed → soft notice with N; outcomes kept', async () => {
   let previewCount = 0;
   const s = setup(async cmd => {
     if (cmd === 'preview_legacy_cleanup') {
@@ -209,12 +256,28 @@ test('apply success: outcomes shown, selection cleared, preview refreshed', asyn
   await s.controller.apply();
   assert.equal(s.view.selectedIds.length, 0);
   assert.equal(s.view.outcomes.length, 2);
-  assert.equal(s.view.outcomes[0].state, 'removed');
   assert.equal(s.view.outcomes[1].code, 'LOCKED');
-  assert.match(s.view.notice, /清理已完成/);
+  assert.equal(s.view.notice, '清理结束：有 1 项失败，请核对下方结果。');
+  assert.doesNotMatch(s.view.notice, /^清理已完成/);
   assert.ok(previewCount >= 2);
-  assert.equal(s.view.candidates.length, 1);
-  assert.equal(s.view.candidates[0].id, ID_DIRTY);
+});
+
+test('apply with failed + refresh preview throws → soft refresh error', async () => {
+  let previewCount = 0;
+  const s = setup(async cmd => {
+    if (cmd === 'preview_legacy_cleanup') {
+      previewCount += 1;
+      if (previewCount === 1) return previewFull;
+      throw new Error('preview boom');
+    }
+    return { outcomes: [{ id: ID_LOCKED, state: 'FAILED', code: 'LOCKED' }] };
+  });
+  await s.controller.refresh();
+  s.controller.setSelected(ID_LOCKED, true);
+  await s.controller.apply();
+  assert.equal(s.view.error, '清理结束（有失败项），但无法刷新预览。请手动刷新。');
+  assert.doesNotMatch(s.view.error, /^清理已完成/);
+  assert.equal(s.view.outcomes.length, 1);
 });
 
 test('cancel null → notice, NOT uncertain', async () => {
@@ -290,7 +353,9 @@ test('HINT_FAILED_WARN constant and panel title / no second confirm / no abs pat
   const panel = readFileSync(new URL('../src/lib/components/LegacyCleanupPanel.svelte', import.meta.url), 'utf8');
   assert.ok(panel.includes('清理旧版 worktree'));
   assert.ok(panel.includes('HINT_FAILED_WARN'));
-  assert.ok(panel.includes('interrupted'));
+  assert.ok(panel.includes('class="badge interrupted"'));
+  assert.ok(panel.includes('中断续删'));
+  assert.doesNotMatch(panel, />interrupted</);
   assert.ok(panel.includes('nativeDialogRequired'));
   assert.ok(panel.includes('cleanupDisabled(view)'));
   assert.doesNotMatch(panel, /confirm\(|window\.confirm|ask\(/);
@@ -298,10 +363,17 @@ test('HINT_FAILED_WARN constant and panel title / no second confirm / no abs pat
   assert.doesNotMatch(panel, /WORKTREE_PINNED/);
 });
 
-test('workspace page mounts LegacyCleanupPanel with {#key profile.id}; no command names on page', () => {
+test('workspace page mounts LegacyCleanupPanel without inner {#key}; outer page key kept; no command names', () => {
   const page = readFileSync(new URL('../src/routes/workspace/[id]/+page.svelte', import.meta.url), 'utf8');
   assert.ok(page.includes('LegacyCleanupPanel'));
-  assert.match(page, /\{#key profile\.id\}\s*<LegacyCleanupPanel workspaceId=\{profile\.id\} \/>\s*\{\/key\}/);
+  // Outer page key still wraps the scroll section.
+  assert.match(page, /\{#key profile\.id\}\s*<section class="page-scroll"/);
+  // Legacy must NOT be wrapped by its own inner key (C17b soft nit a).
+  assert.doesNotMatch(
+    page,
+    /\{#key profile\.id\}\s*<LegacyCleanupPanel workspaceId=\{profile\.id\} \/>\s*\{\/key\}/,
+  );
+  assert.match(page, /<MergeConfirmPanel workspaceId=\{profile\.id\} \/>\s*<LegacyCleanupPanel workspaceId=\{profile\.id\} \/>\s*<SubagentWorkersPanel/);
   assert.doesNotMatch(page, /preview_legacy_cleanup|apply_legacy_cleanup/);
   assert.equal(page.match(/<MergeConfirmPanel workspaceId=\{profile\.id\} \/>/g)?.length, 1);
 });
