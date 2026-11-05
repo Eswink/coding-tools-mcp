@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c15-rc080-manifest (C15: rc080 probe manifest + reviewed-source cascade for #182-#193) on develop/0.8.0 c9655059, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c13c-audit-gate (C13c: npm audit gate pinned deepmerge mitigation; merged C15 a1-c15-rc080-manifest) on develop/0.8.0 c9655059, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -194,8 +194,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "99107021c7ca1ef8f88a95bdd3854baa3f674a37",
-        "sha256": "c6b0409c69d95259dc16bb250375afe9b70b08a21a5225dae523b1df04f81824"
+        "blob_sha": "e27c872cc5c180c8daaedbee64084edb742c4780",
+        "sha256": "f187f18b52a4d3f1d25f98096bd5bff71d4c40c2bd214c8ab32a620b1b8897a3"
       }
     },
     {
@@ -238,8 +238,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2ea2b5e6954ff2cada511e2733fa50cc05b1269d",
-        "sha256": "1ff5bb6634ebc7b68d2d40e2291f97e5c9b658dcf68cf0f68456eaa0169c4da7"
+        "blob_sha": "1a6b56b8f74db919475c142a4b457e6acacfb273",
+        "sha256": "4c948318052fbecf09230aabd595208a69b6de783d95700f9dcc7bf5907aeebe"
       }
     },
     {
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fa039b0c5c19b52172ecc4374cfb71d75cac4c7f",
-        "sha256": "2fa80a7561d0384d5c5f42b446ea918ca6b1619cd8a7a211ec2150f6c7d50f1d"
+        "blob_sha": "eb25691cb774bdcfe4c9a029dff1ac69196028b2",
+        "sha256": "ebb9d47aac7d049bb146b4626f250ef56ee7117f5cb9f68f045840310673d201"
       }
     },
     {
@@ -4560,8 +4560,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ed093933d8f1d15a3174edc29582978540faeb7b",
-        "sha256": "ffbe1a1ef926262be19771f1ba43d3ff0252a038980327ffd318e721ff94511d"
+        "blob_sha": "4bd979f74fbe6788323444a46fd00c4f8fa747ac",
+        "sha256": "964a7e3599d85657b1c89890923643114d430bab6785c9c137f28b3b119453c5"
       }
     },
     {
@@ -4570,8 +4570,18 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b13f08767a3d99d82886e9b467208b7ec63d06d0",
-        "sha256": "863f246c2cb2f05649692e92230e714b6863b35dc0d29972e67d5be1e8c9264d"
+        "blob_sha": "bfaf7c750f21f7d0ef0abf126588290bc66114f2",
+        "sha256": "dfd2d816dad6c5fbd3aefbcedb67a2cedbd5281964d3f3df024b86b492d0b0ad"
+      }
+    },
+    {
+      "path": "scripts/rc_npm_audit_gate_tests/rc_npm_audit_mitigation_tests.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "76d7dd0007fd9c5ee15ae03e072edb601f5ff844",
+        "sha256": "9e4e3341ea6cbb78daa4f488784ef441516b668b60d1136ec1f85e548453d5f1"
       }
     },
     {
@@ -12142,8 +12152,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6645d7c62f2ae4ec29834f41ea5487dfd7bd1269",
-        "sha256": "659b3c9e4121f60d2596c2b6273739fa8c3a17ffcf36e50cf8926071981fcc85"
+        "blob_sha": "af2d88b69099838e4926bf6facd2ceb68af43cad",
+        "sha256": "b70cefff36d313c3397d7ef2433cdf33e946dbdb03f7a1659f6054c084131ca2"
       }
     },
     {
