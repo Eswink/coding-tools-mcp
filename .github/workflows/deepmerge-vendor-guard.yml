@@ -1,0 +1,28 @@
+name: deepmerge vendor guard
+
+on:
+  pull_request:
+    branches:
+      - "develop/**"
+      - main
+    paths:
+      - package.json
+      - package-lock.json
+      - "vendor-js/**"
+      - tests/deepmerge-vendor.test.mjs
+      - .github/workflows/deepmerge-vendor-guard.yml
+
+permissions:
+  contents: read
+
+jobs:
+  deepmerge-attack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/deepmerge-vendor.test.mjs
