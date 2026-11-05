@@ -182,6 +182,19 @@ pub(crate) fn release_worker_job(worker_id: &str) {
         .remove(worker_id);
 }
 
+/// A1 C12 M6: read-only registry probe. No Job → empty. Never calls `for_worker`.
+pub(crate) fn probe_worker_job_empty(worker_id: &str) -> io::Result<bool> {
+    let job = registry()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(worker_id)
+        .cloned();
+    match job {
+        Some(job) => job.is_empty(),
+        None => Ok(true),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

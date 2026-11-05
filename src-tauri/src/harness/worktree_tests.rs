@@ -736,3 +736,188 @@ fn managed_roots_created_under_a_restrictive_umask_are_exactly_0700() {
         [&worktrees, &managed].map(|path| fs::metadata(path).unwrap().permissions().mode() & 0o777);
     assert_eq!(modes, [0o700, 0o700]);
 }
+
+// --- A1 C12: Windows longpaths + delete backoff helpers (Linux-runnable) ---
+
+#[test]
+fn c12_strip_windows_verbatim_matches_exec_contracts() {
+    use super::super::worktree_git::{has_unrepresentable_windows_prefix, strip_windows_verbatim};
+
+    // Drive / UNC: tip-byte-identical to exec::windows_command_path.
+    for (input, expected) in [
+        (r"\\?\C:\workspace\managed\id", r"C:\workspace\managed\id"),
+        (r"\\?\z:\中文 workspace\x", r"z:\中文 workspace\x"),
+        (r"\\?\UNC\server\share\repo", r"\\server\share\repo"),
+        (r"\\?\uNc\server\share\repo", r"\\server\share\repo"),
+        (
+            r"\\?\UNC\server\share\中文 [workspace]\run.ps1",
+            r"\\server\share\中文 [workspace]\run.ps1",
+        ),
+    ] {
+        assert_eq!(strip_windows_verbatim(input), expected, "input={input}");
+        assert!(
+            !has_unrepresentable_windows_prefix(&strip_windows_verbatim(input)),
+            "stripped must be representable: {input}"
+        );
+    }
+
+    // Ordinary paths unchanged.
+    for path in [
+        r"\\server\share\repo",
+        r"C:\workspace",
+        "C:/workspace",
+        "scripts/run.cmd",
+        "",
+    ] {
+        assert_eq!(strip_windows_verbatim(path), path);
+    }
+
+    // Device / volume / relative-after-prefix: leave unchanged → unrepresentable.
+    for path in [
+        r"\\?\Volume{12345678-1234-1234-1234-123456789abc}\repo",
+        r"\\?\GLOBALROOT\Device\HarddiskVolume1\repo",
+        r"\\.\pipe\fixture",
+        r"\\?\C:relative",
+        r"\\?\中文路径",
+        r"\\?\a中文",
+        r"\\?\",
+        r"\\?\C:",
+    ] {
+        assert_eq!(strip_windows_verbatim(path), path, "must leave {path}");
+        assert!(
+            has_unrepresentable_windows_prefix(&strip_windows_verbatim(path)),
+            "must reject {path}"
+        );
+    }
+}
+
+#[test]
+fn c12_add_rejects_unrepresentable_windows_prefix() {
+    use super::super::worktree_git::run_git;
+    use std::ffi::OsString;
+
+    let fixture = TestRepo::new();
+    let managed = fixture.manager.managed_root.clone();
+    // Synthesize an add whose target still carries \\?\Volume… after strip.
+    let bogus = format!(
+        r"\\?\Volume{{00000000-0000-0000-0000-000000000000}}\{}",
+        managed.join("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").display()
+    );
+    let args = vec![
+        OsString::from("worktree"),
+        OsString::from("add"),
+        OsString::from("--detach"),
+        OsString::from(&bogus),
+        OsString::from("HEAD"),
+    ];
+    match run_git(
+        fixture.repo.path(),
+        &args,
+        fixture.repo.path(),
+        Some(&managed),
+    ) {
+        Err(err) => assert_eq!(err.code(), "BOUNDARY_VIOLATION"),
+        Ok(_) => panic!("expected BOUNDARY_VIOLATION for unrepresentable prefix"),
+    }
+}
+
+#[test]
+fn c12_remove_fail_at_leaves_marker_and_list_stays_ok() {
+    use super::super::worktree_git::{
+        has_removing_marker, set_delete_fail_at_for_test, REMOVING_MARKER,
+    };
+
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+
+    // Fail after marker is written, while deleting the target (step 0).
+    set_delete_fail_at_for_test(Some(0));
+    let err = fixture.manager.remove_clean(&item.id).unwrap_err();
+    set_delete_fail_at_for_test(None);
+    assert_eq!(err.code(), "IO_FAILED");
+    assert!(
+        has_removing_marker(&metadata),
+        "marker must survive a mid-delete failure"
+    );
+    assert!(
+        metadata.join(REMOVING_MARKER).is_file(),
+        "marker file present"
+    );
+
+    // list() must stay Ok (marker + valid registration still listed, or skip).
+    let listed = fixture.manager.list().expect("list ok with marker");
+    // Either still listed (registration valid) or skipped but slots count it.
+    let (used, _) = fixture.manager.slots_in_use_for_test();
+    assert!(
+        used >= 1 || listed.iter().any(|w| w.id == item.id),
+        "in-progress delete must still consume a slot; listed={} used={used}",
+        listed.len()
+    );
+
+    // Resume succeeds once the fail hook is cleared.
+    fixture
+        .manager
+        .remove_clean(&item.id)
+        .expect("resume after fail-at");
+    assert!(!metadata.exists(), "metadata dir gone after resume");
+    assert!(fixture.manager.list().unwrap().is_empty());
+}
+
+#[test]
+fn c12_resume_refuses_when_file_modified_after_marker() {
+    use super::super::worktree_git::{has_removing_marker, set_delete_fail_at_for_test};
+
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let target = fixture.manager.managed_root.join(&item.id);
+    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+
+    set_delete_fail_at_for_test(Some(0));
+    let _ = fixture.manager.remove_clean(&item.id);
+    set_delete_fail_at_for_test(None);
+    assert!(has_removing_marker(&metadata));
+
+    // After the marker exists, write a new file → deletion-tolerant clean fails.
+    fs::write(target.join("sneaky.txt"), "after-marker\n").unwrap();
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "DIRTY"
+    );
+    assert!(
+        has_removing_marker(&metadata),
+        "marker kept on DIRTY resume"
+    );
+
+    // Clean up the sneaky file (delete it) so only WT_DELETED-like state remains,
+    // then resume by removing the untracked file and retrying.
+    fs::remove_file(target.join("sneaky.txt")).unwrap();
+    fixture
+        .manager
+        .remove_clean(&item.id)
+        .expect("resume after reverting post-marker write");
+}
+
+#[test]
+fn c12_resume_allows_partial_target_deletion() {
+    use super::super::worktree_git::{has_removing_marker, set_delete_fail_at_for_test};
+
+    let fixture = TestRepo::new();
+    let item = fixture.manager.create_detached().expect("create");
+    let target = fixture.manager.managed_root.join(&item.id);
+    let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+
+    set_delete_fail_at_for_test(Some(0));
+    let _ = fixture.manager.remove_clean(&item.id);
+    set_delete_fail_at_for_test(None);
+    assert!(has_removing_marker(&metadata));
+
+    // Simulate a partial delete: remove a tracked file from the worktree.
+    // That surfaces as WT_DELETED, which M9 tolerates.
+    let _ = fs::remove_file(target.join("README.md"));
+    fixture
+        .manager
+        .remove_clean(&item.id)
+        .expect("resume with only WT_DELETED remaining");
+    assert!(!metadata.exists());
+}
