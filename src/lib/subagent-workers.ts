@@ -82,15 +82,22 @@ export function formatActivityAt(unixSeconds: unknown, timeZone = 'Asia/Shanghai
   }
 }
 
+/** A1 C11: only finite non-negative integers render as "N（快照）"; else "—". */
+export function formatChangedFiles(changed: unknown): string {
+  if (typeof changed === 'number' && Number.isInteger(changed) && changed >= 0) {
+    return `${changed}（快照）`;
+  }
+  return '—';
+}
+
 export function mapWorkerCard(raw: RawWorker, windows: boolean): WorkerCard {
-  const changed = raw.changed_files;
   return {
     workerId: text(raw.worker_id),
     label: text(raw.label) || '—',
     state: (text(raw.state) || '—') as WorkerStateLabel,
     baseHeadShort: shortSha(raw.base_head),
     lastActivityText: formatActivityAt(raw.last_activity_at),
-    changedFilesText: changed == null ? '—' : String(changed),
+    changedFilesText: formatChangedFiles(raw.changed_files),
     windowsUnsandboxed: windows,
     linuxSandboxDeferred: !windows,
   };

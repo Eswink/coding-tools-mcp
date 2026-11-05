@@ -317,6 +317,8 @@ pub(crate) fn request(
         return Err(state_error());
     }
     let diff = worker_diff_of(&manager, &record)?;
+    // A1 C11: hitchhike even when this request later fails stale/conflict/unsupported.
+    super::remember_changed(ctx, &id, diff.changes.len() as u64, record.ops_seq);
     if diff.sha256 != diff_sha256 {
         return Err(stale());
     }

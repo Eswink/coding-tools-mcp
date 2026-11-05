@@ -46,7 +46,9 @@
           <dl class="meta">
             <div><dt>基线</dt><dd><code>{worker.baseHeadShort}</code></dd></div>
             <div><dt>活动</dt><dd>{worker.lastActivityText}</dd></div>
-            <div><dt>改动</dt><dd>{worker.changedFilesText}</dd></div>
+            <div title="可合入改动文件数（快照；不含 withheld/unsupported）">
+              <dt>改动</dt><dd aria-label="可合入改动文件数（快照；不含 withheld/unsupported）">{worker.changedFilesText}</dd>
+            </div>
           </dl>
           {#if worker.windowsUnsandboxed}
             <p class="warn" role="note">{WINDOWS_UNSANDBOXED_CARD_LABEL}</p>

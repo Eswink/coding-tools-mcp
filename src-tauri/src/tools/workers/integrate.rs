@@ -130,7 +130,10 @@ pub(crate) fn collect(
         return Err(state_error());
     }
     let manager = manager(ctx)?;
+    let ops_seq = record.ops_seq;
     let diff = worker_diff_of(&manager, &record)?;
+    // A1 C11: hitchhike changes.len() with the ops_seq read before the diff.
+    super::remember_changed(ctx, &id, diff.changes.len() as u64, ops_seq);
     let offset = match resume {
         Some((sha, offset)) if sha == diff.sha256 && offset <= diff.patch.len() => offset,
         Some(_) => return Err(cursor_stale()),
