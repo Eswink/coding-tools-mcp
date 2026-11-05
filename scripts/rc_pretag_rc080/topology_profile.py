@@ -51,10 +51,12 @@ DELTA_LINES = 40000
 def topology(ref, root, git, release, budget=DEPTH_LIMIT, _memo=None):
     """Admit M and first-parent descendants of M within DEPTH_LIMIT; foreign merges fall through.
 
-    C16: second-parent walks are memoized per top-level call on the exact key
-    (ref, budget); root, git and release are fixed for the call. Admission is
-    unchanged: a hit returns the same depth or re-raises the same reason.
-    _memo=False disables memoization (equivalence tests only).
+    C16 / C13d: second-parent walks are memoized per top-level call on the exact
+    key (ref, budget); root, git and release are fixed for the call. Only
+    successful depths are cached — TopologyError is never memoized, so a later
+    call with the same key still re-walks. Supported _memo values are False
+    (disable; equivalence tests only) or None (fresh per-call dict); any other
+    value is unsupported.
     """
     if _memo is False:
         return _topology(ref, root, git, release, budget, None)
@@ -65,16 +67,12 @@ def _topology(ref, root, git, release, budget, memo):
     if memo is not None:
         key = (ref, budget)
         if key in memo:
-            kind, value = memo[key]
-            if kind == 'ok':
-                return value
-            raise o.TopologyError(*value)
+            return memo[key]
         try:
             depth = _topology_walk(ref, root, git, release, budget, memo)
-        except o.TopologyError as error:
-            memo[key] = ('err', error.args)
-            raise
-        memo[key] = ('ok', depth)
+        except o.TopologyError:
+            raise  # C13d: do not cache errors
+        memo[key] = depth
         return depth
     return _topology_walk(ref, root, git, release, budget, None)
 

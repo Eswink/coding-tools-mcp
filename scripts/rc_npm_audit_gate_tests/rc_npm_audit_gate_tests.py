@@ -328,26 +328,33 @@ class RecordedEvidenceSites(unittest.TestCase):
             self.passes(site, dict(metadata=dict(vulnerabilities=dict(total=0))), None)  # legacy fixture shape
             self.fails(site, RC2_NPM_AUDIT, capture_for(RC2_NPM_AUDIT, full_code=1), "zero report, exit 1", "exit code 1 with zero findings")
 
-    def test_capture_before_expiry_passes_with_simulated_clock_after_expiry(self):
+    def test_c13d_v1_nonzero_capture_fails_at_every_site(self):
+        # C13d: back-dated v1 with findings is refused even before EXEMPTION_EXPIRES;
+        # all-zero v1 / no-capture still pass (covered elsewhere).
         for site in self.sites():
-            with patch.object(module, "utc_now", return_value=LATE_CLOCK):
-                self.passes(site, exempt(), capture_for(exempt(), captured_at=BEFORE))
-                self.passes(site, exempt(), capture_for(exempt(), captured_at=datetime(
-                    2026, 11, 30, 23, 59, 59, tzinfo=timezone.utc)))
+            self.fails(site, exempt(), capture_for(exempt(), captured_at=BEFORE),
+                       "v1 findings", "v1 capture with findings refused")
+            self.fails(site, exempt(), capture_for(exempt(), captured_at=datetime(
+                2026, 11, 30, 23, 59, 59, tzinfo=timezone.utc)),
+                       "v1 findings last day", "v1 capture with findings refused")
 
     def test_capture_after_expiry_fails(self):
         for site in self.sites():
-            self.fails(site, exempt(), capture_for(exempt(), captured_at=AFTER), "captured after expiry", "expired after 2026-11-30")
+            # C13d: non-zero v1 fails on the findings rule before the expiry message.
+            self.fails(site, exempt(), capture_for(exempt(), captured_at=AFTER),
+                       "v1 findings after expiry", "v1 capture with findings refused")
 
     def test_negative_cases_at_every_site(self):
         for site in self.sites():
-            self.passes(site, exempt(), capture_for(exempt()))
+            # C13d: non-zero v1 no longer passes; refuse with the findings message.
+            self.fails(site, exempt(), capture_for(exempt()), "v1 findings", "v1 capture with findings refused")
             self.fails(site, exempt(), None, "findings without capture record", "npm audit missing or vulnerable")
+            # Prod / shape faults still surface (checked before the findings refuse).
             self.fails(site, exempt(), capture_for(exempt(), prod=exempt(), prod_code=1), "prod not zero", "production npm audit is not zero")
             self.fails(site, exempt(), capture_for(exempt(), prod=report({}), prod_code=1), "prod exit 1", "production npm audit is not zero")
-            self.fails(site, different_advisory(), capture_for(different_advisory()), "different advisory", "advisory outside the exemption")
-            self.fails(site, moderate(), capture_for(moderate()), "moderate severity", "outside the exemption")
-            self.fails(site, extra_package(), capture_for(extra_package()), "extra package", "packages outside the exemption")
+            self.fails(site, different_advisory(), capture_for(different_advisory()), "different advisory", "v1 capture with findings refused")
+            self.fails(site, moderate(), capture_for(moderate()), "moderate severity", "v1 capture with findings refused")
+            self.fails(site, extra_package(), capture_for(extra_package()), "extra package", "v1 capture with findings refused")
             self.fails(site, exempt(), capture_for(extra_package()), "capture binds another report", "does not bind the recorded report")
             stale = capture_for(exempt())
             stale["captured_at"] = "2026-11-29"

@@ -18,7 +18,9 @@ C13c: live gate runs always verify the vendored deepmerge mitigation first
 (verify_vendored_mitigation, pinned hashes below). When it holds, the full report
 must be zero (npm 11 skips file: links) or exactly the four GHSA-gcqx lows (npm 10
 still reports them); both judge identically and expire only at MITIGATION_REVIEW_BY.
-Such runs write capture v2. v1 capture records keep their original rule verbatim.
+Such runs write capture v2. C13d: a v1 capture record now only verifies an all-zero
+full report (total>0 under v1 is refused, closing the back-dated unpinned path); the
+no-capture all-zero rule is unchanged and the v1 schema itself is kept.
 """
 from __future__ import annotations
 
@@ -119,10 +121,13 @@ def check_findings(report: object, on_date: date) -> dict:
         via = entry.get('via')
         require(type(via) is list and via, f'npm audit entry without via: {name}')
         if name == EXEMPT_PACKAGE:
-            require(all(_advisory(item) for item in via), f'npm audit advisory outside the exemption: {name}')
+            # C13d: exactly one advisory; no dedupe before the check.
+            require(len(via) == 1 and _advisory(via[0]), f'npm audit advisory outside the exemption: {name}')
         else:
             require(all(type(item) is str and item in allowed and item != name for item in via),
                     f'npm audit via chain outside the exemption: {name}')
+            require(entry.get('nodes') == [f'node_modules/{name}'],
+                    f'npm audit chain nodes outside the exemption: {name}')
     for name in EXEMPT_CHAIN:  # every chain entry must resolve, acyclically, to the advisory package
         seen, frontier = set(), {name}
         while frontier:
@@ -256,12 +261,16 @@ def check_mitigated(report: object, exit_code: int, on_date: date) -> dict:
     require(type(nodes) is list and set(nodes) == EXEMPT_NODES and len(nodes) == len(EXEMPT_NODES),
             f'npm audit deepmerge nodes are not the vendored link: {nodes}')
     via = entry.get('via')
-    require(type(via) is list and via and all(_advisory(item) and item.get('range') == EXEMPT_RANGE for item in via),
+    # C13d: exactly one advisory entry, judged as-is (no dedupe before the check).
+    require(type(via) is list and len(via) == 1 and _advisory(via[0]) and via[0].get('range') == EXEMPT_RANGE,
             'npm audit deepmerge advisory outside the mitigation')
     for name in EXEMPT_CHAIN:
         chain = found[name]
         require(type(chain) is dict and chain.get('name') == name and chain.get('severity') == EXEMPT_SEVERITY,
                 f'npm audit chain entry outside the mitigation: {name}')
+        # C13d: chain nodes must be exactly the one top-level install, as a list.
+        require(chain.get('nodes') == [f'node_modules/{name}'],
+                f'npm audit chain nodes outside the mitigation: {name}')
         require(type(chain.get('via')) is list and chain['via']
                 and all(type(item) is str and item in allowed and item != name for item in chain['via']),
                 f'npm audit via chain outside the mitigation: {name}')
@@ -342,6 +351,8 @@ def check_recorded(report: object, report_bytes: bytes, capture: object) -> dict
             'npm audit capture exit codes invalid')
     captured = _timestamp(capture['captured_at'])
     check_prod(capture['prod_report'], capture['prod_exit_code'])
+    # C13d: v1 carries no mitigation pin, so it may only vouch for a zero full report.
+    require(counts(report)['total'] == 0, 'npm audit v1 capture with findings refused; capture v2 required')
     result = check_full(report, capture['full_exit_code'], captured.date())
     return dict(result, captured_at=capture['captured_at'])
 
@@ -419,6 +430,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(json.dumps(result, sort_keys=True))
     return 0
+
 
 if __name__ == '__main__':
     raise SystemExit(main())

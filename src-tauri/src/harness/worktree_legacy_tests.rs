@@ -690,6 +690,43 @@ fn c14_locked_or_pinned_interrupted_entry_is_refused_without_deleting() {
 }
 
 #[test]
+fn c13d_hint_does_not_change_legacy_or_approval_digest() {
+    // C13d: hint is summary-only. Mutating hint must leave list_digest (and thus
+    // approval_digest, which hashes only list_digest + ids) unchanged.
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let pin = path
+        .parent()
+        .unwrap()
+        .join(format!("{id}.native-profile-pin"));
+    fs::write(&pin, "pin\n").unwrap();
+    let (mut candidates, digest) = f.preview();
+    let c = candidates.iter().find(|c| c.id == id).expect("listed");
+    assert_eq!(c.hint, Some("PINNED"));
+    let with_hint = legacy_digest(&candidates);
+    assert_eq!(with_hint, digest);
+    for c in &mut candidates {
+        c.hint = None;
+    }
+    let without = legacy_digest(&candidates);
+    assert_eq!(without, with_hint, "clearing hint must not change list_digest");
+    for c in &mut candidates {
+        c.hint = Some("LOCKED");
+    }
+    assert_eq!(
+        legacy_digest(&candidates),
+        with_hint,
+        "swapping hint must not change list_digest"
+    );
+    // approval_digest binds list_digest + ids only — same list_digest ⇒ same approval.
+    let ids = vec![id.clone()];
+    let a = crate::commands::legacy_cleanup::approval_digest(&with_hint, &ids);
+    let b = crate::commands::legacy_cleanup::approval_digest(&without, &ids);
+    assert_eq!(a, b);
+}
+
+
+#[test]
 fn c14_stale_digest_and_unselected_candidates() {
     let f = Fixture::new();
     let (a, a_path) = c14_interrupted(&f, &"ab".repeat(32), 2);

@@ -196,6 +196,7 @@ fn beijing(unix: u64) -> String {
 /// A1 C14 (SCOPE A′ 3): an interrupted candidate's row carries a fourth
 /// `"interrupted"` field, so a kind change changes the digest; rows of
 /// ordinary trees (and so every digest without interrupted rows) are unchanged.
+/// C13d: `hint` is never part of this digest (summary-only).
 pub(crate) fn legacy_digest(candidates: &[LegacyCandidate]) -> String {
     let mut rows: Vec<Vec<String>> = candidates
         .iter()
@@ -367,6 +368,11 @@ impl WorktreeManager {
     /// A1 C14 S1b (nit 2): `LOCKED` / `PINNED` preview hint, mirroring the
     /// refusals of the delete path (registration `locked` file; pin file next
     /// to the tree under its legacy root). Display only.
+    ///
+    /// C13d PINNED mapping (hint ↔ error code): the preview hint string is
+    /// `"PINNED"`, while the delete-path refusal code is `WORKTREE_PINNED`
+    /// (see `worktree_git`). They stay distinct on purpose — do not rename the
+    /// hint to match the code, and do not fold the code into the hint.
     fn legacy_hint(&self, c: &LegacyCandidate) -> Option<&'static str> {
         if let Ok(meta) =
             super::super::worktree_git::managed_metadata_dir(&self.repository_root, &c.id)
