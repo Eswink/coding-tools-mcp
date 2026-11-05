@@ -584,11 +584,11 @@
    "sha256": "a58f14ba9c278b240362eee53d25a3894cff45c022477a693927f673c1032370"
   },
   {
-   "blob": "950b6b44b825beb6c72d4abd83775f745741aeaf",
-   "bytes": 2442,
+   "blob": "9c61f56406dddd3061eb5d758d0f806091a41cf3",
+   "bytes": 1970,
    "mode": "100644",
    "path": ".github/workflows/rc080-pretag-topology-checks.yml",
-   "sha256": "68c406e1242f0174eca3f7ddd0b190cd8b4ec5fe402fb12d5a30c5a6f09e7d4d"
+   "sha256": "e33fe98b52ee0328703309902ab4546524de1116eb6b753b522d8741c3639dea"
   },
   {
    "blob": "292e3c2417d3a882fcea14759304f3d5781c4870",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "5251e0970aa85fec47a892a598326a7ed3cbb93b",
-   "bytes": 436565,
+   "blob": "d838c7db3753bd43d171f55cb737da877d742149",
+   "bytes": 436636,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "a4e03ee1eea2c4e4ed36582582a21fb42ff735e57060f510364b8f61744f1bae"
+   "sha256": "b7fbebf743d0b70921ccccc6a0bfe57f2008d85ae6b022212fc8011cabd15241"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6800,25 +6800,25 @@
    "sha256": "2c5e2eb36d72f7f5f5eb0205a5242eb0d0dd3b29ee8583e9c2f8212e8a3603d5"
   },
   {
-   "blob": "4bd979f74fbe6788323444a46fd00c4f8fa747ac",
-   "bytes": 24054,
+   "blob": "4a78fbf4122798ae375ef1fe53839428eaa127ef",
+   "bytes": 24918,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate.py",
-   "sha256": "964a7e3599d85657b1c89890923643114d430bab6785c9c137f28b3b119453c5"
+   "sha256": "2cd447d62e19e022052a29470e9129077f15f3fc1fb082f5eba90500c96c4435"
   },
   {
-   "blob": "bfaf7c750f21f7d0ef0abf126588290bc66114f2",
-   "bytes": 17909,
+   "blob": "348e39528532908aef558c08f209bdb955e02ac2",
+   "bytes": 18466,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate_tests/rc_npm_audit_gate_tests.py",
-   "sha256": "dfd2d816dad6c5fbd3aefbcedb67a2cedbd5281964d3f3df024b86b492d0b0ad"
+   "sha256": "2795119cd61eb1dc3b53eb9f8f5664a783cf5916499dc62541c985470063e254"
   },
   {
-   "blob": "76d7dd0007fd9c5ee15ae03e072edb601f5ff844",
-   "bytes": 16492,
+   "blob": "a8ed2da3db305d99b3d500dd9344744451afd0fc",
+   "bytes": 17526,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate_tests/rc_npm_audit_mitigation_tests.py",
-   "sha256": "9e4e3341ea6cbb78daa4f488784ef441516b668b60d1136ec1f85e548453d5f1"
+   "sha256": "b4bbaae050ee75c7aa3471ddf202076050cddb0b5d1a662bf9cdb326cb94454b"
   },
   {
    "blob": "b22714f5ea5a2577ccd43ae873324c7dd20d83e3",
@@ -7199,18 +7199,18 @@
    "sha256": "81aa8bbe75aa4de50b339286b82d21315aa033d45a8663b6c5144250aa3536be"
   },
   {
-   "blob": "224f8ec479f1961d4c325b31f8798fc319cc8956",
-   "bytes": 8762,
+   "blob": "f88d66a91b69093a33785c2898a11b03144e178a",
+   "bytes": 8747,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile.py",
-   "sha256": "f2e7a2836191d4bf1589cccaaeef483dc088235cb92952d4204b4e3e757b71f5"
+   "sha256": "9cfeb31bb7f33f486887dcd901ef24ee52e47af772c624092ed0226d23c79061"
   },
   {
-   "blob": "9fd148e714110d258009cdcd226f05f340b2847b",
-   "bytes": 16658,
+   "blob": "cfe3517b0c807fe326f8b9cee544aa85c1298360",
+   "bytes": 17282,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile_tests.py",
-   "sha256": "a8c6ccb10ff94942fc9ebd39ef23e455eb0b54e85e47ead6cb8751a754126957"
+   "sha256": "1f091dd56479ea9ceb51f7e97bbc3def989fd7cc5ecf46c139cab6869191a9e5"
   },
   {
    "blob": "50b6b211fac0aa81812898217d8c19eebcbb1ec5",
@@ -10146,11 +10146,11 @@
    "sha256": "3467e857038ce34583faefaf27fa84949e2d4e8926679cff7c15dc70aacb121c"
   },
   {
-   "blob": "c88bdbea5f9745e44ec3e8f53a15dda3529d39a6",
-   "bytes": 6332,
+   "blob": "3fc8ee46559c23cb174f2fd7102cff03de48001f",
+   "bytes": 6449,
    "mode": "100644",
    "path": "src-tauri/src/commands/legacy_cleanup.rs",
-   "sha256": "01013666a38611c18a95f20fdf98c67c95d347fa31c9b9b601a93ce8f35bc917"
+   "sha256": "abb9856a0d76cbb23414cdb55150e2d1837a895eedc3b2018372c174ea1128b8"
   },
   {
    "blob": "58ca7cd57053f6088911fa5f6855b790fb1c8ba5",
@@ -10496,18 +10496,18 @@
    "sha256": "e27da8266817d4c66a09942ad3fc0534ac747c3f0a7910f9e949619d26a20cf4"
   },
   {
-   "blob": "cae636d78fef38d0c26e57162d8712f5c1aabb0d",
-   "bytes": 23072,
+   "blob": "6ca02d6fd1a946d3674726b6d1cc82cdb9790d5c",
+   "bytes": 23450,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree_legacy.rs",
-   "sha256": "3521d8a4a44e79a25548e06c142564b6ae7be32b4cbb5d9845e5f9b89f31a867"
+   "sha256": "3e43cdda16cdfd443277ff6ee5cb3c8f67485384a3139dec099218ead8f714d2"
   },
   {
-   "blob": "05a5503345b6bc2cfa6ec7516444a0adf3665495",
-   "bytes": 33311,
+   "blob": "285d133c61dc06096f179b52cc4467e35baed305",
+   "bytes": 34703,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree_legacy_tests.rs",
-   "sha256": "1e7a1a814e48ff69664c1c45e8b0f2599791b8d12b02873ccb78c493e3b53eea"
+   "sha256": "62b2a9ce6fc444bb837df049ecb9cdca20099353452fd9a2540b3e67691959a7"
   },
   {
    "blob": "32f0f0d2f8d30cdb296ee3f2b15a48ae765c485b",

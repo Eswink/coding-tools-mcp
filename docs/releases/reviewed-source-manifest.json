@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C14 S1d tip (merge develop@5896e71a post-#196 C16 + probe refresh) — interrupted managed_root NotFound-only; LOCKED/PINNED preview hint; owner-confirmed interrupted legacy finish; LOCAL ONLY not pushed",
+  "review_reference": "A1 C13d soft nits tip (topology paths + v1 refuse + chain nodes + C16 ok-only memo + C14 hint) — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -432,8 +432,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "950b6b44b825beb6c72d4abd83775f745741aeaf",
-        "sha256": "68c406e1242f0174eca3f7ddd0b190cd8b4ec5fe402fb12d5a30c5a6f09e7d4d"
+        "blob_sha": "9c61f56406dddd3061eb5d758d0f806091a41cf3",
+        "sha256": "e33fe98b52ee0328703309902ab4546524de1116eb6b753b522d8741c3639dea"
       }
     },
     {
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5c1c957ef689591a873b6581e83af6685c667f6e",
-        "sha256": "392fd01e3e918cdad232b8e481b88e758ed9d4300fe4df6e9702976d2745bfb6"
+        "blob_sha": "03f90edc27d2183850aee259c6ee867be0987994",
+        "sha256": "73cc60ca3fb722ad5a6f94bd2a803223a7f720606a6a42e65d9c3f94257d7c78"
       }
     },
     {
@@ -4560,8 +4560,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "4bd979f74fbe6788323444a46fd00c4f8fa747ac",
-        "sha256": "964a7e3599d85657b1c89890923643114d430bab6785c9c137f28b3b119453c5"
+        "blob_sha": "4a78fbf4122798ae375ef1fe53839428eaa127ef",
+        "sha256": "2cd447d62e19e022052a29470e9129077f15f3fc1fb082f5eba90500c96c4435"
       }
     },
     {
@@ -4570,8 +4570,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bfaf7c750f21f7d0ef0abf126588290bc66114f2",
-        "sha256": "dfd2d816dad6c5fbd3aefbcedb67a2cedbd5281964d3f3df024b86b492d0b0ad"
+        "blob_sha": "348e39528532908aef558c08f209bdb955e02ac2",
+        "sha256": "2795119cd61eb1dc3b53eb9f8f5664a783cf5916499dc62541c985470063e254"
       }
     },
     {
@@ -4580,8 +4580,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "76d7dd0007fd9c5ee15ae03e072edb601f5ff844",
-        "sha256": "9e4e3341ea6cbb78daa4f488784ef441516b668b60d1136ec1f85e548453d5f1"
+        "blob_sha": "a8ed2da3db305d99b3d500dd9344744451afd0fc",
+        "sha256": "b4bbaae050ee75c7aa3471ddf202076050cddb0b5d1a662bf9cdb326cb94454b"
       }
     },
     {
@@ -5124,8 +5124,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "224f8ec479f1961d4c325b31f8798fc319cc8956",
-        "sha256": "f2e7a2836191d4bf1589cccaaeef483dc088235cb92952d4204b4e3e757b71f5"
+        "blob_sha": "f88d66a91b69093a33785c2898a11b03144e178a",
+        "sha256": "9cfeb31bb7f33f486887dcd901ef24ee52e47af772c624092ed0226d23c79061"
       }
     },
     {
@@ -5134,8 +5134,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9fd148e714110d258009cdcd226f05f340b2847b",
-        "sha256": "a8c6ccb10ff94942fc9ebd39ef23e455eb0b54e85e47ead6cb8751a754126957"
+        "blob_sha": "cfe3517b0c807fe326f8b9cee544aa85c1298360",
+        "sha256": "1f091dd56479ea9ceb51f7e97bbc3def989fd7cc5ecf46c139cab6869191a9e5"
       }
     },
     {
@@ -8922,8 +8922,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c88bdbea5f9745e44ec3e8f53a15dda3529d39a6",
-        "sha256": "01013666a38611c18a95f20fdf98c67c95d347fa31c9b9b601a93ce8f35bc917"
+        "blob_sha": "3fc8ee46559c23cb174f2fd7102cff03de48001f",
+        "sha256": "abb9856a0d76cbb23414cdb55150e2d1837a895eedc3b2018372c174ea1128b8"
       }
     },
     {
@@ -9456,8 +9456,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cae636d78fef38d0c26e57162d8712f5c1aabb0d",
-        "sha256": "3521d8a4a44e79a25548e06c142564b6ae7be32b4cbb5d9845e5f9b89f31a867"
+        "blob_sha": "6ca02d6fd1a946d3674726b6d1cc82cdb9790d5c",
+        "sha256": "3e43cdda16cdfd443277ff6ee5cb3c8f67485384a3139dec099218ead8f714d2"
       }
     },
     {
@@ -9466,8 +9466,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "05a5503345b6bc2cfa6ec7516444a0adf3665495",
-        "sha256": "1e7a1a814e48ff69664c1c45e8b0f2599791b8d12b02873ccb78c493e3b53eea"
+        "blob_sha": "285d133c61dc06096f179b52cc4467e35baed305",
+        "sha256": "62b2a9ce6fc444bb837df049ecb9cdca20099353452fd9a2540b3e67691959a7"
       }
     },
     {

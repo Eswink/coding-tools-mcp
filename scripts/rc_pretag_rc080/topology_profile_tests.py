@@ -271,10 +271,6 @@ class Rc080DepthBudgetTests(unittest.TestCase):
         # dffc3c6b: distance 0 to itself -> needs 0 + 1 + 13 = 14
         self.assertEqual(required_budget(MAIN_MERGE, self.repo), 14)
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class Rc080TopologyMemoTests(unittest.TestCase):
     """C16: memoized topology() is outcome-identical to the unmemoized walk."""
 
@@ -354,3 +350,19 @@ class Rc080TopologyMemoTests(unittest.TestCase):
         depth = len(git('rev-list', '--first-parent', '%s..%s' % (rc080.M, head)).split())
         self.assert_same(head, ROOT, (-1, 0, depth - 1))
         self.assertEqual(self.outcome(head, ROOT, rc080.DEPTH_LIMIT, None), ('ok', depth))
+
+    def test_errors_are_not_memoized(self):
+        """C13d: TopologyError must not be stored; a shared dict stays free of err entries."""
+        shared = {}
+        with self.assertRaisesRegex(AssertionError, 'rc080_release_anchor'):
+            rc080.topology(MAIN_MERGE, ROOT, git, rc080.M, _memo=shared)
+        self.assertEqual(shared, {})
+        tip = self.foreign
+        with self.assertRaises(AssertionError):
+            rc080.topology(tip, self.repo, git, p.R, budget=0, _memo=shared)
+        self.assertNotIn((tip, 0), shared)
+        self.assertTrue(all(isinstance(v, int) for v in shared.values()), shared)
+
+
+if __name__ == '__main__':
+    unittest.main()

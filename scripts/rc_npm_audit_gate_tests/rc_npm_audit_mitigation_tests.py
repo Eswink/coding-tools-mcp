@@ -158,6 +158,12 @@ REPORT_FAULTS = {
     "dict in chain via": lambda v: v["vulnerabilities"]["@sveltejs/kit"]["via"].append(dict(ADVISORY)),
     "fifth package": _fifth,
     "chain cycle": lambda v: v["vulnerabilities"]["@sveltejs/vite-plugin-svelte"].update(via=["@sveltejs/kit"]),
+    # C13d negatives: exact chain nodes + via len==1 (no dedupe)
+    "chain nodes evil": lambda v: v["vulnerabilities"]["@sveltejs/kit"].update(nodes=["evil"]),
+    "chain nodes duplicate": lambda v: v["vulnerabilities"]["@sveltejs/kit"].update(
+        nodes=["node_modules/@sveltejs/kit", "node_modules/@sveltejs/kit"]),
+    "deepmerge via duplicate advisory": lambda v: v["vulnerabilities"]["deepmerge"]["via"].append(
+        dict(v["vulnerabilities"]["deepmerge"]["via"][0])),
 }
 
 
@@ -315,14 +321,23 @@ class RecordedV2Tests(unittest.TestCase):
                                   v2(report_fault(REPORT_FAULTS["range changed"]))[1])
 
     def test_v1_history_unchanged(self):
+        # C13d: v1 with findings refused; all-zero v1 and no-capture unchanged; schema kept.
         before = capture_for(exempt())
-        self.assertEqual(module.check_recorded(exempt(), encode(exempt()), before)["expires"], "2026-11-30")
+        with self.assertRaises(module.GateError):
+            module.check_recorded(exempt(), encode(exempt()), before)
         after = capture_for(exempt(), captured_at=DEC1)
         with self.assertRaises(module.GateError):
             module.check_recorded(exempt(), encode(exempt()), after)
-        self.assertEqual(module.check_recorded(report({}), encode(report({})), None)["total"], 0)
+        zero = report({})
+        self.assertEqual(module.check_recorded(zero, encode(zero), capture_for(zero))["total"], 0)
+        self.assertEqual(module.check_recorded(zero, encode(zero), None)["total"], 0)
         self.assertEqual(module.EXEMPTION_EXPIRES, date(2026, 11, 30))
         self.assertEqual(module.CAPTURE_SCHEMA, "rc-npm-audit-capture-v1")
+
+    def test_c13d_chain_nodes_and_via_len_negatives(self):
+        for fault in ("chain nodes evil", "chain nodes duplicate", "deepmerge via duplicate advisory"):
+            with self.subTest(fault=fault), self.assertRaises(module.GateError):
+                module.check_mitigated(report_fault(REPORT_FAULTS[fault]), 1, NOW.date())
 
 
 if __name__ == "__main__":
