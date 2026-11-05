@@ -2842,3 +2842,37 @@ fn c11_changed_files_owner_isolation_on_list() {
         .expect("remote owner sees own worker");
     assert_eq!(resolve_changed_files(&mine.0, mine.1), Some(5));
 }
+
+/// A1 C11b nit 3: PendingCleanup → Discarded via cleanup forgets the snap too.
+#[test]
+fn c11b_cleanup_to_discarded_forgets_the_snap_and_card_is_null() {
+    let f = Fixture::new();
+    let built = call_tool(&f.ctx, "worktree_create", &json!({}));
+    let tree = built["worktree"]["id"].as_str().unwrap().to_owned();
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let stuck = store
+        .inject_for_test(
+            &WorkerOwner::local(),
+            Some(&tree),
+            WorkerState::PendingCleanup,
+            now(),
+        )
+        .unwrap();
+    store.lock().unwrap().remember_changed(&stuck, 9, 0);
+    assert!(changed_snap_for(&f.ctx, &stuck).is_some());
+    store.lock().unwrap().cleanup(&mgr, None).unwrap();
+    assert_eq!(
+        status(&f.ctx, Some(stuck.as_str())).unwrap()[0].state,
+        WorkerState::Discarded
+    );
+    assert!(
+        changed_snap_for(&f.ctx, &stuck).is_none(),
+        "cleanup must forget the snap like discard"
+    );
+    let rows = status_with_changed(&f.ctx).unwrap();
+    let (record, snap) = rows.iter().find(|(r, _)| r.worker_id == stuck).unwrap();
+    assert!(snap.is_none());
+    let card = crate::commands::subagent_integration::worker_card(record, *snap);
+    assert_eq!(card["changed_files"], Value::Null);
+}
