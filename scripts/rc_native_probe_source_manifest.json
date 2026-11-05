@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "de6b8cee559d5ffb7eb73c2efbfc5fe8a1e64ad5",
-   "bytes": 437438,
+   "blob": "1b19be02f4807c122d7c2b3b0d48848e4f9d4edc",
+   "bytes": 437439,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "92980279c66854cee7184f5863a583c945791f91373c0b869d7a1dd42e15d3f5"
+   "sha256": "b896129f3e88c0c039dbbbd3f233e7a5a360fbeffb7e5a4a2967bb8874b5e901"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -10216,11 +10216,11 @@
    "sha256": "6b2e1b656fa97572c83eeaf21cc4f95f7f56a061557b2511b78df98e3d696308"
   },
   {
-   "blob": "1dfcdc35dac78c9036ebd5fe860102d83c9eb79b",
-   "bytes": 18044,
+   "blob": "185328f4fd1297ed5a1c7b46f73032cf33108112",
+   "bytes": 17571,
    "mode": "100644",
    "path": "src-tauri/src/commands/subagent_integration.rs",
-   "sha256": "3db555012e63133c09196e1fdd6d70a28ed7246547fa9351d8d8b994c3b9df04"
+   "sha256": "f4918e14be1e4003148079688fe18d91d5aa48f6d507688e2fae24d056c16ec9"
   },
   {
    "blob": "36221f7e4cfd8cf76208b1d22f9453574de9d66e",
@@ -11322,11 +11322,11 @@
    "sha256": "ab6b4ea9cca1a92fd7d3c985dfaa33676058090839f9dd481e5b3b1ff2ae7a41"
   },
   {
-   "blob": "0fbfbea8765b0b561c0ee2b3cf01a007485aa308",
-   "bytes": 80959,
+   "blob": "c99a7c408575ab0696e7e83a63cde66d9c61b30f",
+   "bytes": 81280,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers.rs",
-   "sha256": "760ee93572dd03427e05f9c7981bcc6fbb37579313f067f553fd73f2f6010ac5"
+   "sha256": "c4cb0d4edcdd46866ceacbd84f720dd235d595545ee2e81ee5815dfef7e31930"
   },
   {
    "blob": "499dab18a1f188c8a2710833a572fb4ec3c132c1",
@@ -11343,11 +11343,11 @@
    "sha256": "bbfbc262eb26794bf5ccdb1539c6b1014b61db4010c823d1fce19527ecd92926"
   },
   {
-   "blob": "03ace3be509a72294538095890a12c46cad98745",
-   "bytes": 97523,
+   "blob": "14516473081e3d8852c5c9bc50b1a98a95d3f00e",
+   "bytes": 97529,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/integrate_tests.rs",
-   "sha256": "b3d4fc09fda40e70b10f3401fc62cd138468cfc41dbbeea596ef41a3a766a3fb"
+   "sha256": "6c21f06eb4cedd19dbd89ea6120b4d7af61a5471a41442a428f95f330099c376"
   },
   {
    "blob": "6f9f7d5f6ac66c019f9cbdd9827bd4666a539f51",
@@ -11385,18 +11385,18 @@
    "sha256": "8a1317e81335af6301842d0d614f33dfd5c8f20a505cab81dd5d4c04f70acdc2"
   },
   {
-   "blob": "f8862d7de130b334ad72f001cddc5016e3587c3e",
-   "bytes": 10753,
+   "blob": "875eddf0c425178d5403ded994ce7d25f8cb0f34",
+   "bytes": 11666,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/subagent.rs",
-   "sha256": "6d1c7712fc072511ebef0f284ab3f51be25bc53de88e5724f19dfed187074b1c"
+   "sha256": "71ee68e8dea545628cffabcb0c99a5b75d18040ef21972e5910cd0f2434e9764"
   },
   {
-   "blob": "c4f50793fd15b6b3186ae69810e47b9661187d44",
-   "bytes": 117302,
+   "blob": "db6098cbf3b89b8ec3f146037b385350b906a34f",
+   "bytes": 123436,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/tests.rs",
-   "sha256": "6ea9e2fa414c491d66b4a710757520131deb8bdbcc4f2153f8c80afd31ea975f"
+   "sha256": "a6bfdab461d6535d1ad8fd35d08641d26a04eaec2685a80e4f197817bee18bc2"
   },
   {
    "blob": "30cc54840539e5930ce6a407814738bb6640cc22",
@@ -11994,11 +11994,11 @@
    "sha256": "3c727c2d09eab736406d804ae6115253315f0dd3671ac4082b99c1f180119295"
   },
   {
-   "blob": "25f1b21c72662b115777af60e99f7f36b5af2cad",
-   "bytes": 4971,
+   "blob": "d49a4fd14eb5b598a0b57a85e47393ff2c809ae4",
+   "bytes": 5001,
    "mode": "100644",
    "path": "src/lib/components/LegacyCleanupPanel.svelte",
-   "sha256": "1094d22a23607333b16f6c05e91c45e52ffcfb13027271b4380b9b0729d361c3"
+   "sha256": "d988aa5a16e4d28ee33672f261108e912ad73b35992158eb6272e6fd39c01895"
   },
   {
    "blob": "470669cdd0aff38c778cd1cddb54d861df313086",
@@ -12771,11 +12771,11 @@
    "sha256": "dd80b9588640738141e90fc1189dfa44f3e4c9ca824d1b9137a9e19764d91e61"
   },
   {
-   "blob": "d4504d94119a4e483bff3503d06e2c885100766d",
-   "bytes": 15621,
+   "blob": "4d627cae30f6dca4c6ba9b52d790245179ed0aa1",
+   "bytes": 15726,
    "mode": "100644",
    "path": "tests/legacy-cleanup-ui.test.mjs",
-   "sha256": "b44f4c7d06f9bc2473bb16ca7016692c2e09dc2ea9435af669464474d61bf440"
+   "sha256": "537b5bc752d9c260b06420af647a23726a92520a7e6e57679d4e4013c710a659"
   },
   {
    "blob": "5091f6e82d57c34a63e8878c18cac51738064a8f",
