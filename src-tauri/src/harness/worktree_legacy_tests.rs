@@ -783,8 +783,11 @@ fn c14_evicted_journal_entry_falls_back_to_managed_counting() {
     assert_eq!(f.main.slots_in_use_for_test().0, 0);
 }
 
-/// A1 C14 S1b (nit 1): an interrupted entry whose id is also present under the
-/// managed root is never offered, cannot be forced, and nothing is deleted.
+/// A1 C14 S1b (nit 1) / S1c soft nit 3: an interrupted entry whose id is also
+/// present under the managed root (real dir or dangling symlink) is never
+/// offered, cannot be forced, and nothing is deleted. `interrupted_root` only
+/// continues on `ErrorKind::NotFound`; any other `symlink_metadata` error is
+/// fail-closed as present (EACCES cannot be unit-mocked here without root).
 #[test]
 fn c14_interrupted_id_present_under_managed_root_is_not_offered() {
     let f = Fixture::new();
@@ -797,6 +800,25 @@ fn c14_interrupted_id_present_under_managed_root_is_not_offered() {
     fs::create_dir_all(&squat).unwrap();
     c14_assert_refused(&f, &id, &path);
     assert!(squat.is_dir());
+}
+
+/// A1 C14 S1c soft nit 3: a dangling symlink occupying `managed_root/<id>` is
+/// still "present" (symlink_metadata Ok), so the interrupted id is not offered.
+#[test]
+fn c14_interrupted_id_dangling_symlink_under_managed_root_is_not_offered() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let (candidates, _) = f.preview();
+    assert!(candidates
+        .iter()
+        .any(|c| c.id == id && c.interrupted && c.hint.is_none()));
+    let squat = f.main.managed_root.join(&id);
+    #[cfg(unix)]
+    std::os::unix::fs::symlink("/no/such/c14-s1c-target", &squat).unwrap();
+    #[cfg(not(unix))]
+    fs::create_dir_all(&squat).unwrap();
+    c14_assert_refused(&f, &id, &path);
+    assert!(fs::symlink_metadata(&squat).is_ok());
 }
 
 /// A1 C14 S1b (Grok probe): forged marker + Failed journal entry pointing at a
@@ -836,7 +858,7 @@ fn c14_forged_journal_at_live_managed_tree_without_gitdir_is_refused() {
     assert!(candidates.iter().all(|c| c.id != live.id), "{candidates:?}");
     let out = f
         .main
-        .cleanup_legacy(&mut f.journal(), &[live.id.clone()], &digest);
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&live.id), &digest);
     assert_eq!(out.unwrap_err().code(), "INVALID_ARGUMENT");
     assert_eq!(c14_snapshot(&f, &live.id, &live_path), before);
     assert!(meta.is_dir() && live_path.join("keep.txt").is_file());

@@ -327,10 +327,13 @@ impl WorktreeManager {
         if !super::valid_id(id) {
             return None;
         }
-        // A1 C14 S1b (nit 1): an id that is live (or present in any form) under
-        // the managed root is never an interrupted legacy delete.
-        if fs::symlink_metadata(self.managed_root.join(id)).is_ok() {
-            return None;
+        // A1 C14 S1b (nit 1) / S1c (soft nit 3): an id that is live (or present
+        // in any form) under the managed root is never an interrupted legacy
+        // delete. Fail closed: only NotFound means "absent / continue"; any
+        // other symlink_metadata error (EACCES, …) is treated as present.
+        match fs::symlink_metadata(self.managed_root.join(id)) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            _ => return None,
         }
         let root = Path::new(path).parent()?.to_path_buf();
         let hex = |s: &str| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit());
