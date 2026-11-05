@@ -95,19 +95,29 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
         }
         "worktree_remove" => {
             let id = id.ok_or_else(invalid)?;
-            if owned()?.contains(id) {
-                return Err(WorkspaceError::Tool {
-                    code: "WORKER_OWNED",
-                    message: "This worktree belongs to a worker; discard the worker instead."
-                        .into(),
-                    category: "security",
+            // A1 C12b D2: "no worker record owns this id" is the owner proof, so
+            // a marker from an interrupted fresh delete is resumed here instead of
+            // leaking metadata and a slot. A1 C14 (n2): that proof and the remove
+            // now share one store lock (store → native).
+            match workers::remove_unowned_worktree(ctx, &manager, id).map_err(|e| {
+                WorkspaceError::Tool {
+                    code: e.code(),
+                    message: e.message().into(),
+                    category: "availability",
                     retryable: false,
-                });
+                }
+            })? {
+                workers::UnownedRemove::Owned => {
+                    return Err(WorkspaceError::Tool {
+                        code: "WORKER_OWNED",
+                        message: "This worktree belongs to a worker; discard the worker instead."
+                            .into(),
+                        category: "security",
+                        retryable: false,
+                    })
+                }
+                workers::UnownedRemove::Removed(result) => result.map_err(error)?,
             }
-            // A1 C12b D2: "no worker record owns this id" (checked just above)
-            // is the owner proof, so a marker from an interrupted fresh delete is
-            // resumed here instead of leaking metadata and a slot.
-            manager.remove_clean_owned(id).map_err(error)?;
             json!({"removed": true})
         }
         _ => return Err(invalid()),

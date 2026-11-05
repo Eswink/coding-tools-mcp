@@ -4,7 +4,9 @@
 //! Only the native UI reaches this module (no MCP tool, no remote caller). It
 //! never migrates a tree, never uses `--force`, never prunes globally and never
 //! removes a dirty tree or one whose detached HEAD no ref reaches.
-use super::super::worktree_git::{head_reachable_from_refs, prune_missing_registration, run_git};
+use super::super::worktree_git::{
+    head_reachable_from_refs, interrupted_registration, prune_missing_registration, run_git,
+};
 use super::{error, native, ManagedWorktree, WorktreeManager, WorktreeResult};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -28,6 +30,10 @@ pub(crate) struct LegacyCandidate {
     pub head: String,
     pub head_short: String,
     pub clean: bool,
+    /// A1 C14 (SCOPE A′ 1): an interrupted delete whose tree is already gone
+    /// and whose registration no longer verifies; only its own leftover Git
+    /// metadata remains. Part of the confirmation digest.
+    pub interrupted: bool,
     #[serde(skip)]
     pub(crate) path: PathBuf,
     #[serde(skip)]
@@ -182,15 +188,22 @@ fn beijing(unix: u64) -> String {
 }
 
 /// sha256 over the sorted `(id, canonical path, HEAD)` list (v5 §1.7 step 2).
+/// A1 C14 (SCOPE A′ 3): an interrupted candidate's row carries a fourth
+/// `"interrupted"` field, so a kind change changes the digest; rows of
+/// ordinary trees (and so every digest without interrupted rows) are unchanged.
 pub(crate) fn legacy_digest(candidates: &[LegacyCandidate]) -> String {
-    let mut rows: Vec<(&str, String, &str)> = candidates
+    let mut rows: Vec<Vec<String>> = candidates
         .iter()
         .map(|c| {
-            (
-                c.id.as_str(),
+            let mut row = vec![
+                c.id.clone(),
                 c.path.to_string_lossy().into_owned(),
-                c.head.as_str(),
-            )
+                c.head.clone(),
+            ];
+            if c.interrupted {
+                row.push("interrupted".to_owned());
+            }
+            row
         })
         .collect();
     rows.sort();
@@ -216,11 +229,12 @@ impl WorktreeManager {
     ) -> WorktreeResult<(Vec<LegacyCandidate>, Vec<LegacyWarning>)> {
         let _guard = native::lock()?;
         self.recover_legacy_journal(journal)?;
-        self.legacy_candidates_locked()
+        self.legacy_candidates_locked(journal)
     }
 
     fn legacy_candidates_locked(
         &self,
+        journal: &LegacyJournal,
     ) -> WorktreeResult<(Vec<LegacyCandidate>, Vec<LegacyWarning>)> {
         let (rooted, _) = self.legacy_scan_rooted()?;
         let mut result = Vec::new();
@@ -256,11 +270,80 @@ impl WorktreeManager {
                 display_path,
                 head,
                 clean,
+                interrupted: false,
                 path,
                 root,
             });
         }
+        // A1 C14 (SCOPE A′ 1): interrupted deletes, bound by their journal entry.
+        let mut seen = Vec::new();
+        for entry in journal.doc.entries.iter().rev() {
+            if seen.contains(&entry.id) {
+                continue;
+            }
+            seen.push(entry.id.clone());
+            if entry.state != LegacyState::Failed || result.iter().any(|c| c.id == entry.id) {
+                continue;
+            }
+            if let Some(root) = self.interrupted_root(&entry.id, &entry.path) {
+                if !super::valid_head(&entry.head) {
+                    continue;
+                }
+                result.push(LegacyCandidate {
+                    display_path: format!("legacy/{}", entry.id),
+                    head_short: entry.head.chars().take(12).collect(),
+                    head: entry.head.clone(),
+                    clean: false,
+                    interrupted: true,
+                    path: PathBuf::from(&entry.path),
+                    id: entry.id.clone(),
+                    root,
+                });
+            }
+        }
+        result.sort_by(|a, b| a.id.cmp(&b.id));
         Ok((result, warnings))
+    }
+
+    /// A1 C14 (SCOPE A′ 1/2/7): the legacy root of an interrupted delete of
+    /// `id` journalled at `path`, or `None`. `root = path.parent()` must be an
+    /// existing real directory `<harness>/chat-v1/<64 hex>/worktrees-v1/<ws>`
+    /// equal to its own canonical form (checked before [`Self::legacy_manager`],
+    /// which would otherwise create directories), and `path` must equal
+    /// `canonical(root)/id` in the journal's own serialization. Then
+    /// [`interrupted_registration`] must hold. Any mismatch (Windows `\\?\`
+    /// prefix or case included) is `None`: fail closed, not listed.
+    fn interrupted_root(&self, id: &str, path: &str) -> Option<PathBuf> {
+        if !super::valid_id(id) {
+            return None;
+        }
+        let root = Path::new(path).parent()?.to_path_buf();
+        let hex = |s: &str| s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit());
+        let ws = root.file_name()?.to_str()?;
+        let v1 = root.parent()?;
+        let key_dir = v1.parent()?;
+        if ws != self.workspace_id
+            || v1.file_name()?.to_str()? != "worktrees-v1"
+            || !hex(key_dir.file_name()?.to_str()?)
+            || key_dir.parent()? != self.harness_root.join("chat-v1").as_path()
+        {
+            return None;
+        }
+        for dir in [key_dir, v1, root.as_path()] {
+            let meta = fs::symlink_metadata(dir).ok()?;
+            if !meta.is_dir() || super::is_link_or_reparse(&meta) {
+                return None;
+            }
+        }
+        let canonical = root.canonicalize().ok()?;
+        if canonical != root {
+            return None;
+        }
+        if canonical.join(id).to_string_lossy() != path {
+            return None;
+        }
+        self.legacy_manager(&root).ok()?;
+        interrupted_registration(&self.repository_root, &root, id).then_some(root)
     }
 
     fn legacy_tree_clean(&self, root: &Path, path: &Path) -> WorktreeResult<bool> {
@@ -308,7 +391,7 @@ impl WorktreeManager {
     ) -> WorktreeResult<Vec<LegacyOutcome>> {
         let _guard = native::lock()?;
         self.recover_legacy_journal(journal)?;
-        let (candidates, _) = self.legacy_candidates_locked()?;
+        let (candidates, _) = self.legacy_candidates_locked(journal)?;
         if legacy_digest(&candidates) != digest {
             return Err(error(
                 "STALE_CONFIRMATION",
@@ -351,6 +434,9 @@ impl WorktreeManager {
         &self,
         candidate: &LegacyCandidate,
     ) -> (LegacyState, Option<&'static str>) {
+        if candidate.interrupted {
+            return self.remove_one_interrupted(candidate);
+        }
         // Re-verify: registered, back-pointer under the same legacy root, same HEAD.
         let current = match self.legacy_scan_rooted() {
             Ok((rooted, _)) => rooted,
@@ -383,6 +469,33 @@ impl WorktreeManager {
         }
     }
 
+    /// A1 C14 (SCOPE A′ 3): finish an owner-confirmed interrupted delete. The
+    /// binding is re-verified under the same lifecycle lock, then the delete
+    /// resumes through `legacy_manager(root).remove_clean_locked(id, true)`,
+    /// whose LOCKED / PINNED / gitdir back-pointer refusals all still apply.
+    /// HEAD reachability is not consulted: the checkout is already gone.
+    fn remove_one_interrupted(
+        &self,
+        candidate: &LegacyCandidate,
+    ) -> (LegacyState, Option<&'static str>) {
+        let path = candidate.path.to_string_lossy();
+        if self.interrupted_root(&candidate.id, &path).as_deref() != Some(candidate.root.as_path())
+        {
+            return (LegacyState::Failed, Some("CHANGED"));
+        }
+        let manager = match self.legacy_manager(&candidate.root) {
+            Ok(manager) => manager,
+            Err(e) => return (LegacyState::Failed, Some(e.code())),
+        };
+        match manager.remove_clean_locked(&candidate.id, true) {
+            Ok(()) => {
+                let _ = fs::remove_dir(&candidate.root);
+                (LegacyState::Removed, None)
+            }
+            Err(e) => (LegacyState::Failed, Some(e.code())),
+        }
+    }
+
     /// Crash recovery (v5 §1.7 step 4): a `planned` entry whose tree is gone has
     /// only its own registration pruned and becomes `removed`; one whose tree
     /// still exists becomes `failed` and is never retried automatically.
@@ -405,6 +518,7 @@ impl WorktreeManager {
                 clean: false,
                 path: path.clone(),
                 root: root.clone(),
+                interrupted: false,
             };
             let (state, code) = if fs::symlink_metadata(&path).is_err() {
                 match prune_missing_registration(&self.repository_root, &root, &entry.id) {

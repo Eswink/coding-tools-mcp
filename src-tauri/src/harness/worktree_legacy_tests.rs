@@ -445,3 +445,323 @@ fn c12b_d2_interrupted_legacy_cleanup_is_finished_on_retry() {
     assert!(!path.exists() && !f.registration(&id).exists());
     assert!(f.main.legacy_list().unwrap().is_empty());
 }
+
+// ---- A1 C14 (SCOPE A′ 1–5): owner-confirmed interrupted legacy deletes ----
+
+/// (target, metadata, marker, gitdir, HEAD) existence, for "nothing deleted".
+fn c14_snapshot(f: &Fixture, id: &str, path: &Path) -> [bool; 5] {
+    let meta = f.registration(id);
+    [
+        fs::symlink_metadata(path).is_ok(),
+        meta.exists(),
+        meta.join("managed-removing").exists(),
+        meta.join("gitdir").exists(),
+        meta.join("HEAD").exists(),
+    ]
+}
+
+/// A legacy tree whose confirmed cleanup was interrupted at delete step `k`.
+fn c14_interrupted(f: &Fixture, key: &str, k: usize) -> (String, PathBuf) {
+    let (id, path) = f.legacy(key);
+    let (_, digest) = f.preview();
+    WorktreeManager::set_delete_fail_at_for_test(Some(k));
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest);
+    WorktreeManager::set_delete_fail_at_for_test(None);
+    let out = out.unwrap();
+    assert_eq!(out[0].state, LegacyState::Failed, "k={k}: {out:?}");
+    assert!(f.registration(&id).join("managed-removing").is_file());
+    (id, path)
+}
+
+fn c14_set_journal_path(f: &Fixture, id: &str, path: &str) {
+    let mut j = f.journal();
+    let e = j.doc.entries.iter_mut().rev().find(|e| e.id == id).unwrap();
+    e.path = path.to_owned();
+    j.disk.save(&j.doc).unwrap();
+}
+
+/// Not offered, cannot be forced, and not one file of the leftover deleted.
+fn c14_assert_refused(f: &Fixture, id: &str, path: &Path) {
+    let before = c14_snapshot(f, id, path);
+    let (candidates, digest) = f.preview();
+    assert!(candidates.iter().all(|c| c.id != id), "{candidates:?}");
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), &[id.to_owned()], &digest);
+    assert_eq!(out.unwrap_err().code(), "INVALID_ARGUMENT");
+    assert_eq!(c14_snapshot(f, id, path), before);
+}
+
+#[test]
+fn c14_interrupted_legacy_k1_to_k5_is_offered_and_finished_on_confirmation() {
+    for k in 1..=5 {
+        let f = Fixture::new();
+        let (id, path) = c14_interrupted(&f, &"ab".repeat(32), k);
+        let (candidates, digest) = f.preview();
+        let c = candidates.iter().find(|c| c.id == id).expect("offered");
+        assert!(c.interrupted && !c.clean, "k={k}");
+        let out = f
+            .main
+            .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest)
+            .unwrap();
+        assert_eq!(out[0].state, LegacyState::Removed, "k={k}: {out:?}");
+        assert!(!f.registration(&id).exists(), "k={k}: metadata cleared");
+        assert!(fs::symlink_metadata(&path).is_err());
+        assert_eq!(f.main.slots_in_use_for_test(), (0, 0), "k={k}");
+        let states = f.journal().states();
+        assert_eq!(
+            states.last().unwrap(),
+            &(id.clone(), LegacyState::Removed, None),
+            "k={k}"
+        );
+        assert!(f.preview().0.is_empty(), "k={k}");
+    }
+}
+
+#[test]
+fn c14_marker_without_journal_is_not_offered() {
+    let f = Fixture::new();
+    let (id, path) = f.legacy(&"ab".repeat(32));
+    fs::write(
+        f.registration(&id).join("managed-removing"),
+        b"coding-tools-managed-removing\n",
+    )
+    .unwrap();
+    fs::remove_dir_all(&path).unwrap();
+    c14_assert_refused(&f, &id, &path);
+}
+
+#[test]
+fn c14_failed_journal_without_marker_or_with_wrong_marker_is_not_offered() {
+    for wrong in [None, Some("coding-tools-managed-removing\r\nextra")] {
+        let f = Fixture::new();
+        let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+        let marker = f.registration(&id).join("managed-removing");
+        match wrong {
+            None => fs::remove_file(&marker).unwrap(),
+            Some(body) => fs::write(&marker, body).unwrap(),
+        }
+        c14_assert_refused(&f, &id, &path);
+    }
+}
+
+#[test]
+fn c14_journal_path_must_bind_the_canonical_legacy_root() {
+    let other_ws = "fedcba9876543210fedcba9876543210";
+    for variant in 0..5 {
+        let f = Fixture::new();
+        let key = "ab".repeat(32);
+        let (id, path) = c14_interrupted(&f, &key, 2);
+        let chat = f.harness.path().join("chat-v1");
+        let root = path.parent().unwrap().canonicalize().unwrap();
+        let forged = match variant {
+            // a root outside `chat-v1` (same layout below it)
+            0 => {
+                let r = f
+                    .harness
+                    .path()
+                    .join("not-chat")
+                    .join("cd".repeat(32))
+                    .join("worktrees-v1")
+                    .join(WS);
+                fs::create_dir_all(&r).unwrap();
+                r.canonicalize().unwrap().join(&id)
+            }
+            // wrong workspace
+            1 => {
+                let r = chat.join(&key).join("worktrees-v1").join(other_ws);
+                fs::create_dir_all(&r).unwrap();
+                r.canonicalize().unwrap().join(&id)
+            }
+            // non-64hex key
+            2 => {
+                let r = chat.join("zz".repeat(32)).join("worktrees-v1").join(WS);
+                fs::create_dir_all(&r).unwrap();
+                r.canonicalize().unwrap().join(&id)
+            }
+            // root reached through a symlink
+            3 => {
+                let link_key = chat.join("ef".repeat(32)).join("worktrees-v1");
+                fs::create_dir_all(&link_key).unwrap();
+                std::os::unix::fs::symlink(&root, link_key.join(WS)).unwrap();
+                link_key.join(WS).join(&id)
+            }
+            // journal.path != canonical(root)/id serialization
+            _ => PathBuf::from(format!("{}/./{id}", root.display())),
+        };
+        c14_set_journal_path(&f, &id, &forged.to_string_lossy());
+        c14_assert_refused(&f, &id, &path);
+    }
+}
+
+/// At k=1 the readable gitdir is the binding: a journal naming another (valid)
+/// legacy root is refused. (At k>=2 gitdir is gone and the journal is the
+/// owner proof by SCOPE A′ 2.)
+#[test]
+fn c14_k1_journal_naming_another_valid_legacy_root_is_refused() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 1);
+    let r = f
+        .harness
+        .path()
+        .join("chat-v1")
+        .join("cd".repeat(32))
+        .join("worktrees-v1")
+        .join(WS);
+    fs::create_dir_all(&r).unwrap();
+    let forged = r.canonicalize().unwrap().join(&id);
+    c14_set_journal_path(&f, &id, &forged.to_string_lossy());
+    c14_assert_refused(&f, &id, &path);
+}
+
+#[test]
+fn c14_k1_gitdir_pointing_elsewhere_is_refused() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 1);
+    let gitdir = f.registration(&id).join("gitdir");
+    assert!(gitdir.is_file(), "k=1 leaves gitdir");
+    fs::write(&gitdir, format!("{}/.git\n", f.repo.path().display())).unwrap();
+    c14_assert_refused(&f, &id, &path);
+}
+
+#[test]
+fn c14_target_present_dirty_partial_or_origin_unreadable_is_not_offered() {
+    for variant in 0..3 {
+        let f = Fixture::new();
+        let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 1);
+        fs::create_dir_all(&path).unwrap();
+        match variant {
+            0 => fs::write(path.join("dirty.txt"), "local\n").unwrap(),
+            1 => {} // partial: an empty leftover directory
+            _ => {
+                fs::write(path.join(".git"), "gitdir: elsewhere\n").unwrap();
+                let _ = fs::remove_file(f.registration(&id).join("managed-origin-head"));
+            }
+        }
+        c14_assert_refused(&f, &id, &path);
+        assert!(path.is_dir());
+    }
+}
+
+#[test]
+fn c14_locked_or_pinned_interrupted_entry_is_refused_without_deleting() {
+    for pinned in [false, true] {
+        let f = Fixture::new();
+        let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+        if pinned {
+            let pin = path
+                .parent()
+                .unwrap()
+                .join(format!("{id}.native-profile-pin"));
+            fs::write(pin, "pin\n").unwrap();
+        } else {
+            fs::write(f.registration(&id).join("locked"), "busy\n").unwrap();
+        }
+        let before = c14_snapshot(&f, &id, &path);
+        let (candidates, digest) = f.preview();
+        assert!(candidates.iter().any(|c| c.id == id), "pinned={pinned}");
+        let out = f
+            .main
+            .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest)
+            .unwrap();
+        assert_eq!(out[0].state, LegacyState::Failed, "pinned={pinned}");
+        let want = if pinned { "WORKTREE_PINNED" } else { "LOCKED" };
+        assert_eq!(out[0].code, Some(want), "pinned={pinned}");
+        assert_eq!(c14_snapshot(&f, &id, &path), before, "pinned={pinned}");
+    }
+}
+
+#[test]
+fn c14_stale_digest_and_unselected_candidates() {
+    let f = Fixture::new();
+    let (a, a_path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let (b, b_path) = c14_interrupted(&f, &"cd".repeat(32), 3);
+    // A digest computed without the interrupted marker is stale.
+    let (mut candidates, digest) = f.preview();
+    assert_eq!(candidates.len(), 2);
+    for c in &mut candidates {
+        c.interrupted = false;
+    }
+    let stale = legacy_digest(&candidates);
+    assert_ne!(stale, digest);
+    let before = (c14_snapshot(&f, &a, &a_path), c14_snapshot(&f, &b, &b_path));
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&a), &stale);
+    assert_eq!(out.unwrap_err().code(), "STALE_CONFIRMATION");
+    assert_eq!(
+        (c14_snapshot(&f, &a, &a_path), c14_snapshot(&f, &b, &b_path)),
+        before
+    );
+    // Only the selected one is finished.
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&a), &digest)
+        .unwrap();
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].state, LegacyState::Removed);
+    assert_eq!(c14_snapshot(&f, &b, &b_path), before.1);
+}
+
+#[test]
+fn c14_failed_entries_are_never_resumed_automatically() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let states = f.journal().states();
+    let before = c14_snapshot(&f, &id, &path);
+    let (_, digest) = f.preview();
+    let _ = f.preview();
+    let out = f.main.cleanup_legacy(&mut f.journal(), &[], &digest);
+    assert_eq!(out.unwrap_err().code(), "INVALID_ARGUMENT");
+    assert_eq!(f.journal().states(), states);
+    assert_eq!(c14_snapshot(&f, &id, &path), before);
+}
+
+#[test]
+fn c14_managed_leftovers_k1_to_k5_stay_counted_and_owner_remove_finishes() {
+    for k in 1..=5 {
+        let f = Fixture::new();
+        let id = f.main.create_detached().unwrap().id;
+        WorktreeManager::set_delete_fail_at_for_test(Some(k));
+        let out = f.main.remove_clean_owned(&id);
+        WorktreeManager::set_delete_fail_at_for_test(None);
+        assert!(out.is_err(), "k={k}");
+        assert_eq!(f.main.slots_in_use_for_test().0, 1, "k={k}: counted");
+        assert!(f.preview().0.iter().all(|c| c.id != id), "k={k}");
+        f.main.remove_clean_owned(&id).unwrap();
+        assert_eq!(f.main.slots_in_use_for_test().0, 0, "k={k}");
+        assert!(!f.registration(&id).exists(), "k={k}");
+    }
+}
+
+#[test]
+fn c14_evicted_journal_entry_falls_back_to_managed_counting() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let fake = LegacyCandidate {
+        id: "0".repeat(32),
+        display_path: String::new(),
+        head_short: String::new(),
+        head: "0".repeat(40),
+        clean: false,
+        path: PathBuf::from("/nonexistent"),
+        root: PathBuf::from("/"),
+        interrupted: false,
+    };
+    let mut j = f.journal();
+    for n in 0..JOURNAL_LIMIT {
+        j.record(&fake, &format!("d{n}"), LegacyState::Failed, None)
+            .unwrap();
+    }
+    drop(j);
+    assert!(f.journal().states().iter().all(|(i, ..)| i != &id));
+    assert!(f.preview().0.iter().all(|c| c.id != id));
+    assert_eq!(c14_snapshot(&f, &id, &path)[2], true);
+    assert_eq!(f.main.slots_in_use_for_test().0, 1, "still holds a slot");
+    // `worktree_remove`'s owner path still finishes it.
+    f.main.remove_clean_owned(&id).unwrap();
+    assert!(!f.registration(&id).exists());
+    assert_eq!(f.main.slots_in_use_for_test().0, 0);
+}

@@ -771,3 +771,110 @@ fn c12b_d2_worktree_remove_finishes_step0_leftover_intact_target() {
 fn c12b_d2_worktree_remove_finishes_step1_leftover_and_frees_slot() {
     d2_interrupted_then_retried(1, false);
 }
+
+/// A1 C14 (SCOPE A′ 6): with no worker store, `worktree_remove` takes only the
+/// native lock and never creates the store.
+#[test]
+fn c14_worktree_remove_without_a_worker_store_does_not_create_it() {
+    let f = Fixture::new(false);
+    let out = call_tool(&f.ctx, "worktree_create", &json!({}));
+    assert_eq!(out["ok"], true, "{out}");
+    let id = out["worktree"]["id"].as_str().unwrap().to_owned();
+    assert!(!workers::store_exists_for_test(&f.ctx));
+    let out = call_tool(&f.ctx, "worktree_remove", &json!({"id": id}));
+    assert_eq!(out["ok"], true, "{out}");
+    assert!(!workers::store_exists_for_test(&f.ctx), "store not created");
+    assert!(fs::symlink_metadata(workers::worktree_path(&f.ctx.host, &id)).is_err());
+}
+
+/// A1 C14 (SCOPE A′ 6): the owned check and the delete share one store lock;
+/// a worker's tree is still refused (WORKER_OWNED) and left intact, and spawn
+/// racing `worktree_remove` does not deadlock (store → native everywhere; the
+/// cfg(test) assertion in `WorkerStore::lock` fails any reverse order).
+#[test]
+fn c14_worktree_remove_refuses_worker_owned_and_races_spawn_without_deadlock() {
+    let f = Fixture::shared(false);
+    let ctx = f.session(
+        "conversation-a",
+        &["files.read", "files.write", "task.manage"],
+    );
+    grant_agents_manage(&ctx);
+    let spawned = call_tool(&ctx, "subagent_spawn", &json!({"request_id":"r0"}));
+    assert_eq!(spawned["ok"], true, "{spawned}");
+    let wid = spawned["worker"]["worker_id"].as_str().unwrap().to_owned();
+    let record = workers::status(&ctx, Some(&wid)).unwrap().remove(0);
+    let tree_id = record.worktree_id.clone().unwrap();
+    let out = call_tool(&f.ctx, "worktree_remove", &json!({"id": tree_id}));
+    assert_eq!(out["error"]["code"], "WORKER_OWNED", "{out}");
+    assert!(workers::worktree_path(&f.ctx.host, &tree_id).is_dir());
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let (spawner, remover, tree_id) = (&ctx, &f.ctx, tree_id.as_str());
+    let results = std::sync::Mutex::new(Vec::new());
+    let results = &results;
+    std::thread::scope(|scope| {
+        let tx1 = tx.clone();
+        scope.spawn(move || {
+            for n in 0..4 {
+                let s = call_tool(
+                    spawner,
+                    "subagent_spawn",
+                    &json!({"request_id": format!("race{n}")}),
+                );
+                if s["ok"] == true {
+                    let w = s["worker"]["worker_id"].as_str().unwrap().to_owned();
+                    let _ = call_tool(spawner, "subagent_discard", &json!({"worker_id": w}));
+                }
+            }
+            tx1.send("spawn").unwrap();
+        });
+        let tx2 = tx.clone();
+        scope.spawn(move || {
+            let mut seen = Vec::new();
+            for _ in 0..4 {
+                let c = call_tool(remover, "worktree_create", &json!({}));
+                if let Some(id) = c["worktree"]["id"].as_str() {
+                    seen.push(call_tool(remover, "worktree_remove", &json!({"id": id})));
+                }
+                seen.push(call_tool(
+                    remover,
+                    "worktree_remove",
+                    &json!({"id": tree_id}),
+                ));
+            }
+            *results.lock().unwrap() = seen;
+            tx2.send("remove").unwrap();
+        });
+        drop(tx); // a panicked thread then disconnects instead of hanging
+        let timeout = std::time::Duration::from_secs(120);
+        let mut done = Vec::new();
+        for _ in 0..2 {
+            match rx.recv_timeout(timeout) {
+                Ok(who) => done.push(who),
+                // a worker thread panicked; the scope join re-raises it
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
+                Err(e) => {
+                    eprintln!("deadlock: spawn vs worktree_remove did not finish: {e}");
+                    std::process::abort();
+                }
+            }
+        }
+        done.sort();
+        assert_eq!(done, vec!["remove", "spawn"]);
+    });
+    // Under the race a call may be refused as busy (root guard held by the
+    // spawner); it must never remove the worker's tree or answer otherwise.
+    for r in results.lock().unwrap().iter() {
+        let code = r["error"]["code"].as_str();
+        assert!(
+            r["ok"] == true
+                || matches!(
+                    code,
+                    Some("WORKER_OWNED" | "NATIVE_ROOT_UNAVAILABLE" | "BUSY")
+                ),
+            "{r}"
+        );
+        eprintln!("c14 race result: {r}");
+    }
+    assert!(workers::worktree_path(&f.ctx.host, tree_id).is_dir());
+}
