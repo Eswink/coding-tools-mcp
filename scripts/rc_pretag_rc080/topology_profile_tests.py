@@ -273,3 +273,84 @@ class Rc080DepthBudgetTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class Rc080TopologyMemoTests(unittest.TestCase):
+    """C16: memoized topology() is outcome-identical to the unmemoized walk."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.repo = Path(cls.tmp.name) / 'repo'
+        subprocess.check_call(['git', 'clone', '-q', '--shared', '--no-checkout', str(ROOT), str(cls.repo)])
+        cls.tree = git('rev-parse', rc080.M + '^{tree}', root=cls.repo).decode().strip()
+        # merge-heavy diamond ladder: every rung merges the previous rung's tip as its
+        # second parent, so the unmemoized walk revisits shared history ~2^n times
+        cls.ladder = [rc080.M]
+        for index in range(10):
+            linear = cls.commit_tree('rung %d' % index, cls.ladder[-1])
+            cls.ladder.append(cls.commit_tree('merge %d' % index, linear, cls.ladder[-1]))
+        bad = cls.commit_tree('foreign', rc080.M_PARENTS[0])
+        cls.foreign = cls.commit_tree('foreign merge', cls.ladder[-1], bad)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    @classmethod
+    def commit_tree(cls, message, *parents):
+        args = [arg for parent in parents for arg in ('-p', parent)]
+        return git('-c', 'user.name=t', '-c', 'user.email=t@invalid', 'commit-tree', cls.tree, *args, '-m', message,
+                   root=cls.repo).decode().strip()
+
+    def outcome(self, ref, root, budget, memo, calls=None):
+        def counted(*args, **kwargs):
+            if calls is not None:
+                calls.append(args)
+            return git(*args, **kwargs)
+        try:
+            return ('ok', rc080.topology(ref, root, counted, p.R, budget, _memo=memo))
+        except AssertionError as error:
+            return ('err', type(error).__name__, error.args)
+
+    def assert_same(self, ref, root, budgets):
+        for budget in budgets:
+            self.assertEqual(self.outcome(ref, root, budget, False), self.outcome(ref, root, budget, None),
+                             '%s @%d' % (ref, budget))
+
+    def test_anchor_and_main_merge_match_without_memo(self):
+        budgets = (-1, 0, 1, 2, 13, 14, 15, 64, rc080.DEPTH_LIMIT)
+        self.assert_same(rc080.M, ROOT, budgets)
+        self.assert_same(MAIN_MERGE, ROOT, budgets)
+        self.assertEqual(required_budget(MAIN_MERGE), 14)
+
+    def test_wrong_release_matches_without_memo(self):
+        for memo in (False, None):
+            with self.assertRaisesRegex(AssertionError, 'rc080_release_anchor'):
+                rc080.topology(MAIN_MERGE, ROOT, git, rc080.M, _memo=memo)
+
+    def test_merge_ladder_matches_without_memo_at_every_budget(self):
+        for ref in (self.ladder[3], self.ladder[6], self.foreign):
+            self.assert_same(ref, self.repo, range(-1, 24))
+
+    def test_memo_cuts_git_calls_on_merge_ladder(self):
+        plain, memo = [], []
+        tip = self.ladder[-1]
+        self.assertEqual(self.outcome(tip, self.repo, rc080.DEPTH_LIMIT, False, plain),
+                         self.outcome(tip, self.repo, rc080.DEPTH_LIMIT, None, memo))
+        self.assertLessEqual(len(memo), 6 * len(self.ladder), (len(plain), len(memo)))
+        self.assertGreater(len(plain), 8 * len(memo), (len(plain), len(memo)))
+
+    def test_memo_does_not_leak_across_calls(self):
+        tip = self.ladder[-1]
+        first, second = [], []
+        self.outcome(tip, self.repo, rc080.DEPTH_LIMIT, None, first)
+        self.outcome(tip, self.repo, rc080.DEPTH_LIMIT, None, second)
+        self.assertEqual(first, second)
+
+    def test_head_memo_matches_without_memo_on_cheap_budgets(self):
+        """Full unmemoized HEAD admission is minutes long; compare the rejected budgets, check the admitted one."""
+        head = git('rev-parse', 'HEAD').decode().strip()
+        depth = len(git('rev-list', '--first-parent', '%s..%s' % (rc080.M, head)).split())
+        self.assert_same(head, ROOT, (-1, 0, depth - 1))
+        self.assertEqual(self.outcome(head, ROOT, rc080.DEPTH_LIMIT, None), ('ok', depth))
