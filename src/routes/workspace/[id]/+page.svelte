@@ -15,6 +15,7 @@
   import IntegrationAttention from "$lib/components/IntegrationAttention.svelte";
   import SubagentWorkersPanel from "$lib/components/SubagentWorkersPanel.svelte";
   import MergeConfirmPanel from "$lib/components/MergeConfirmPanel.svelte";
+  import LegacyCleanupPanel from "$lib/components/LegacyCleanupPanel.svelte";
   import { type RuntimePolicyDraft } from "$lib/components/RuntimePolicyForm.svelte";
   import ChatGptSessionPrompt from "$lib/components/ChatGptSessionPrompt.svelte";
   import { type TunnelFormConfig, type SaveTunnelOptions } from "$lib/components/TunnelConfigForm.svelte";
@@ -556,6 +557,9 @@
       <ChatAuthorizationPanel workspaceId={profile.id} />
       <IntegrationAttention workspaceId={profile.id} />
       <MergeConfirmPanel workspaceId={profile.id} />
+      {#key profile.id}
+        <LegacyCleanupPanel workspaceId={profile.id} />
+      {/key}
       <SubagentWorkersPanel workspaceId={profile.id} />
       <ServiceSwitcher value={activeService} mcpState={mcpStatus} actionsState={actionsStatus}
         disabled={switchingService || configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy} onchange={(next) => void changeService(next)} />
