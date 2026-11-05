@@ -1,5 +1,5 @@
---- vendor/sqlx-macros-core-0.8.6/Cargo.toml.official
-+++ vendor/sqlx-macros-core-0.8.6/Cargo.toml
+--- patches/sqlx-macros-core-0.8.6/crate/Cargo.toml.official
++++ patches/sqlx-macros-core-0.8.6/crate/Cargo.toml
 @@ -65,14 +65,6 @@
  version = "=0.8.6"
  features = ["offline"]

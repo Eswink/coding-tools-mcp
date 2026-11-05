@@ -247,3 +247,5 @@ All package source/version/architecture/installed payload checks remain separate
 - Regenerated `services/cloud-gateway/Cargo.lock` omits `rsa` / `sqlx-mysql` / `sqlx-sqlite`. Real `cargo-audit 0.22.2` → vulnerabilities.count=0 for RUSTSEC-2023-0071; `settings.ignore=[]`; no `--ignore`.
 - Regression: `scripts/gateway_rsa_absent_lock_tests.py`. Product sqlx features remain postgres-only.
 - **Does not close whole #85** (GLib installed-bytes / yoke informational / FINAL `release_approved` / Win #177/#178/#179 remain OOS). Never claim Windows PASS/QUALIFIED/FINAL.
+
+- C21b (topology): replaced full `vendor/sqlx*` trees with thin `patches/*/crate` path patches (Cargo.toml-only edit + binary `upstream-src.tar.gz` extracted by `build.rs`). Keeps lock free of rsa/sqlx-mysql/sqlx-sqlite without raising DELTA_LINES / without `--ignore`. Whole #85 still open; Win OOS.

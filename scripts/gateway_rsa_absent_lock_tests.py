@@ -43,13 +43,13 @@ class GatewayRsaAbsentLockTests(unittest.TestCase):
         self.assertIn('sqlx', names)
         self.assertIn('sqlx-postgres', names)
 
-    def test_gateway_toml_stays_postgres_only_and_patches_vendor(self):
+    def test_gateway_toml_stays_postgres_only_and_patches_sqlx(self):
         text = GATEWAY_TOML.read_text(encoding='utf-8')
         self.assertIn('postgres', text)
         self.assertNotRegex(text, r'features\s*=\s*\[[^\]]*mysql')
         self.assertIn('[patch.crates-io]', text)
-        self.assertIn('vendor/sqlx-0.8.6', text)
-        self.assertIn('vendor/sqlx-macros-core-0.8.6', text)
+        self.assertIn('patches/sqlx-0.8.6/crate', text)
+        self.assertIn('patches/sqlx-macros-core-0.8.6/crate', text)
 
     def test_workflows_and_scripts_forbid_ignore_2023_0071(self):
         needle = '--ignore'

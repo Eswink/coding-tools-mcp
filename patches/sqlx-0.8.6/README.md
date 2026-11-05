@@ -1,8 +1,10 @@
-# sqlx 0.8.6 — drop unused optional mysql/sqlite drivers
+# sqlx 0.8.6 — drop unused optional mysql/sqlite drivers (thin path patch)
 
-Vendored from the **unmodified official crates.io archive**, then **Cargo.toml only**
-edited to remove unused optional `sqlx-mysql` / `sqlx-sqlite` dependencies and their
-feature forwards. No `.rs` source changes.
+**Layout (C21b, topology-safe):** `crate/` is the `[patch.crates-io]` path target.
+It keeps a **Cargo.toml-only** intentional edit (drop unused optional `sqlx-mysql` /
+`sqlx-sqlite` deps + feature forwards). Pristine upstream `src/` bytes ship as
+`crate/upstream-src.tar.gz` (binary) and are extracted by `crate/build.rs` into
+gitignored `crate/extracted/` at build time. No full upstream tree is committed.
 
 - Official archive: https://static.crates.io/crates/sqlx/sqlx-0.8.6.crate
 - SHA256: `1fefb893899429669dcdd979aff487bd78f4064e5e7907e4269081e0ef7d97dc`
@@ -13,7 +15,8 @@ feature forwards. No `.rs` source changes.
   `cargo tree -i rsa` is empty. Path-patching these crates lets a controlled lock
   regeneration omit the unused closure **without** `--ignore`.
 
-`services/cloud-gateway/Cargo.toml` selects these via `[patch.crates-io]`.
+`services/cloud-gateway/Cargo.toml` selects this via
+`sqlx = { path = "../../patches/sqlx-0.8.6/crate" }`.
 Product sqlx features remain `runtime-tokio-rustls,postgres,migrate,macros,uuid`
 with `default-features = false` (no mysql).
 
