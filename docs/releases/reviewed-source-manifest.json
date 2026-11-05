@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C17 legacy cleanup FE tip (controller+panel+tests+mount) — LOCAL ONLY not pushed",
+  "review_reference": "A1 C17b soft nits tip (LegacyCleanup inner-key/badge/notice) — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d6bc6737c5fdb4b9e649c10442fb6e32b8a79103",
-        "sha256": "54e63ea0aecccc4b1839661e0666962d7784013f2c34429fbe2788760e3e0c3d"
+        "blob_sha": "326c06cb840bda32069b2145e7823708fe56570f",
+        "sha256": "40c6ee8cdee8865a6738de6f153fe8e3b6372ac2ec3ed5181467bd8d0141c76f"
       }
     },
     {
@@ -11348,8 +11348,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "34abd7bdb7589630d6f14ed1e55c6d06a839130f",
-        "sha256": "0994dfba3af9072f9722d716dc32df459de964997b3bb821435e737edcd9938a"
+        "blob_sha": "25f1b21c72662b115777af60e99f7f36b5af2cad",
+        "sha256": "1094d22a23607333b16f6c05e91c45e52ffcfb13027271b4380b9b0729d361c3"
       }
     },
     {
@@ -11422,8 +11422,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c3344f33e2016ce7f4da7a201ebd4ac06004d477",
-        "sha256": "9adf7519c985d91fede48ae4b8416570daf798b044352e20bb24785ff55c9884"
+        "blob_sha": "193ba2d93773d7a6b1e0ae1617b176d75d5c0588",
+        "sha256": "4b8ad81adf8d62d04fcabbb8c221913d668d5881db1d3aafbf511ee07e1babb2"
       }
     },
     {
@@ -11500,8 +11500,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "def42507c4428a836447311acc4af89d38fab072",
-        "sha256": "22f6b7bf3786cb99ee08e9d4b697e2559b854bb8a05f38ad869621c86e1b8bc2"
+        "blob_sha": "3ac2c38b0d7823d8aa25e3a31b56365170315601",
+        "sha256": "42d337b2d1aecee5c0dd3d6efc6a3f525268ee008af5bae038bcdc0260716028"
       }
     },
     {
@@ -11962,8 +11962,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "42b6f2271eb765a97b83d030fce438e9ec1d241e",
-        "sha256": "f417ebda67f91be168606d747c129c07b0b2ec68f7e2ed30a5c1f670416d6a38"
+        "blob_sha": "d4504d94119a4e483bff3503d06e2c885100766d",
+        "sha256": "b44f4c7d06f9bc2473bb16ca7016692c2e09dc2ea9435af669464474d61bf440"
       }
     },
     {
