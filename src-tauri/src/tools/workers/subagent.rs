@@ -2,8 +2,8 @@
 //! (SPEC-A1 v4 §2.1). Remote callers reach these only after the chat-domain
 //! interceptor proved `agents.manage` plus the tool's second scope.
 use super::{
-    cancel, discard, error_value, spawn_and_complete, state_error, status, WorkerError,
-    WorkerRecord, WorkerState,
+    cancel, changed_snap_for, discard, error_value, resolve_changed_files, spawn_and_complete,
+    state_error, status, status_with_changed, ChangedSnap, WorkerError, WorkerRecord, WorkerState,
 };
 use crate::tools::{
     workspace::{tool_ok, WorkspaceError},
@@ -30,7 +30,10 @@ fn state_label(state: WorkerState) -> &'static str {
     }
 }
 /// The bounded public view. Worktree ids and paths are never exposed.
-pub(crate) fn view(record: &WorkerRecord) -> Value {
+/// A1 C18: `changed_files` is the C11 snapshot resolve (integer|null), not live.
+pub(crate) fn view(record: &WorkerRecord, snap: Option<ChangedSnap>) -> Value {
+    // Resolve against the raw record (state gate + ops_seq); same fn as the card.
+    let changed = resolve_changed_files(record, snap).map_or(Value::Null, |n| json!(n));
     // Read-only: an expired request shows as closed without writing the store.
     let record = &super::integration::effective(record, super::now());
     let integration = record
@@ -46,8 +49,9 @@ pub(crate) fn view(record: &WorkerRecord) -> Value {
         "cwd": record.cwd,
         "created_at": record.created_at,
         "last_activity_at": record.last_activity_at,
-        // MCP view intentionally null; local card uses snapshot (C11).
-        "changed_files": null,
+        // Snapshot via C11 resolve_changed_files (memory / integration.files);
+        // not a live worktree diff / git count.
+        "changed_files": changed,
     })
 }
 
@@ -111,7 +115,7 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
                 return Err(invalid("base must be HEAD."));
             }
             let (record, created) = spawn_and_complete(ctx, request_id, label)?;
-            let mut out = json!({"worker": view(&record), "deduplicated": !created});
+            let mut out = json!({"worker": view(&record, None), "deduplicated": !created});
             // A1 C7-3 (SPEC v5.6 §3.3): a cloud caller learns whether the gateway
             // already accepted a projection naming the worker (bounded 3 s wait;
             // immediately "pending" with no live session). Native UI: no field.
@@ -128,13 +132,18 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
         "subagent_status" => {
             let obj = object(args, &["worker_id"], &[])?;
             let id = text(obj, "worker_id")?;
-            let records = status(ctx, id)?;
+            // A1 C18: one lock for (record, snap); memory snap only (not live diff).
+            let rows = status_with_changed(ctx, id)?;
+            let records: Vec<WorkerRecord> = rows.iter().map(|(r, _)| r.clone()).collect();
             // NB-a: the rollback window is evaluated read-only here.
             // C5-nit (Grok review of 209bcfea, item 3): an unreadable journal
             // (e.g. corrupt) does not hide the workers; only each integration's
             // `rollback` carries the error.
             let windows = super::integration::rollback_views(ctx, &records);
-            let mut workers: Vec<Value> = records.iter().map(view).collect();
+            let mut workers: Vec<Value> = rows
+                .iter()
+                .map(|(r, snap)| view(r, *snap))
+                .collect();
             for worker in &mut workers {
                 let integration = &mut worker["integration"];
                 if integration.is_null() {
@@ -164,10 +173,13 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             if name == "subagent_cancel" {
                 // A1 C2-a (v5 §5.2): cancel also stops the worker's background exec.
                 let (record, killed) = cancel(ctx, id)?;
-                return Ok(json!({"worker": view(&record), "killed_tasks": killed}));
+                // Same resolve as the card (Cancelled may keep a snap).
+                let snap = changed_snap_for(ctx, &record.worker_id);
+                return Ok(json!({"worker": view(&record, snap), "killed_tasks": killed}));
             }
             let record = discard(ctx, id)?;
-            Ok(json!({"worker": view(&record)}))
+            // Discard clears the snap; resolve also gates Discarded → null.
+            Ok(json!({"worker": view(&record, None)}))
         }
         "subagent_collect" => {
             let obj = object(args, &["worker_id", "max_bytes", "cursor"], &["worker_id"])?;

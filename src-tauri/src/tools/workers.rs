@@ -1462,20 +1462,27 @@ pub(crate) fn remember_changed(ctx: &ToolContext, id: &WorkerId, files: u64, ops
     inner.remember_changed(id, files, ops_seq);
 }
 
-/// A1 C11: owner-filtered records paired with memory-only changed snaps (one lock).
+/// A1 C11 / C18: owner-filtered records paired with memory-only changed snaps
+/// (one lock). Optional `worker_id` mirrors `status` (NOT_OWNED when missing).
 pub(crate) fn status_with_changed(
     ctx: &ToolContext,
+    worker_id: Option<&str>,
 ) -> Result<Vec<(WorkerRecord, Option<ChangedSnap>)>, WorkerError> {
+    let id = worker_id.map(WorkerId::parse).transpose()?;
     let owner = WorkerOwner::from_context(ctx)?;
     let (_, store) = open(ctx)?;
     let inner = store.lock()?;
-    Ok(inner
+    let rows: Vec<_> = inner
         .doc
         .workers
         .iter()
-        .filter(|r| r.owner == owner)
+        .filter(|r| r.owner == owner && id.as_ref().is_none_or(|id| &r.worker_id == id))
         .map(|r| (r.clone(), inner.changed_snap(&r.worker_id)))
-        .collect())
+        .collect();
+    if id.is_some() && rows.is_empty() {
+        return Err(not_owned());
+    }
+    Ok(rows)
 }
 
 /// A1 C11: one worker's memory-only snap (best-effort; None if store unavailable).

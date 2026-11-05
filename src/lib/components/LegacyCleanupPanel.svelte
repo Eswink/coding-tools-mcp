@@ -7,6 +7,7 @@
     createLegacyCleanupController,
     emptyLegacyCleanupView,
     HINT_FAILED_WARN,
+    INTERRUPTED_BADGE,
     type LegacyCleanupView,
   } from '$lib/legacy-cleanup';
 
@@ -64,7 +65,7 @@
           </label>
           <div class="badges">
             {#if item.interrupted}
-              <span class="badge interrupted">中断续删</span>
+              <span class="badge interrupted">{INTERRUPTED_BADGE}</span>
             {/if}
             {#if item.hint}
               <span class="badge hint">{item.hint}</span>

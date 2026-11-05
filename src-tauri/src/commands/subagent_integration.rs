@@ -236,28 +236,23 @@ pub async fn discard_subagent_worker(
 }
 
 /// Card JSON for one worker (no cwd / no integration blob).
-/// A1 C11: `changed_files` is hitchhiked cache → integration.files → null.
+/// A1 C11/C18: delegates to MCP `view` then strips FE-only-forbidden fields.
 pub(crate) fn worker_card(
     record: &workers::WorkerRecord,
     snap: Option<workers::ChangedSnap>,
 ) -> Value {
-    let view = workers::subagent::view(record);
-    let changed = workers::resolve_changed_files(record, snap);
-    json!({
-        "worker_id": view.get("worker_id").cloned().unwrap_or(Value::Null),
-        "label": view.get("label").cloned().unwrap_or(Value::Null),
-        "state": view.get("state").cloned().unwrap_or(Value::Null),
-        "base_head": view.get("base_head").cloned().unwrap_or(Value::Null),
-        "created_at": view.get("created_at").cloned().unwrap_or(Value::Null),
-        "last_activity_at": view.get("last_activity_at").cloned().unwrap_or(Value::Null),
-        "changed_files": changed.map_or(Value::Null, |n| json!(n)),
-    })
+    let mut out = workers::subagent::view(record, snap);
+    if let Some(obj) = out.as_object_mut() {
+        obj.remove("cwd");
+        obj.remove("integration");
+    }
+    out
 }
 
 fn list_workers_payload(ctx: &ToolContext) -> Result<Value, WorkerError> {
     // A1 C11 M1: status_with_changed only clones store records + memory snaps;
     // it never computes a worktree diff and never spawns a git subprocess.
-    let rows = workers::status_with_changed(ctx)?;
+    let rows = workers::status_with_changed(ctx, None)?;
     Ok(json!({
         "workers": rows
             .iter()
