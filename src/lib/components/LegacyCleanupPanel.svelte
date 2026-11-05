@@ -64,7 +64,7 @@
           </label>
           <div class="badges">
             {#if item.interrupted}
-              <span class="badge interrupted">interrupted</span>
+              <span class="badge interrupted">中断续删</span>
             {/if}
             {#if item.hint}
               <span class="badge hint">{item.hint}</span>
