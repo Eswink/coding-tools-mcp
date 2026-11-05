@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c13c-audit-gate (C13c: npm audit gate pinned deepmerge mitigation; merged C15 a1-c15-rc080-manifest) on develop/0.8.0 c9655059, not pushed",
+  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c16-topology-memo (C16: rc080 topology() memo + topology CI timeout 30) on develop/0.8.0 74fe4fa3, not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -432,8 +432,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "503640f3501c4b162bf0f665eba3f488614efc20",
-        "sha256": "898938d4d810c77a53a5c52a39703f0792b3f6c820162aa11b4538268cd219e8"
+        "blob_sha": "950b6b44b825beb6c72d4abd83775f745741aeaf",
+        "sha256": "68c406e1242f0174eca3f7ddd0b190cd8b4ec5fe402fb12d5a30c5a6f09e7d4d"
       }
     },
     {
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "eb25691cb774bdcfe4c9a029dff1ac69196028b2",
-        "sha256": "ebb9d47aac7d049bb146b4626f250ef56ee7117f5cb9f68f045840310673d201"
+        "blob_sha": "505d5be8de6f41ac617607fa60c6f8e238efe122",
+        "sha256": "ba5866a466d87c6f17653de12350ece343f460fc46aada2e4f6d44339e101941"
       }
     },
     {
@@ -5124,8 +5124,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f849a7be9247527da58c21de9f6ecbeb6cb5d39a",
-        "sha256": "cb701f35f8ba2d55645446e3f283723eb62b2469648f6e86649129f83a985a18"
+        "blob_sha": "224f8ec479f1961d4c325b31f8798fc319cc8956",
+        "sha256": "f2e7a2836191d4bf1589cccaaeef483dc088235cb92952d4204b4e3e757b71f5"
       }
     },
     {
@@ -5134,8 +5134,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "85efba9ddcf02aca09645b7036531419342c478a",
-        "sha256": "200c95dcd9a5e780a6f23ec08eccfc8ba744810a07c00b27ea979194725f15e7"
+        "blob_sha": "9fd148e714110d258009cdcd226f05f340b2847b",
+        "sha256": "a8c6ccb10ff94942fc9ebd39ef23e455eb0b54e85e47ead6cb8751a754126957"
       }
     },
     {
