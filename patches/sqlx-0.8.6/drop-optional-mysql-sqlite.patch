@@ -1,0 +1,292 @@
+--- vendor/sqlx-0.8.6/Cargo.toml.official
++++ vendor/sqlx-0.8.6/Cargo.toml
+@@ -29,7 +29,6 @@
+ features = [
+     "all-databases",
+     "_unstable-all-types",
+-    "sqlite-preupdate-hook",
+ ]
+ rustdoc-args = [
+     "--cfg",
+@@ -55,142 +54,6 @@
+ ]
+ 
+ [[test]]
+-name = "sqlite"
+-path = "tests/sqlite/sqlite.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "sqlite-any"
+-path = "tests/sqlite/any.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "sqlite-types"
+-path = "tests/sqlite/types.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "sqlite-describe"
+-path = "tests/sqlite/describe.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "sqlite-macros"
+-path = "tests/sqlite/macros.rs"
+-required-features = [
+-    "sqlite",
+-    "macros",
+-]
+-
+-[[test]]
+-name = "sqlite-unbundled-macros"
+-path = "tests/sqlite/macros.rs"
+-required-features = [
+-    "sqlite-unbundled",
+-    "macros",
+-]
+-
+-[[test]]
+-name = "sqlite-derives"
+-path = "tests/sqlite/derives.rs"
+-required-features = [
+-    "sqlite",
+-    "macros",
+-]
+-
+-[[test]]
+-name = "sqlite-error"
+-path = "tests/sqlite/error.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "sqlite-sqlcipher"
+-path = "tests/sqlite/sqlcipher.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "sqlite-test-attr"
+-path = "tests/sqlite/test-attr.rs"
+-required-features = [
+-    "sqlite",
+-    "macros",
+-    "migrate",
+-]
+-
+-[[test]]
+-name = "sqlite-migrate"
+-path = "tests/sqlite/migrate.rs"
+-required-features = [
+-    "sqlite",
+-    "macros",
+-    "migrate",
+-]
+-
+-[[test]]
+-name = "sqlite-rustsec"
+-path = "tests/sqlite/rustsec.rs"
+-required-features = ["sqlite"]
+-
+-[[test]]
+-name = "mysql"
+-path = "tests/mysql/mysql.rs"
+-required-features = ["mysql"]
+-
+-[[test]]
+-name = "mysql-types"
+-path = "tests/mysql/types.rs"
+-required-features = ["mysql"]
+-
+-[[test]]
+-name = "mysql-describe"
+-path = "tests/mysql/describe.rs"
+-required-features = ["mysql"]
+-
+-[[test]]
+-name = "mysql-derives"
+-path = "tests/mysql/derives.rs"
+-required-features = [
+-    "mysql",
+-    "derive",
+-]
+-
+-[[test]]
+-name = "mysql-macros"
+-path = "tests/mysql/macros.rs"
+-required-features = [
+-    "mysql",
+-    "macros",
+-]
+-
+-[[test]]
+-name = "mysql-error"
+-path = "tests/mysql/error.rs"
+-required-features = ["mysql"]
+-
+-[[test]]
+-name = "mysql-test-attr"
+-path = "tests/mysql/test-attr.rs"
+-required-features = [
+-    "mysql",
+-    "macros",
+-    "migrate",
+-]
+-
+-[[test]]
+-name = "mysql-migrate"
+-path = "tests/mysql/migrate.rs"
+-required-features = [
+-    "mysql",
+-    "macros",
+-    "migrate",
+-]
+-
+-[[test]]
+-name = "mysql-rustsec"
+-path = "tests/mysql/rustsec.rs"
+-required-features = ["mysql"]
+-
+-[[test]]
+ name = "postgres"
+ path = "tests/postgres/postgres.rs"
+ required-features = ["postgres"]
+@@ -258,12 +121,6 @@
+     "migrate",
+ ]
+ 
+-[[bench]]
+-name = "sqlite-describe"
+-path = "benches/sqlite/describe.rs"
+-harness = false
+-required-features = ["sqlite"]
+-
+ [dependencies.sqlx-core]
+ version = "=0.8.6"
+ features = [
+@@ -275,18 +132,10 @@
+ version = "=0.8.6"
+ optional = true
+ 
+-[dependencies.sqlx-mysql]
+-version = "=0.8.6"
+-optional = true
+-
+ [dependencies.sqlx-postgres]
+ version = "=0.8.6"
+ optional = true
+ 
+-[dependencies.sqlx-sqlite]
+-version = "=0.8.6"
+-optional = true
+-
+ [dev-dependencies.anyhow]
+ version = "1.0.52"
+ 
+@@ -349,7 +198,6 @@
+ [features]
+ _rt-async-std = []
+ _rt-tokio = []
+-_sqlite = []
+ _unstable-all-types = [
+     "bigdecimal",
+     "rust_decimal",
+@@ -364,21 +212,16 @@
+     "bstr",
+ ]
+ all-databases = [
+-    "mysql",
+-    "sqlite",
+     "postgres",
+     "any",
+ ]
+ any = [
+     "sqlx-core/any",
+-    "sqlx-mysql?/any",
+     "sqlx-postgres?/any",
+-    "sqlx-sqlite?/any",
+ ]
+ bigdecimal = [
+     "sqlx-core/bigdecimal",
+     "sqlx-macros?/bigdecimal",
+-    "sqlx-mysql?/bigdecimal",
+     "sqlx-postgres?/bigdecimal",
+ ]
+ bit-vec = [
+@@ -390,9 +233,7 @@
+ chrono = [
+     "sqlx-core/chrono",
+     "sqlx-macros?/chrono",
+-    "sqlx-mysql?/chrono",
+     "sqlx-postgres?/chrono",
+-    "sqlx-sqlite?/chrono",
+ ]
+ default = [
+     "any",
+@@ -414,9 +255,7 @@
+ json = [
+     "sqlx-core/json",
+     "sqlx-macros?/json",
+-    "sqlx-mysql?/json",
+     "sqlx-postgres?/json",
+-    "sqlx-sqlite?/json",
+ ]
+ mac_address = [
+     "sqlx-core/mac_address",
+@@ -430,19 +269,12 @@
+ migrate = [
+     "sqlx-core/migrate",
+     "sqlx-macros?/migrate",
+-    "sqlx-mysql?/migrate",
+     "sqlx-postgres?/migrate",
+-    "sqlx-sqlite?/migrate",
+-]
+-mysql = [
+-    "sqlx-mysql",
+-    "sqlx-macros?/mysql",
+ ]
+ postgres = [
+     "sqlx-postgres",
+     "sqlx-macros?/postgres",
+ ]
+-regexp = ["sqlx-sqlite?/regexp"]
+ runtime-async-std = [
+     "_rt-async-std",
+     "sqlx-core/_rt-async-std",
+@@ -472,26 +304,12 @@
+ rust_decimal = [
+     "sqlx-core/rust_decimal",
+     "sqlx-macros?/rust_decimal",
+-    "sqlx-mysql?/rust_decimal",
+     "sqlx-postgres?/rust_decimal",
+ ]
+-sqlite = [
+-    "_sqlite",
+-    "sqlx-sqlite/bundled",
+-    "sqlx-macros?/sqlite",
+-]
+-sqlite-preupdate-hook = ["sqlx-sqlite/preupdate-hook"]
+-sqlite-unbundled = [
+-    "_sqlite",
+-    "sqlx-sqlite/unbundled",
+-    "sqlx-macros?/sqlite-unbundled",
+-]
+ time = [
+     "sqlx-core/time",
+     "sqlx-macros?/time",
+-    "sqlx-mysql?/time",
+     "sqlx-postgres?/time",
+-    "sqlx-sqlite?/time",
+ ]
+ tls-native-tls = [
+     "sqlx-core/_tls-native-tls",
+@@ -515,9 +333,7 @@
+ uuid = [
+     "sqlx-core/uuid",
+     "sqlx-macros?/uuid",
+-    "sqlx-mysql?/uuid",
+     "sqlx-postgres?/uuid",
+-    "sqlx-sqlite?/uuid",
+ ]
+ 
+ [target."cfg(sqlite_test_sqlcipher)".dev-dependencies.libsqlite3-sys]

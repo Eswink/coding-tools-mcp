@@ -42,3 +42,10 @@ path = "src/control_main.rs"
 [[bin]]
 name = "coding-tools-mcp-gateway"
 path = "src/mcp_main.rs"
+
+# C21 B1: path-patch sqlx / sqlx-macros-core so unused optional mysql/sqlite drivers
+# are not declared → regenerating Cargo.lock omits rsa / sqlx-mysql / sqlx-sqlite.
+# Provenance: patches/sqlx-0.8.6/ + patches/sqlx-macros-core-0.8.6/ (official crate SHA256 pinned).
+[patch.crates-io]
+sqlx = { path = "../../vendor/sqlx-0.8.6" }
+sqlx-macros-core = { path = "../../vendor/sqlx-macros-core-0.8.6" }
