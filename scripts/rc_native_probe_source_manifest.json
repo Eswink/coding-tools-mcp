@@ -1,5 +1,5 @@
 {
- "entries": 2194,
+ "entries": 2017,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "66c85ac98bb423dda3e3d9e5d61a5096f315ab2a",
-   "bytes": 63174,
+   "blob": "5f3c954cc8af771e07083626911889f35cc0c72d",
+   "bytes": 63476,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "a8c3dfb17c84f506c989f2377785d7995a6af2b18fccb637f014ad1af5fa5cf2"
+   "sha256": "8a65109a51475e9bfa02dae406735b16b04b976d2a2b9cffd1094739e1b1c6ee"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "7e0367f16803ee9dd45eab6a902bc3e8eb277a5f",
-   "bytes": 438190,
+   "blob": "8fd1c41f9d7afd41bc2cf115f86a184c37d449c5",
+   "bytes": 502821,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "a17814ca5276d8c4bb50acf838c6dbec15969ba055b1923f9f547464bb71c91f"
+   "sha256": "79ea310c5ac028a651b465b6deb2adf894bf25d41ac2de3c0450b7802f2b2b69"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -5757,46 +5757,158 @@
    "sha256": "05e562bc1e616d95c4f4cfdd7a63d904cca89cef19260af1de6640144b399337"
   },
   {
-   "blob": "c9a64b946007fe83c1d7d2e3b2c3dbbcc387da82",
-   "bytes": 1228,
+   "blob": "3d6c9919e76e05271a8b5f03505642eb660e1e64",
+   "bytes": 1472,
    "mode": "100644",
    "path": "patches/sqlx-0.8.6/README.md",
-   "sha256": "03aebb149b3bf9c5a20f12b9c2deff76a63bea34cdf9d48e4f037c9423fa93b8"
+   "sha256": "d3327e174acf5a7043be990558f8043e53f1873562762f3f16dad5831a28e128"
   },
   {
-   "blob": "b7a4b19b01feab79131300e1fee6ca9dc1f825f0",
-   "bytes": 5507,
+   "blob": "d274c4e03d1087c026bc1c1fe5868c3ec855cd09",
+   "bytes": 120,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/.gitignore",
+   "sha256": "414f612df0ae6714888121242915187193f284dca25466ea7d0728ac1e5215d7"
+  },
+  {
+   "blob": "57e5f4ec210aac75480cb9a74e1eb42bc5ab5a3e",
+   "bytes": 6612,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/Cargo.toml",
+   "sha256": "fe22e05e396d6c64d64f9ff1f0b026717cc6168d589abb5ebc0ea326f48d1dc2"
+  },
+  {
+   "blob": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
+   "bytes": 10243,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/LICENSE-APACHE",
+   "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
+  },
+  {
+   "blob": "861bf60855b35fa5a4815321c63b6c44fa469320",
+   "bytes": 1060,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/LICENSE-MIT",
+   "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
+  },
+  {
+   "blob": "e7fc3b8149dc3d16154a690eb3269ce6470ce2b0",
+   "bytes": 1145,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/build.rs",
+   "sha256": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a"
+  },
+  {
+   "blob": "ed76c5f5eedb07afb7792ddd2ff06782d44a76b7",
+   "bytes": 4908,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/src/lib.rs",
+   "sha256": "3e1c881fefb728ce4f3492163377424011031cb8f2a33de7f98536fa604e2437"
+  },
+  {
+   "blob": "ba7c97e22c99e84232db35bce90979dc219c2b67",
+   "bytes": 18008,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/upstream-src.tar.gz",
+   "sha256": "9d44580ca58ae198f95ec74c8299304f58ad5e18e1472d36dfc9b81e0521cfd1"
+  },
+  {
+   "blob": "23b6d360bcdd9b4457b9f2b7715a07ab1bd3b6c2",
+   "bytes": 5521,
    "mode": "100644",
    "path": "patches/sqlx-0.8.6/drop-optional-mysql-sqlite.patch",
-   "sha256": "94e5be3ac8e6b7afd080d2d77c3e3783a3481e4fb7550cb3eb8fc646ff1950ab"
+   "sha256": "0942b5577cac63f7b1d3e09afeb67f29711aa8db45bf2875ebb6d3a1ad0aa092"
   },
   {
-   "blob": "26299f812c96c4684ccbb087daee6809b43e40da",
-   "bytes": 19596,
+   "blob": "f015fd141d1a4554761abfe830049885afc7d1ce",
+   "bytes": 2053,
    "mode": "100644",
    "path": "patches/sqlx-0.8.6/provenance.json",
-   "sha256": "434c681ac2bec00605e3fb4a5d31472a7320c04384d9432de0c8d89c8333f584"
+   "sha256": "b14620c1fb9084d5542fa6b6b800c164b2248cfd00528cc2388243afa15f022f"
   },
   {
-   "blob": "a4db7b9cced27908ead0f60507e89d3e8bf64d13",
-   "bytes": 1264,
+   "blob": "9d99a1c54add03f0a762ba749eca34a49696c77d",
+   "bytes": 190134,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/sqlx-0.8.6.crate",
+   "sha256": "1fefb893899429669dcdd979aff487bd78f4064e5e7907e4269081e0ef7d97dc"
+  },
+  {
+   "blob": "a4b5f4f0502005bd6affd3ed7364f8549c3941f4",
+   "bytes": 722,
    "mode": "100644",
    "path": "patches/sqlx-macros-core-0.8.6/README.md",
-   "sha256": "add6638fbe0b60766f5d8c561c9437f3ba37e83a073c38039ca5db5257fe7f6f"
+   "sha256": "b9965ba4df946619f1afabbaef650e33224dbfbca6fbeaae35f2e494ca36020c"
   },
   {
-   "blob": "45b7a7877b295a141a1acd3bd2e273bc472e8a1a",
-   "bytes": 2011,
+   "blob": "d274c4e03d1087c026bc1c1fe5868c3ec855cd09",
+   "bytes": 120,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/.gitignore",
+   "sha256": "414f612df0ae6714888121242915187193f284dca25466ea7d0728ac1e5215d7"
+  },
+  {
+   "blob": "c8bc32534b09a2cf2340a7b42b14ec907f5b4b9e",
+   "bytes": 3261,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/Cargo.toml",
+   "sha256": "f6b66f50ecd9914d2500439c6406552aa9082c73fbecd38e5ef8bacef2e8d277"
+  },
+  {
+   "blob": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
+   "bytes": 10243,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/LICENSE-APACHE",
+   "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
+  },
+  {
+   "blob": "861bf60855b35fa5a4815321c63b6c44fa469320",
+   "bytes": 1060,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/LICENSE-MIT",
+   "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
+  },
+  {
+   "blob": "e7fc3b8149dc3d16154a690eb3269ce6470ce2b0",
+   "bytes": 1145,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/build.rs",
+   "sha256": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a"
+  },
+  {
+   "blob": "e8804f57fee57045f0d064f68f9196bbce03a8fc",
+   "bytes": 2373,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/src/lib.rs",
+   "sha256": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d"
+  },
+  {
+   "blob": "c058dafcd14fb0d4b29d212665754e8f8ca6ccf4",
+   "bytes": 24657,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/upstream-src.tar.gz",
+   "sha256": "a1f41ecea7c28e91dc91eb90d0dc9deea448f16d02851e065374315e27901934"
+  },
+  {
+   "blob": "39b53527822597fe8ddce3c5a2e0a4d0f60649e4",
+   "bytes": 2025,
    "mode": "100644",
    "path": "patches/sqlx-macros-core-0.8.6/drop-optional-mysql-sqlite.patch",
-   "sha256": "b4abc1051f7f1a7bc53f97eeab464e991cf39c38ad458320b6d8ae7ad1f9120a"
+   "sha256": "83ad9bcee83e70bc5b7f20c0bc46490416148315fdf47bb43a8da35875adfed7"
   },
   {
-   "blob": "1b0dc65f1a190116fe3d8cb445d900fafc7b6286",
-   "bytes": 3287,
+   "blob": "1b23ec1a992b011dc4a6af5b58da5a9dee9047ef",
+   "bytes": 2113,
    "mode": "100644",
    "path": "patches/sqlx-macros-core-0.8.6/provenance.json",
-   "sha256": "90d97a79c1007b3b1d5431407aca16eb11ce79471ee5a34421986675096e73c2"
+   "sha256": "1459674a31b4b23419dbe5a15ee16bbeb37947f104246a533b05948bde4e5a0b"
+  },
+  {
+   "blob": "0a8e6ff2368ba799fe62af89771b4c1fc0b0aaea",
+   "bytes": 30587,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/sqlx-macros-core-0.8.6.crate",
+   "sha256": "19a9c1841124ac5a61741f96e1d9e2ec77424bf323962dd894bdb93f37d5219b"
   },
   {
    "blob": "d1a5ee0628fb2d1c8337b4dd96e70c5cae54f376",
@@ -6359,11 +6471,11 @@
    "sha256": "79181d1b464965a7083ae4562a0f0cb40ad87990e5546ac29dd6ce153b03f10a"
   },
   {
-   "blob": "230d64fd7745de9ad0575dfad62628c469dcdc14",
-   "bytes": 3301,
+   "blob": "02e757a7333a44f1fcc5fd36459fffd930332fe0",
+   "bytes": 3313,
    "mode": "100644",
    "path": "scripts/gateway_rsa_absent_lock_tests.py",
-   "sha256": "215ce06076406f9a6cd614f245f37aa2b286ebe813dab6cb73fa819906e49524"
+   "sha256": "32e8335c4eee90a3790a18add5f4bee203f3ff51971ef32b335b2bad9584a089"
   },
   {
    "blob": "6c158d525d746fe2116859a90f79d8214547db76",
@@ -8487,11 +8599,11 @@
    "sha256": "c280a3c9dc93906e0e5f8e2400accfa4a3f581e380dee73edc8417d554b87cc8"
   },
   {
-   "blob": "b587fc95ad2dd3eeebc1f9738add9fd903f0bf05",
-   "bytes": 1847,
+   "blob": "917bc7ca9aa18c4682cadf998d30c8511979f93a",
+   "bytes": 1897,
    "mode": "100644",
    "path": "services/cloud-gateway/Cargo.toml",
-   "sha256": "4c2edf493ea0e81c31d18e67f059184d1b4e12f3aff5e98892e56e5714f53542"
+   "sha256": "998f6d83ce88019bcc513c62a62f5eeb2737fce20693dfcef6018f889df69435"
   },
   {
    "blob": "0d5264553d659329dbf09cd867c40c3183ccf181",
@@ -14001,1357 +14113,6 @@
    "mode": "100644",
    "path": "vendor/glib-0.18.5/tests/value.rs",
    "sha256": "c796ea2b30559e9c8ab6ebbb6c59c575d365a27b461c20f9ca0b1989dbe01d79"
-  },
-  {
-   "blob": "3958fb5e55b39ddc624fef2664e584bad1319cf7",
-   "bytes": 94,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.cargo_vcs_info.json",
-   "sha256": "dddcb526fa1185e61cdcd768642e40a9a0ba8fb7ab8a7a850064219515ebd5ab"
-  },
-  {
-   "blob": "4dc104bd85a9d4581c6789ef2be327e8081c31eb",
-   "bytes": 140,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.editorconfig",
-   "sha256": "f2de501a1a5762fd0a212e245a84b595f7bcbc882f8991c9eeb81d9e6892115a"
-  },
-  {
-   "blob": "6313b56c57848efce05faa7aa7e901ccfc2886ea",
-   "bytes": 19,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.gitattributes",
-   "sha256": "d60f352d0db1404c70afb4bb8b2ca3fd1c610572aa40720e8a0b7baa7885418c"
-  },
-  {
-   "blob": "317e4a87ce5f2d9f9084f389a1d0e8341d3d4881",
-   "bytes": 1693,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/ISSUE_TEMPLATE/bug_report.yml",
-   "sha256": "8482553855552e0b1257031aa9697ff4805cb1b51cdfb767c3fa3bebe6e989e0"
-  },
-  {
-   "blob": "cd097634cae5edf673625e21d1e4f38efab55aa8",
-   "bytes": 651,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/ISSUE_TEMPLATE/config.yml",
-   "sha256": "061b748e29b7da3ee4095ad5105d667e1c0df541bedb78a527ab2fab92322ca2"
-  },
-  {
-   "blob": "0f39efc46d40e1cb720cea14e076a235018d04f8",
-   "bytes": 1031,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/ISSUE_TEMPLATE/feature_request.yml",
-   "sha256": "15854a166224d7ccec51ecae53188fa94d145362b7158ed15fb40eda6734a82a"
-  },
-  {
-   "blob": "6d193065c2a5a36a292b622fe8076db5b6a9ce42",
-   "bytes": 2789,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/pull_request_template.md",
-   "sha256": "7bf189302d220a23b814ea0d1a5dddbf9bbe0984c1821133eb1f7743283e4f73"
-  },
-  {
-   "blob": "0dfbcbdf267e936b7b5eb4d6673aad635f0c4825",
-   "bytes": 6544,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/workflows/examples.yml",
-   "sha256": "d45b84b96f9b44326121fff48d8a3b3cecafa782e6757ed4f7020ed15660310d"
-  },
-  {
-   "blob": "8ec5db63d7fba5aa03ae3810abf2b39195ee1530",
-   "bytes": 9369,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/workflows/sqlx-cli.yml",
-   "sha256": "14ff2f316301dfd2d248e7a8f72ca3b967f914b4f8325bfb6c31387c89b95d1a"
-  },
-  {
-   "blob": "1e3513b1ee1dba8bd5f26694eea922ca98d35a19",
-   "bytes": 18468,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.github/workflows/sqlx.yml",
-   "sha256": "789d0ed9106d3c58a4f2f6f4c016e2dc587286e1599d52c8a5b9e23e5f33bfdb"
-  },
-  {
-   "blob": "df2814202722bda67533b108de3b1ea2dba3ddde",
-   "bytes": 326,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/.gitignore",
-   "sha256": "1d1e25d57058d3e0a71f7f6f9548e07fc6330d46a3dc5fca97d6aa400c71e2dc"
-  },
-  {
-   "blob": "3fadc3d09349adb2ca1a9157a94a091be783db83",
-   "bytes": 145428,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/CHANGELOG.md",
-   "sha256": "1361b23dbc787e2ef1577d641cd243a966038f6ba2d67821d7924aece32d7d58"
-  },
-  {
-   "blob": "e0fdfe88900df2e6f85b813f32b165d1da5f8e42",
-   "bytes": 1775,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/CONTRIBUTING.md",
-   "sha256": "d3e3dee3bd94e1bf7e189f9261520afa1ef60f39a0aacafaeda6c7f8b3d7d0e2"
-  },
-  {
-   "blob": "033535f55ee304743155eaf37acb2659d5423f8d",
-   "bytes": 6633,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/Cargo.toml",
-   "sha256": "39e682ac9d134b3284445cf8fa9ff3b7e867bd961d3921e1673b215ba1a75200"
-  },
-  {
-   "blob": "2419b50d974cd40d883a87a5da4534b2e8a24638",
-   "bytes": 11460,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/Cargo.toml.orig",
-   "sha256": "928eb3d80dd10b41fb3d2bbc1ac074a8f8c91b5314d13b9b6b22365d55fb3d3e"
-  },
-  {
-   "blob": "cf13cf73ee3f80c5fd360b5406ba7a95e90807a1",
-   "bytes": 29624,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/FAQ.md",
-   "sha256": "ae3207f28753d2b40418ced76076b8ee588ece5b6d800df4c6e13683329035cc"
-  },
-  {
-   "blob": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
-   "bytes": 10243,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/LICENSE-APACHE",
-   "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
-  },
-  {
-   "blob": "861bf60855b35fa5a4815321c63b6c44fa469320",
-   "bytes": 1060,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/LICENSE-MIT",
-   "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
-  },
-  {
-   "blob": "cc0ecf2e669894784062c7f9447a85398e1f4683",
-   "bytes": 18808,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/README.md",
-   "sha256": "a2b33db488ed61b9821a3bfc8d44917a895dd3d3f73a46e12cf3160aad036dd1"
-  },
-  {
-   "blob": "470c1f736260c11652c22c2b89b2348ca5c0eb83",
-   "bytes": 5101,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/benches/sqlite/describe.rs",
-   "sha256": "a4998daa5e88f6ccebd1efe78d0ee81c873a98e9fd8b7b22160026d3ef487052"
-  },
-  {
-   "blob": "0158870aca993e1ed56e75ba4bc32e593ed0c715",
-   "bytes": 427,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/clippy.toml",
-   "sha256": "4af1c85c6f43c13c0762aec497123b81529bc367eaf9e05d744dcdbfdafef056"
-  },
-  {
-   "blob": "3d1cbfd8a787b041d003fcdfb8e048e3a0a98153",
-   "bytes": 60,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/contrib/ide/vscode/settings.json",
-   "sha256": "af1e5804fd68126c54f709b71aee3c7dd4dca964f509257c2dd331006dda66ad"
-  },
-  {
-   "blob": "cf85e5f0a63428cb487d12cb54250d3ef6bb28a9",
-   "bytes": 22,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/examples/.gitignore",
-   "sha256": "fc1398417f77731d79df1afa89fe92c469a770dfe33a869574f233796b1dff5a"
-  },
-  {
-   "blob": "79f6fda1ba26080baa606c2b57ddc744052f276e",
-   "bytes": 2065,
-   "mode": "100755",
-   "path": "vendor/sqlx-0.8.6/examples/x.py",
-   "sha256": "84fea3ef254058f98c3b28f3e2a6b35707af2be902baafd0107859f2fd5bda32"
-  },
-  {
-   "blob": "d0b9ba71f5a93281d0c3ab28416c0f56db7b90e2",
-   "bytes": 3170,
-   "mode": "100755",
-   "path": "vendor/sqlx-0.8.6/gen-changelog.sh",
-   "sha256": "be0292a711d7a7bb03b57b9b3534dbb34d084189ed85d32c528d0a39e2e156a7"
-  },
-  {
-   "blob": "29f0b096950c68b89f7ab6bc85eb09cd6c15c3f7",
-   "bytes": 112,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/rust-toolchain.toml",
-   "sha256": "8352d3ae004cfbc6884de351f2f1fbda1af8d02ef61df520fa1dfce7263f87c8"
-  },
-  {
-   "blob": "82e6aba92db36bee3d71705042256b29833a365c",
-   "bytes": 425,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/any/install_drivers_note.md",
-   "sha256": "227ad6700bf9cabe527afca93db36618448ba3d52ecd15cabe0284d4ff6e9cf3"
-  },
-  {
-   "blob": "434d25557339e5c6910512a404a3e1b5585a9cbb",
-   "bytes": 1624,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/any/mod.rs",
-   "sha256": "e53b168a20595b4471bfc42745bf108ac494065957e1669820beb0e24a974bbb"
-  },
-  {
-   "blob": "aa45b15730b4dee5ab19e1ae9e724431d8135d1a",
-   "bytes": 3710,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/lib.md",
-   "sha256": "8c1cff00c7cfe568466197f12c658b9b7c542b31bc63b4cf4eea48407d02d168"
-  },
-  {
-   "blob": "ed76c5f5eedb07afb7792ddd2ff06782d44a76b7",
-   "bytes": 4908,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/lib.rs",
-   "sha256": "3e1c881fefb728ce4f3492163377424011031cb8f2a33de7f98536fa604e2437"
-  },
-  {
-   "blob": "9e81935876ed6a06ba3aba3fb9b0641c918e3139",
-   "bytes": 37068,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/macros/mod.rs",
-   "sha256": "39f480aacdbd9c5bda524b7f91f01514a860dfb87f2279da7d49c5217e36f746"
-  },
-  {
-   "blob": "30de8070f605266c5375ab1a969fa8604b421fad",
-   "bytes": 8541,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/macros/test.md",
-   "sha256": "a918b0af491837d1400c572f8667c5d2b6aa1adf7e52b99d0d4680ff9351b5f1"
-  },
-  {
-   "blob": "a37fcb8590f7efc408ab1e4221404d49772641ee",
-   "bytes": 2390,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/spec_error.rs",
-   "sha256": "9c3227deff1fcade9579ed80b9ba923ed3dd9ea2ca2f3d55dfec37be1e59ecbd"
-  },
-  {
-   "blob": "0b2309ae60df66b48b1297da484102d05f3f9696",
-   "bytes": 4562,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/src/ty_match.rs",
-   "sha256": "c13ac10c040f96fdeb05b6632b97355d994c5c357045ddba46f79c62f42d86c9"
-  },
-  {
-   "blob": "ca8cb8cf84939a9c1e188d01e639ab40d7d7b59c",
-   "bytes": 76,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/.dockerignore",
-   "sha256": "ef75b3cbcf74309eb43558e39b5af71361c8b3959ab236ce16f010f04d298376"
-  },
-  {
-   "blob": "0f552d005ea18d60c97847326ad1a551b45d13c9",
-   "bytes": 66,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/.env",
-   "sha256": "289dd9de9ee8b647418f283c05215696464861d6231a7ff721a67912277bc74b"
-  },
-  {
-   "blob": "c65f6dd15a9b731e280634e98bfed9a4a743e6a8",
-   "bytes": 18,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/.gitignore",
-   "sha256": "ab215b61d6faf5d4ff2fd0737f9a9639eecfe54ea28021c78cf3fc9a0b8b4c7d"
-  },
-  {
-   "blob": "bc2dc2327c91f13bc3788435fa07a284f9fdbc33",
-   "bytes": 775,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/README.md",
-   "sha256": "71a627050d3ccde5403a8f55f0f9d9499f39cc0b9702ba13055ce27f4b3dbce3"
-  },
-  {
-   "blob": "2c59ca5339349fd34f34a1801d0aef4b62d9cd25",
-   "bytes": 3296,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/any/any.rs",
-   "sha256": "31151cfee81a77be1b490cb78f1f3382dbfe6597b795f8ee3197ad0efecf972d"
-  },
-  {
-   "blob": "3130b4f1c65612bc2f368bf071725fe06abf3580",
-   "bytes": 8216,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/any/pool.rs",
-   "sha256": "afaaac1b0b2868927889fa4cee4cbad2d70e1151dfa8bad9028acca71de41e7c"
-  },
-  {
-   "blob": "1f4913b8ef277d93f9fc6e9724f9281627fe5b08",
-   "bytes": 1724,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/certs/ca.crt",
-   "sha256": "c1b3e6604ccdbdf75359ee1c4bb9981a09ef1d0fb2f27cc7058d3785c30b7232"
-  },
-  {
-   "blob": "ef2f12153179698a35a7bfeddadb8a2d4da88284",
-   "bytes": 17,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/certs/ca.srl",
-   "sha256": "31ddd8bb9c75df3a9b1856598a209c42a2601f344fd24711bb185bfbd26c9293"
-  },
-  {
-   "blob": "0edde05434e3bc70def63743f8d0be0a3043c2e2",
-   "bytes": 2972,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/certs/client.crt",
-   "sha256": "391cf64e3b67efb926789b2596e72469e4920bbb7bdaf7e9e80ca237bfba088c"
-  },
-  {
-   "blob": "619f572efac89f7137042237e61cf8b3b26a4634",
-   "bytes": 3317,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/certs/client.csr",
-   "sha256": "dbd4779ebbc09fce28e9b52307ebf81e4675c24f2bf8a1722ec06328c5f30d83"
-  },
-  {
-   "blob": "e42bf08bd93a353b7f59daae604610127d044058",
-   "bytes": 1545,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/certs/server.crt",
-   "sha256": "2317922471ab370e536cf3992f7b6d749c68f8d856a63d99de1e81196acb3317"
-  },
-  {
-   "blob": "bb0cc51c838b4747d115e812ebbd19822dc89328",
-   "bytes": 12684,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/docker-compose.yml",
-   "sha256": "a502fe2a1adc638403132ac4c978d77a6c8fac2df9207c54fd340625c8c3d109"
-  },
-  {
-   "blob": "b1b81b07fb9287672f7b9797f76115779aeadc66",
-   "bytes": 2481,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/docker.py",
-   "sha256": "a98cbdea7c287d45296c2e11e5241bb7e454a594b6fa91d7928efa969dd0ea16"
-  },
-  {
-   "blob": "d692f3a1bd118278d17539ef74fe08aa012c0238",
-   "bytes": 259,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/fixtures/mysql/posts.sql",
-   "sha256": "041e395a6d5cb7a0c106af5d05cf72538adf265e0820fb9d4ea93410ba24bea9"
-  },
-  {
-   "blob": "9c4813c02749898296f1f88eeec730435be3a421",
-   "bytes": 69,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/fixtures/mysql/users.sql",
-   "sha256": "d27e6ac6bc175df843dfa16cf0ece16187270b174ab7a77405f56ad077745e5d"
-  },
-  {
-   "blob": "b563ec083960b87e09dbb3607d90b6a97b4dec05",
-   "bytes": 458,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/fixtures/postgres/posts.sql",
-   "sha256": "11839248c9b9797f4767c4fc3251bcdb25d975e160937257cdf1fe4928530346"
-  },
-  {
-   "blob": "571fb829ed4f7e244d95e07582b037f35b3879c5",
-   "bytes": 145,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/fixtures/postgres/users.sql",
-   "sha256": "2e3c11ce7d263a5c88ed5c831b879f31d01cb393f87ab41984bd88f7d061c5f3"
-  },
-  {
-   "blob": "f8a9fbbdabbca00382a1ab4a735aa615f4abf061",
-   "bytes": 2484,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/keys/ca.key",
-   "sha256": "1b056e6457068db10dab16897319172835bf4121d9cf0da7af11c25a47a671be"
-  },
-  {
-   "blob": "c5a237241e8746704dc6b61a5c57b2f4637c987a",
-   "bytes": 1704,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/keys/client.key",
-   "sha256": "f98c4e2056e6e7f8a6f15ed8c0e25dd11c5d672eece85e2d582c224e84e4098a"
-  },
-  {
-   "blob": "d1de34c21f254988a9b23ab426553be5d4bbcb21",
-   "bytes": 1704,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/keys/server.key",
-   "sha256": "96f81956f751204eebfc0c2d61797011c65d4848fc053e950f58ee080ef76aa8"
-  },
-  {
-   "blob": "7bc4e913671960a33c41687852ed690e151f08ee",
-   "bytes": 1299,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/macro.rs",
-   "sha256": "cf686a1b11a9a422bdc69b3976c82efb1560869dce3f4fbf939c960c05ecc954"
-  },
-  {
-   "blob": "55058597253b3e8f07073a64b8f4cb64e50c963e",
-   "bytes": 39,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_reversible/20220721124650_add_table.down.sql",
-   "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6"
-  },
-  {
-   "blob": "9dfc7579549d76cfba8ce20841f0d8b2d75e009b",
-   "bytes": 200,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_reversible/20220721124650_add_table.up.sql",
-   "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59"
-  },
-  {
-   "blob": "3f71737b8cdb429aa4a81631e223489f9db2fd38",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_reversible/20220721125033_modify_column.down.sql",
-   "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849"
-  },
-  {
-   "blob": "bbb176cf41918202819385d843e64f99f2811735",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_reversible/20220721125033_modify_column.up.sql",
-   "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a"
-  },
-  {
-   "blob": "d5ba2919148d79a1a4cdf9a6f9ff675a8123a937",
-   "bytes": 192,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_simple/20220721115250_add_test_table.sql",
-   "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9"
-  },
-  {
-   "blob": "8f6b04d6b0b7266e72c90b9a682868babf5dc11b",
-   "bytes": 1060,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_simple/20220721115524_convert_type.sql",
-   "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d"
-  },
-  {
-   "blob": "d5ba2919148d79a1a4cdf9a6f9ff675a8123a937",
-   "bytes": 192,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_symlink/20220721115250_add_test_table.sql",
-   "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9"
-  },
-  {
-   "blob": "8f6b04d6b0b7266e72c90b9a682868babf5dc11b",
-   "bytes": 1060,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/migrate/migrations_symlink/20220721115524_convert_type.sql",
-   "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d"
-  },
-  {
-   "blob": "6c2389d89103d1af4d21ce0fba630b60c92c88f9",
-   "bytes": 592,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/Dockerfile",
-   "sha256": "9c999331e4bbc814fd3b6507464e70d5366faafd26892bbee2c9d4c0ddcf07cc"
-  },
-  {
-   "blob": "654cab45e3bbac690622882bef2b0b3daa04f15a",
-   "bytes": 227,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/configure-db.sh",
-   "sha256": "b8d8ca52d3891000d2a6034c777ad3c711e08d8da95760399100c3cb1aa79cb4"
-  },
-  {
-   "blob": "3717829b4161f2682a82f843a1e261dc769a08f0",
-   "bytes": 1217,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/describe.rs",
-   "sha256": "199a37ab4b38d8584a0259c056f5e5eb0adc8dec527a14e4d8696704292eeb42"
-  },
-  {
-   "blob": "c4b5e45c65bc12d4ce9f764fea9e9dcb500ecf21",
-   "bytes": 140,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/entrypoint.sh",
-   "sha256": "b43489374e7b82e831a551fc9ce29af225e86cdbd0617a06f4f113cf5fcf0a60"
-  },
-  {
-   "blob": "2acda03410bee13f967ef9d4d07e5d08e124d324",
-   "bytes": 552,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/macros.rs",
-   "sha256": "60f2c5f525889ca77f65a5b2ec6b0e6b5c953ef8cad49b5bcac3175e44e5b733"
-  },
-  {
-   "blob": "a2e0b58dae8ea1c1621baf4ea6625f6b67ebf57a",
-   "bytes": 521,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/mssql-2017.dockerfile",
-   "sha256": "55a89c0f9500ebb5dd21e4f42417bd9e589f3e73c603ec5eac8fe6e7318408b2"
-  },
-  {
-   "blob": "321420d0d22a63a427ebdc0b9602052efa0a7f7a",
-   "bytes": 12521,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/mssql.rs",
-   "sha256": "2b056499f652e0c3b88a3228b6b6bcd3d584a47e4ca071744a981c738e54d480"
-  },
-  {
-   "blob": "a033227b7521e6eb97bac6ea59fc994449476279",
-   "bytes": 383,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/setup.sql",
-   "sha256": "411dbe700db768a0ba9646eff22c7d733f5c49b708ed45932a0f864f724b33c3"
-  },
-  {
-   "blob": "3e9ae7395b7de5ab8ff34946ea84872278f40e48",
-   "bytes": 1044,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mssql/types.rs",
-   "sha256": "db3db6376eef747a699fbad982603570de4de0c96466904a2eebdb72f5516b07"
-  },
-  {
-   "blob": "fab69139caa86624bc5e23ead736a63cf033b008",
-   "bytes": 458,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/Dockerfile",
-   "sha256": "aac9e27b5d03f8f60cf3347b47fc31be2029ee7ae7d63da6335edea6aa0cab58"
-  },
-  {
-   "blob": "825c7b8e2c3d2a41a1de85421d76095059ac70e0",
-   "bytes": 7413,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/derives.rs",
-   "sha256": "ddebac61387b1190a29cc98f3875e4debf3b6a21412947a46eadc4be9467c615"
-  },
-  {
-   "blob": "feb18dc5c68c99145d4b6c6ce4c3d670582831ef",
-   "bytes": 1976,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/describe.rs",
-   "sha256": "fa10d61f80622c1efa7884bc0c94afbdd0cb7d1e467924c2501b89475e315ee3"
-  },
-  {
-   "blob": "3ee1024fc85c3276233026e4a8c21bb9385ccefd",
-   "bytes": 2826,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/error.rs",
-   "sha256": "8252a2fe1be31c5c13ba40e0bdc59f3c89cd8a817f224164faca89f8a7cbc8e1"
-  },
-  {
-   "blob": "7255de5e2576707cc7c7b566f42a9bdd9452be80",
-   "bytes": 394,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/fixtures/comments.sql",
-   "sha256": "af1aac00c743c44289db4818b682ac787a45059b8d76a74a846b4d63746e651e"
-  },
-  {
-   "blob": "d692f3a1bd118278d17539ef74fe08aa012c0238",
-   "bytes": 259,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/fixtures/posts.sql",
-   "sha256": "041e395a6d5cb7a0c106af5d05cf72538adf265e0820fb9d4ea93410ba24bea9"
-  },
-  {
-   "blob": "9c4813c02749898296f1f88eeec730435be3a421",
-   "bytes": 69,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/fixtures/users.sql",
-   "sha256": "d27e6ac6bc175df843dfa16cf0ece16187270b174ab7a77405f56ad077745e5d"
-  },
-  {
-   "blob": "8187f6d8d8ab98bdb6ec38d2ffca9262a5e76d73",
-   "bytes": 13467,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/macros.rs",
-   "sha256": "23986fda02c47022b6a2f639a6fa143283aee959066a401d047d80cae78a348c"
-  },
-  {
-   "blob": "97caa380051cd379ec4abdb7999e5cbfd1d811ca",
-   "bytes": 2095,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrate.rs",
-   "sha256": "a02bc4ebf3096c5669a52464be4f67b1e572e7bb2ff6af5539180e30304670f3"
-  },
-  {
-   "blob": "0fc2b61d8839e052d3944ce15704435896cc867c",
-   "bytes": 227,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations/1_user.sql",
-   "sha256": "b67c1e4888e144548b1b5dc86c6510d75ab45e3cbf088e22dd2455cc463a4da8"
-  },
-  {
-   "blob": "3863f3bc11847aa59bf481b798bf812825697410",
-   "bytes": 323,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations/2_post.sql",
-   "sha256": "887848d7f70c359975c7a8b26f3276d1892098f52cdcac28f2d42ec37a03228c"
-  },
-  {
-   "blob": "c0fe7ea235360ce000c5aa08320adc0b9085d09c",
-   "bytes": 326,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations/3_comment.sql",
-   "sha256": "dae1438bd59a26296677b3dee31d609906214ecc156372a19e55cdba31878642"
-  },
-  {
-   "blob": "55058597253b3e8f07073a64b8f4cb64e50c963e",
-   "bytes": 39,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations_reversible/20220721124650_add_table.down.sql",
-   "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6"
-  },
-  {
-   "blob": "9dfc7579549d76cfba8ce20841f0d8b2d75e009b",
-   "bytes": 200,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations_reversible/20220721124650_add_table.up.sql",
-   "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59"
-  },
-  {
-   "blob": "3f71737b8cdb429aa4a81631e223489f9db2fd38",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations_reversible/20220721125033_modify_column.down.sql",
-   "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849"
-  },
-  {
-   "blob": "bbb176cf41918202819385d843e64f99f2811735",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations_reversible/20220721125033_modify_column.up.sql",
-   "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a"
-  },
-  {
-   "blob": "d5ba2919148d79a1a4cdf9a6f9ff675a8123a937",
-   "bytes": 192,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations_simple/20220721115250_add_test_table.sql",
-   "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9"
-  },
-  {
-   "blob": "03c9732d0b8c71f50d7a9e6f0ab1f18fd467edfc",
-   "bytes": 1058,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/migrations_simple/20220721115524_convert_type.sql",
-   "sha256": "29b5e27840bfb3883bb3494b122b14ffb59aa71fe99a4e5b1561a0e938db48e9"
-  },
-  {
-   "blob": "0e0f6c412509c8436762359d25398338f5a7a489",
-   "bytes": 107,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/my.cnf",
-   "sha256": "3266e1efb9c2eaaf98dd494afe7b994ac3bfdd2092e54d3bc66276c3b0543aa8"
-  },
-  {
-   "blob": "fe0f24050de772cf1d8d725b214e5d5421bb5fa4",
-   "bytes": 15644,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/mysql.rs",
-   "sha256": "adf3b0596b8eac28e89c6ac4bbf6f96ff6f847d685760ced7668e5e1d48ef7ab"
-  },
-  {
-   "blob": "8d8db0c250a86c004441b3b634344a2136eb9ad2",
-   "bytes": 2353,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/rustsec.rs",
-   "sha256": "57c9ad9b46b9137b752f6bb882d837ed2583dacae823ef3e3fdd6d159014414b"
-  },
-  {
-   "blob": "9c4b202e88203a3a9eca47c2f138b28a5d4aca9d",
-   "bytes": 1056,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/setup.sql",
-   "sha256": "ba1a54201c95b5e99b008b1a056d29330c487070c56cf54ce24ea3df4592f286"
-  },
-  {
-   "blob": "75ca66860220c1a4901a356c580623857970ef73",
-   "bytes": 4779,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/test-attr.rs",
-   "sha256": "6ed554dd472188d8bccea4cf143f54fcbcb992b35cd149fe71ed0a55d353f55b"
-  },
-  {
-   "blob": "e837a53f75e49094bbb08482aa39887d9ceb495f",
-   "bytes": 12544,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/mysql/types.rs",
-   "sha256": "11452bba89fd85c9ff7aae3322d6f04993e57b8ef1ee590d5037822a4b1cc322"
-  },
-  {
-   "blob": "026adfac7793e6c8e101fca051896be1663f3b52",
-   "bytes": 460,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/Dockerfile",
-   "sha256": "3fc8d87ed7c913e8c31208b5f2bb23c7d15466dfc47c065f3a7bdc4a97301c47"
-  },
-  {
-   "blob": "13f9bf1d5dc91d8722523ad3bed1e89e11e10af5",
-   "bytes": 21024,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/derives.rs",
-   "sha256": "55a032b674345fd03edd6ec87dd53cdbf6b076475472428ab566ad046edc0215"
-  },
-  {
-   "blob": "d128eb21b69c879bc16571f213e8a72cf2c274c3",
-   "bytes": 2659,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/describe.rs",
-   "sha256": "c26c5436d5cb9e09516a052f68ee515594e7ad1207c03af3e6fa63414bb54dda"
-  },
-  {
-   "blob": "32bf814770eed64f07b31bfa82cd0331c73ffcd9",
-   "bytes": 2851,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/error.rs",
-   "sha256": "e73d3147c0064d6b69d8ac4c5088dd9c0ccf2103510e6ff3bccd80923910aec0"
-  },
-  {
-   "blob": "a982bd98d7bc7028433125b6bf022eeb0900c3ab",
-   "bytes": 745,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/fixtures/comments.sql",
-   "sha256": "76b25706677c891527e041347c28c99dd4ab60e4df2a3d50ec049c4d2471803f"
-  },
-  {
-   "blob": "b563ec083960b87e09dbb3607d90b6a97b4dec05",
-   "bytes": 458,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/fixtures/posts.sql",
-   "sha256": "11839248c9b9797f4767c4fc3251bcdb25d975e160937257cdf1fe4928530346"
-  },
-  {
-   "blob": "c3bb5b0920079d0c4316e1c854208fb7914d5bda",
-   "bytes": 244,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/fixtures/rustsec/2024_0363.sql",
-   "sha256": "b26ab0f42a6daf8289e8ae9d01fd10060aa5e9d8458587793bf55903588fb290"
-  },
-  {
-   "blob": "571fb829ed4f7e244d95e07582b037f35b3879c5",
-   "bytes": 145,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/fixtures/users.sql",
-   "sha256": "2e3c11ce7d263a5c88ed5c831b879f31d01cb393f87ab41984bd88f7d061c5f3"
-  },
-  {
-   "blob": "07ae962018c7a4cc84421daa9be36ee2dc1a40ef",
-   "bytes": 17069,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/macros.rs",
-   "sha256": "43d061399921e1f68bd8fe557d6156656303feba4da8023755d42c3bdc9c3c5e"
-  },
-  {
-   "blob": "636dffe860e2b4d3e900f09879227daf4dcb6589",
-   "bytes": 2667,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrate.rs",
-   "sha256": "b96f53622e2ceb06f652ec59e04255103e6a4d4562ed2e842a20a2ec44e34d82"
-  },
-  {
-   "blob": "b0138f0c31c38dae6559832b85b524b6b1190f7a",
-   "bytes": 98,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations/0_setup.sql",
-   "sha256": "2e9a106cf03e8ed50e6800686abeefef21fe5684d5128f3383696c03fcaf4db6"
-  },
-  {
-   "blob": "4ea11dd5a79d1da09473a71e869cd52dbcdb5eb7",
-   "bytes": 119,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations/1_user.sql",
-   "sha256": "902f7e1106e6b172b2771193e5c6c304fe497246f7bb7cdea95a3cba15122ef7"
-  },
-  {
-   "blob": "ff929746ce1ddea21c94c9b69c642f8dcd558835",
-   "bytes": 244,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations/2_post.sql",
-   "sha256": "c991509bae4b2e2f9be0ab2b9cb5ea2a6fb18f2ec1fe72005f9e23809c58b46b"
-  },
-  {
-   "blob": "f841e4f66678b5003bf5a3c622f7694e5b750435",
-   "bytes": 314,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations/3_comment.sql",
-   "sha256": "b788227008e72478ec20b0177162b5cd83693b2941749c6397d50e4239b835f2"
-  },
-  {
-   "blob": "95451f4adf83afd6a8ae4363314c95211ff06b68",
-   "bytes": 44,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_no_tx/0_create_db.sql",
-   "sha256": "cd1f9e4a572dd4b209a6ec566ff6b4bc3d5414e3d29dba22c06fb827b2c17ab1"
-  },
-  {
-   "blob": "55058597253b3e8f07073a64b8f4cb64e50c963e",
-   "bytes": 39,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_reversible/20220721124650_add_table.down.sql",
-   "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6"
-  },
-  {
-   "blob": "9dfc7579549d76cfba8ce20841f0d8b2d75e009b",
-   "bytes": 200,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_reversible/20220721124650_add_table.up.sql",
-   "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59"
-  },
-  {
-   "blob": "3f71737b8cdb429aa4a81631e223489f9db2fd38",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_reversible/20220721125033_modify_column.down.sql",
-   "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849"
-  },
-  {
-   "blob": "bbb176cf41918202819385d843e64f99f2811735",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_reversible/20220721125033_modify_column.up.sql",
-   "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a"
-  },
-  {
-   "blob": "d5ba2919148d79a1a4cdf9a6f9ff675a8123a937",
-   "bytes": 192,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_simple/20220721115250_add_test_table.sql",
-   "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9"
-  },
-  {
-   "blob": "8f6b04d6b0b7266e72c90b9a682868babf5dc11b",
-   "bytes": 1060,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/migrations_simple/20220721115524_convert_type.sql",
-   "sha256": "c9cc2272fd7e7da1467eaa5f688010b8bb464c3821252de3092e87c35b2ab24d"
-  },
-  {
-   "blob": "be33c4bb10c56e53a0bb527d96e286b30686229b",
-   "bytes": 168,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/pg_hba.conf",
-   "sha256": "84df219c91129eae001eba69548364887827df6bdc46839c9fa3501991a84366"
-  },
-  {
-   "blob": "f0d453a9a3a9f59b5964e34a8070deaf37d45540",
-   "bytes": 61924,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/postgres.rs",
-   "sha256": "9b8b4c5239d2555b6181e521e17ec125aaad9137f75c861689a55e5497acc8e6"
-  },
-  {
-   "blob": "08ed7d11a335273a6c7172692b0450b68b01d725",
-   "bytes": 4087,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/query_builder.rs",
-   "sha256": "f2993bade3d2fe7b602bd973b717c11ebb49e9bef9eb13962c2cb895fd176372"
-  },
-  {
-   "blob": "45fd76b9db3c55491d99ca78a58cc5e269808b09",
-   "bytes": 5484,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/rustsec.rs",
-   "sha256": "a9ecf7ae02337494bfbfe5beaa550ed71483c9aef81260aaa9ac21b635a7d952"
-  },
-  {
-   "blob": "e3b35d31582c4c04f459777fcfd1cbf10ab2d27d",
-   "bytes": 1665,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/setup.sql",
-   "sha256": "35675db102cfe6340f1c19b7c92f4b2221687f66c455e5280910758e0a9e7028"
-  },
-  {
-   "blob": "d662024379c66dfbd73bd9e93aeedb2550b86e12",
-   "bytes": 5907,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/test-attr.rs",
-   "sha256": "60b9125ef62364dd7ed604a9ecba99112ad250a6ca255ab46e0cdd6d1e318168"
-  },
-  {
-   "blob": "157a02f61d970d8b11e9587c9f8c445f013d8d5a",
-   "bytes": 65,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/test-query.sql",
-   "sha256": "93bb1679d291e628b8881cfafc6dc372b052d00993f4aad5566c033e6a8e404c"
-  },
-  {
-   "blob": "d5d34bc1b3f3a51aa0a7b694121d999c23a64fdb",
-   "bytes": 29235,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/postgres/types.rs",
-   "sha256": "b6818bafbf7d3a5ea3cf4edda00b2c6608403937f30edd9f094d13601b1e7abf"
-  },
-  {
-   "blob": "df6bab3febd5481d8907846a40140c334ad30ace",
-   "bytes": 16,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/.gitignore",
-   "sha256": "50f3b3e16d7b04a685551e7a92dee20ad28208d459b7641b4e63eced2eb7839d"
-  },
-  {
-   "blob": "856db70c05a886fa4b4835b8954cf6bf098a9034",
-   "bytes": 913,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/any.rs",
-   "sha256": "1b00df7614c4e1db8c71bb9c1c3b27cb683b1f528adde5e9b9239c58dee47f76"
-  },
-  {
-   "blob": "d91e012b301a3f9774036f6c2d8e5c60b82e382b",
-   "bytes": 232,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/derives.rs",
-   "sha256": "166cc5ed0da43ee2b8c88a72a870c8b16673515f0d250563229c72ee76e65c81"
-  },
-  {
-   "blob": "5458eaaa82be9e484baa3ac9bfbef018a23abc30",
-   "bytes": 32937,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/describe.rs",
-   "sha256": "68479b223809f9aa1540debd44140bc8e42f8d05828e484ac441ca478f4479a9"
-  },
-  {
-   "blob": "8729842b70bc02dac034733adab3112ca85a2227",
-   "bytes": 2727,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/error.rs",
-   "sha256": "9c8569e519d76cbf8b10abf2538d57afc0791820d7947bb6530bb2ba3de02745"
-  },
-  {
-   "blob": "d6b21881280cb0add4346cf8e74b7f81432625b0",
-   "bytes": 400,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/fixtures/comments.sql",
-   "sha256": "c329cdc81e4ac2a9b5ae3f536d128adf1955e4a57bcaeedfef6d2f361ff53a60"
-  },
-  {
-   "blob": "e48975f84e4683ec647b2a14f7ec7bdfb4b8d20e",
-   "bytes": 259,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/fixtures/posts.sql",
-   "sha256": "c7615cce4f9f4d8ad084c4c29be767d6015c9288381440b5aed65c4624c50fb1"
-  },
-  {
-   "blob": "627f7d9b3c1f01976fc4139911400ae826d500a6",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/fixtures/users.sql",
-   "sha256": "fa286e73fbc2a740a6f019ac069af64e9688567065a6ea9effe47e614b7581f8"
-  },
-  {
-   "blob": "74e689260af5cf2cc5d507f72508c9b251791baf",
-   "bytes": 8438,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/macros.rs",
-   "sha256": "20b33f2dddc97bfaf90876865a6489c6b514ca35ee47cda45c055650e1f032ce"
-  },
-  {
-   "blob": "19e8690f9a428f61851b0a65bd27eb5c4e276016",
-   "bytes": 2103,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrate.rs",
-   "sha256": "1b8948114ce18ea034f3143300e4d0098b82038181c39aa84e700e94bd34ee21"
-  },
-  {
-   "blob": "100b750f192265502a66754a19d6cacd4b55c473",
-   "bytes": 152,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations/1_user.sql",
-   "sha256": "554f3699379adac1162a251f70c4f2a0c75fbb4059e9317ea5526b8d20650974"
-  },
-  {
-   "blob": "74d2460596c38e89cfdabd661cfba673e083d376",
-   "bytes": 308,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations/2_post.sql",
-   "sha256": "6a21693d3488820a7c6e90deedac6c4705b69aba7a5a3104ead565d8593cdf22"
-  },
-  {
-   "blob": "a98b2628fc8f23d87d2af6c1b8d5151f7d42afae",
-   "bytes": 328,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations/3_comment.sql",
-   "sha256": "ea619f0b4b851f9c01dcb2874182a84ef20d82bb44d1cc7a93a7428989cb6798"
-  },
-  {
-   "blob": "55058597253b3e8f07073a64b8f4cb64e50c963e",
-   "bytes": 39,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations_reversible/20220721124650_add_table.down.sql",
-   "sha256": "bcf360c228476062bb8fb7338195ae33fe092c7f7cc06277bb6b6c5430c35aa6"
-  },
-  {
-   "blob": "9dfc7579549d76cfba8ce20841f0d8b2d75e009b",
-   "bytes": 200,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations_reversible/20220721124650_add_table.up.sql",
-   "sha256": "2f9c6d5ae6aa61d47524686e033ab18b589086bf5c1b8dfb6afd306c6802be59"
-  },
-  {
-   "blob": "3f71737b8cdb429aa4a81631e223489f9db2fd38",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations_reversible/20220721125033_modify_column.down.sql",
-   "sha256": "4d74cd01038ffaaaa949a807ba78aeb80b3befbde47b5a466b8c6e55c097a849"
-  },
-  {
-   "blob": "bbb176cf41918202819385d843e64f99f2811735",
-   "bytes": 71,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations_reversible/20220721125033_modify_column.up.sql",
-   "sha256": "7c3d6700bc0d1100c489a6615314255837076f2891b33526963b8105cda57b4a"
-  },
-  {
-   "blob": "d5ba2919148d79a1a4cdf9a6f9ff675a8123a937",
-   "bytes": 192,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations_simple/20220721115250_add_test_table.sql",
-   "sha256": "1a9a63c4fd7687ed5ccbcc548a3deee5354fe9f0306ca51d9f528343c7a085a9"
-  },
-  {
-   "blob": "25de20b6a5220ec161052acf5161e26ff25e87ac",
-   "bytes": 959,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/migrations_simple/20220721115524_convert_type.sql",
-   "sha256": "9e147a27bda345604e7870e5f96aa802f8e4f2ec8b03f52db260ea8051700d92"
-  },
-  {
-   "blob": "3ff9c524fa83bef4c321b15e5bb918216b8d0810",
-   "bytes": 2791,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/rustsec.rs",
-   "sha256": "994383eacd33240cd4d3e64f6b7a75adcbe9dc87b26121d7a15cf306ce2ae7e2"
-  },
-  {
-   "blob": "8f7d77c46daa840eca264c684bd9f9011fd43e9e",
-   "bytes": 1039,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/setup.sql",
-   "sha256": "0143afda08b05e4adc5876bb3b3fca93e41fd559d9ae60d653e6286a75b2b374"
-  },
-  {
-   "blob": "9be0a179bb884cc1cb94d81a3ce5897c81f3bd22",
-   "bytes": 5699,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/sqlcipher.rs",
-   "sha256": "fc9670fc2701b36e71c015f4ad1e201ced4717528a2ad4f8a3ff67d80152c1a3"
-  },
-  {
-   "blob": "e357615025e1e8b905d823110804fa9a422a92c9",
-   "bytes": 36864,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/sqlite.db",
-   "sha256": "b2d21ebdabfef366991a5e7756c33424ec44154af04402fa42af9e62ad83545a"
-  },
-  {
-   "blob": "c23c4fc9efc2a7e025ec6378d15a27070d0fd163",
-   "bytes": 40223,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/sqlite.rs",
-   "sha256": "ae7360a15da3eddc615dd93358646a8f83640ecc34882904b4cde43a4ce3a1f4"
-  },
-  {
-   "blob": "09957d764a89faf5d162e14b2e00a38f6c40254e",
-   "bytes": 3024,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/test-attr.rs",
-   "sha256": "d4afd5dc68d32430afd384eac73a18524f884cd6e329b08b06130ace312c4c7b"
-  },
-  {
-   "blob": "2497e406cc16e7320f9257154bd39435caac65f1",
-   "bytes": 8586,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/sqlite/types.rs",
-   "sha256": "3fb2d85d629237ba0cc345af26fb26ac409017eed4f5b77115a6649c36fa033c"
-  },
-  {
-   "blob": "4a5ca240e1091a92df92a657f40d20f896fc0f67",
-   "bytes": 1462,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui-tests.rs",
-   "sha256": "0c02796a0bdf3733f6c0fe3a4ee8984180cd0a2b9189e5349c799e7af6525fef"
-  },
-  {
-   "blob": "76b590b92368ed1191feaa0b379549615a672755",
-   "bytes": 210,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/mysql/gated/chrono.rs",
-   "sha256": "a2967ca2a27d047d706c2ca85b77084e86fb8f9a608a11fd77e2209897806fe0"
-  },
-  {
-   "blob": "c340ab2c55f8eb21b2428521279011c5d3d5e533",
-   "bytes": 1085,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/mysql/gated/chrono.stderr",
-   "sha256": "1ea322938525416e9b3fd054a7673a85989e26530d4b10f8873e78ac719bdd00"
-  },
-  {
-   "blob": "bcedf3fb1bd1c479b02a65d159c1bca30d07efd7",
-   "bytes": 174,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/deprecated_rename.rs",
-   "sha256": "cca434b354e41848df53ca89e8d2c5b2869111a5a967fab012f23731369647a6"
-  },
-  {
-   "blob": "df9ba2f01885414297c93795ffd2401cc2d76a38",
-   "bytes": 499,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/deprecated_rename.stderr",
-   "sha256": "f2a53b7d1f9f6c09b260883d1b2ee17219e99f73789ed4b7c97a44dfe1ec8189"
-  },
-  {
-   "blob": "cc501d1d1b4679277cb34937d36436da86e6de29",
-   "bytes": 433,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/gated/chrono.rs",
-   "sha256": "b3e6cb1336d5866ec372a7f4b8603205316a05b7f0cb2a74fe69be420d45de20"
-  },
-  {
-   "blob": "f4f2abfbe55be7e08e564daeb3d0de42a8bda1fa",
-   "bytes": 2655,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/gated/chrono.stderr",
-   "sha256": "b9c1744362a2164d6d9588dee6ebfe5acc0ea8bba114afc0844dd62de27baec0"
-  },
-  {
-   "blob": "c650c7466c76a15390e6c87860e7d1a606954a20",
-   "bytes": 232,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/gated/ipnetwork.rs",
-   "sha256": "f23b05659eb43fc95c7a97d577a2dd2a3030312ac215252c9e869fc4629bcdba"
-  },
-  {
-   "blob": "2044d04e8c30239474e445305196f31724e14fa7",
-   "bytes": 1353,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/gated/ipnetwork.stderr",
-   "sha256": "b691afa0fbee85843303b7400c3711bb75ade4391d04fb78b78ede0219d60e9e"
-  },
-  {
-   "blob": "d78970df9f8db725d5fbd4a3c0f20f24f6cbceb2",
-   "bytes": 144,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/gated/uuid.rs",
-   "sha256": "f01c322b252c6b1f04aa1140611a83bbd3e33d3f0dda94ce157d640d22f611fb"
-  },
-  {
-   "blob": "e90aaffae462340cb5e7b3ad8512120ad8401e4c",
-   "bytes": 701,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/gated/uuid.stderr",
-   "sha256": "4fa17fcf9de5e4c87e5074a30b54a272e75c08c189c6d4797aa6719bb8514339"
-  },
-  {
-   "blob": "96f38d8c60ee90a507dc37b7b186b8a6fe570100",
-   "bytes": 66,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/issue_30.rs",
-   "sha256": "59a771bd34877b08728db477f6b9f57d4899d87b4b963da5638830853b9f9096"
-  },
-  {
-   "blob": "66dd2030e756c4f3fc32fddb0c8fe49f32d772cc",
-   "bytes": 326,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/issue_30.stderr",
-   "sha256": "d765785be439c1580e075731b8f89fc0092d1185868ef54ea6b1f77ec11f4acd"
-  },
-  {
-   "blob": "f9be2025d6872d2802b925255417d13ae0edd7df",
-   "bytes": 202,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/unsupported-type.rs",
-   "sha256": "3c16a91b27cda97f90db733c48b51161730242d1c79ac3918724435f9f06d207"
-  },
-  {
-   "blob": "c375f816ba1d7a1f0e6ce8720e1ad86234d6ab50",
-   "bytes": 624,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/unsupported-type.stderr",
-   "sha256": "de4076e6c0999760e2dfce850aeed37f088da1674b8d276937675af94843f692"
-  },
-  {
-   "blob": "18737f0ec3c7f7f1c95df854a922a2a7b2799bef",
-   "bytes": 413,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/wrong_param_type.rs",
-   "sha256": "e44734ada6f112e9fb9472747eda2ec449673f4a0783002391e00837717ea1de"
-  },
-  {
-   "blob": "50274e121345235acf36cb13d6cef620778f4f46",
-   "bytes": 1648,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/postgres/wrong_param_type.stderr",
-   "sha256": "ef311ad816c2bb98ff77406a69861096848bcef397f6bfd0f850509f4f261e53"
-  },
-  {
-   "blob": "f647bd7708d75fb7d23d40495bc02fce200896f4",
-   "bytes": 58,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/sqlite/expression-column-type.rs",
-   "sha256": "373e6e9747a1ba405ec0c7a5509754a9204ad5543d5dddec79d61698a4ef4297"
-  },
-  {
-   "blob": "3192002f578907e261d2c8a3d934149e1c804892",
-   "bytes": 378,
-   "mode": "100644",
-   "path": "vendor/sqlx-0.8.6/tests/ui/sqlite/expression-column-type.stderr",
-   "sha256": "e969c488ee466bcd31441d83b4721e161d5f50fdd04104e6d4eb6ec502f54824"
-  },
-  {
-   "blob": "0f15b59124c9a422b1e222bcfb2878caa6434963",
-   "bytes": 9365,
-   "mode": "100755",
-   "path": "vendor/sqlx-0.8.6/tests/x.py",
-   "sha256": "93fee486830959fcd27b12f97f7328e68ef3cc16793e440d52380e6c8a03f746"
-  },
-  {
-   "blob": "be1699b9cc45c3f04dbc1c38ce0e42a7d5591ff2",
-   "bytes": 110,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/.cargo_vcs_info.json",
-   "sha256": "3bac3f4641bbbef9f18aca91f238f3a58170f1b9016c013179036989d01dd576"
-  },
-  {
-   "blob": "c8bc32534b09a2cf2340a7b42b14ec907f5b4b9e",
-   "bytes": 3261,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/Cargo.toml",
-   "sha256": "f6b66f50ecd9914d2500439c6406552aa9082c73fbecd38e5ef8bacef2e8d277"
-  },
-  {
-   "blob": "07d9d788629484fd753fa58bac693805e03f753d",
-   "bytes": 2853,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/Cargo.toml.orig",
-   "sha256": "2cd9879d4699c3c2d71437ff50fc4214e8200dacd8f57cc13389e2522656f97a"
-  },
-  {
-   "blob": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
-   "bytes": 10243,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/LICENSE-APACHE",
-   "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
-  },
-  {
-   "blob": "861bf60855b35fa5a4815321c63b6c44fa469320",
-   "bytes": 1060,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/LICENSE-MIT",
-   "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
-  },
-  {
-   "blob": "fab09b7caecd290e72ba1537987739af34190cb0",
-   "bytes": 1073,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/common.rs",
-   "sha256": "e0baf2a52a1e90f5ce6c47c0c9fb9aa5fe7cd85ef3cd1511e90a6f6d9ceca8bc"
-  },
-  {
-   "blob": "499406907f0be8010501cc4056f607bed2176ea3",
-   "bytes": 2198,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/database/impls.rs",
-   "sha256": "ddf04d8248a7c0272e0d16068af1cba81ca54a3e2af92c6ef1e8a310eccb0585"
-  },
-  {
-   "blob": "a2d0a1fa0dcf9ed90b8667decea652435df49e1e",
-   "bytes": 1853,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/database/mod.rs",
-   "sha256": "d6ad0c00aae5898a1c35858190011a311496ad2626d88630d8beb993163aa970"
-  },
-  {
-   "blob": "c69687908bc35c1c754639729d9796cc77422120",
-   "bytes": 8882,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/derives/attributes.rs",
-   "sha256": "77ec6155e2c9f6f4b658b95045420f09c2c7946e1af631951a1ca1224c69c085"
-  },
-  {
-   "blob": "7af9643d93b24a589958929a20c75d7b07e3bb45",
-   "bytes": 10672,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/derives/decode.rs",
-   "sha256": "65ffa5332295293c0a1a60151eb2b7bd4564189da7429c6540aac28131c6f7e5"
-  },
-  {
-   "blob": "9f26aba0a94ab64e885c4a2ff4c74b15b849da60",
-   "bytes": 8906,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/derives/encode.rs",
-   "sha256": "7a0d35ea88e91ebc43d45248ae88a42edad21de4f301e6a74ee4a3bf90114e2a"
-  },
-  {
-   "blob": "5f55ab5aeacfe84fb2c7bd209e24c3964310d726",
-   "bytes": 1232,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/derives/mod.rs",
-   "sha256": "26c75643943c95316b47b65324fa8864dedb8150f0e35f2b2514df90acb1624a"
-  },
-  {
-   "blob": "604986f90b8d809f80f5934366df3201b0e38450",
-   "bytes": 11697,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/derives/row.rs",
-   "sha256": "7bc0fd43bee7a81f51c10732381cf4e055dc725897c760c7328d6835747fe7b7"
-  },
-  {
-   "blob": "8ecd55230c119f933486fe0644b4df32ccfee228",
-   "bytes": 9002,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/derives/type.rs",
-   "sha256": "9576ea9d8e559172b793fc8db6596d42d6278e3f9f50f4b6f3638b01c20641ca"
-  },
-  {
-   "blob": "e8804f57fee57045f0d064f68f9196bbce03a8fc",
-   "bytes": 2373,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/lib.rs",
-   "sha256": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d"
-  },
-  {
-   "blob": "c9cf5b8eb1ee7862c735cf464be75a4ea9aa6ee7",
-   "bytes": 3869,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/migrate.rs",
-   "sha256": "e425c282ff84c8c3cc891395c119942b8df6e4833775ffb7e4ba2bf38acee26d"
-  },
-  {
-   "blob": "788a9aadc5263f55b956a0d0b6e28f7a546e2a4f",
-   "bytes": 6004,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/query/args.rs",
-   "sha256": "f7b49b73871f765d5733059ffdd96b3505f3f2fd1f8d85374b49a77db4050c27"
-  },
-  {
-   "blob": "ddf55c8bb23512f93d9a541103ac63f430b25c2c",
-   "bytes": 6264,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/query/data.rs",
-   "sha256": "16d8eae9e134d91cc46a264be2d35045045c1e3269888bfcdc61897962d1caab"
-  },
-  {
-   "blob": "63e35ec77dadb0a1a2c530ff820e882fcc3f7ba5",
-   "bytes": 4880,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/query/input.rs",
-   "sha256": "86e5aa8584847949834c14257da2e465b442b7e7bc58a2a9d20f3d0eb1d26ee4"
-  },
-  {
-   "blob": "a51137413e83b59c4489d11083747e8e37c8382e",
-   "bytes": 13872,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/query/mod.rs",
-   "sha256": "14f859d9e3c3b8c56d5feb67edfedebf31c997d8e5cbb2788e5da9db73b7f626"
-  },
-  {
-   "blob": "3641e55db55e0a725d8ecc729b34929475ba1cde",
-   "bytes": 10809,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/query/output.rs",
-   "sha256": "fe61cf08489924b31ef019a9aad47474d6a66052dbd9d9108a2b64bc53649229"
-  },
-  {
-   "blob": "d7c6eb04868eaeb9c00b064cc246b5a76e8449bf",
-   "bytes": 14017,
-   "mode": "100644",
-   "path": "vendor/sqlx-macros-core-0.8.6/src/test_attr.rs",
-   "sha256": "59bfc9dceb1ff5aff40abd82b45e7fec5a426d793462a2861a16a439da108127"
   },
   {
    "blob": "e4c45c8553e8f88b9fdf3a51c79be54fcac1ec97",
