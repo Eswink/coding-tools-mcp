@@ -104,7 +104,10 @@ pub(crate) fn call(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value,
                     retryable: false,
                 });
             }
-            manager.remove_clean(id).map_err(error)?;
+            // A1 C12b D2: "no worker record owns this id" (checked just above)
+            // is the owner proof, so a marker from an interrupted fresh delete is
+            // resumed here instead of leaking metadata and a slot.
+            manager.remove_clean_owned(id).map_err(error)?;
             json!({"removed": true})
         }
         _ => return Err(invalid()),

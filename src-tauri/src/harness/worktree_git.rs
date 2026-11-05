@@ -167,6 +167,15 @@ fn registered_in(
 /// `(root index, id, head)` entries plus the count of skipped broken entries.
 pub(super) type RegisteredUnder = (Vec<(usize, String, String)>, usize);
 
+/// A1 C12b nit 4: `<common dir>/worktrees/<id>` from the same `Source` that every
+/// registration/remove step uses, so callers never re-derive `.git/worktrees`.
+pub(super) fn managed_metadata_dir(authority: &Path, id: &str) -> WorktreeResult<PathBuf> {
+    Ok(objects::open_source(authority)?
+        .git
+        .join("worktrees")
+        .join(id))
+}
+
 /// A1 C12 M8: count marker entries that `list()` skips (marker + registration
 /// failed). Successfully-registered marked entries are already in `list().len()`
 /// and must not be double-counted into CAPACITY.

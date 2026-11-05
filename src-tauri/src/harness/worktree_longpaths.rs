@@ -86,18 +86,17 @@ mod tests {
         assert_eq!(count, 1, "must not pull user/global/system config");
     }
 
+    /// A1 C12b nit 1: the only backend is libgit2's read-only in-memory one, so
+    /// there is no writable (file) backend a set could land in.
     #[test]
-    fn longpaths_config_creates_no_ondisk_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let before: Vec<_> = std::fs::read_dir(dir.path())
-            .unwrap()
-            .map(|e| e.unwrap().file_name())
-            .collect();
-        let _ = longpaths_config().unwrap();
-        let after: Vec<_> = std::fs::read_dir(dir.path())
-            .unwrap()
-            .map(|e| e.unwrap().file_name())
-            .collect();
-        assert_eq!(before, after);
+    fn longpaths_config_has_no_writable_ondisk_backend() {
+        let mut config = longpaths_config().unwrap();
+        assert!(
+            config.set_bool("core.longpaths", false).is_err(),
+            "set must fail: no writable/on-disk backend"
+        );
+        assert!(config.set_str("user.name", "x").is_err());
+        assert!(config.get_bool("core.longpaths").unwrap());
+        assert!(config.get_entry("user.name").is_err());
     }
 }

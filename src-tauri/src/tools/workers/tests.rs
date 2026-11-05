@@ -2876,3 +2876,91 @@ fn c11b_cleanup_to_discarded_forgets_the_snap_and_card_is_null() {
     let card = crate::commands::subagent_integration::worker_card(record, *snap);
     assert_eq!(card["changed_files"], Value::Null);
 }
+
+/// A1 C12b nit 2: cleanup probes the worker's Job once (registry-only, under the
+/// store lock) before `remove_clean`. Busy or a query error skips the round and
+/// records backoff; the tree is untouched. Empty → removed and Discarded.
+#[test]
+fn c12b_cleanup_skips_remove_while_job_probe_busy_or_errs() {
+    fn busy(_: &str) -> std::io::Result<bool> {
+        Ok(false)
+    }
+    fn query_error(_: &str) -> std::io::Result<bool> {
+        Err(std::io::Error::other("probe"))
+    }
+    fn empty(_: &str) -> std::io::Result<bool> {
+        Ok(true)
+    }
+    let f = Fixture::new();
+    let built = call_tool(&f.ctx, "worktree_create", &json!({}));
+    let tree = built["worktree"]["id"].as_str().unwrap().to_owned();
+    let mgr = manager(&f.ctx).unwrap();
+    let store = WorkerStore::open(&f.ctx.host, &mgr).unwrap();
+    let stuck = store
+        .inject_for_test(
+            &WorkerOwner::local(),
+            Some(&tree),
+            WorkerState::PendingCleanup,
+            now(),
+        )
+        .unwrap();
+    let start = Instant::now();
+    super::test_clock::set(start);
+    let listed = |m: &WorktreeManager| m.list().unwrap().iter().any(|w| w.id == tree);
+    for (round, probe) in [busy as job_probe_hook::Probe, query_error]
+        .into_iter()
+        .enumerate()
+    {
+        job_probe_hook::set(Some(probe));
+        let mut inner = store.lock().unwrap();
+        let done = inner.cleanup(&mgr, None).unwrap();
+        assert!(done.is_empty(), "round={round}: skipped, not discarded");
+        let backoff = inner.cleanup_backoff.get(&stuck).cloned().expect("backoff");
+        assert_eq!(backoff.failures, round as u32 + 1);
+        drop(inner);
+        assert!(listed(&mgr), "round={round}: tree must not be removed");
+        assert_eq!(
+            status(&f.ctx, Some(stuck.as_str())).unwrap()[0].state,
+            WorkerState::PendingCleanup
+        );
+        // Advance past next_due so the next round is due.
+        super::test_clock::set(backoff.next_due);
+    }
+    job_probe_hook::set(Some(empty));
+    let done = store.lock().unwrap().cleanup(&mgr, None).unwrap();
+    job_probe_hook::set(None);
+    super::test_clock::clear();
+    assert_eq!(done, vec![stuck.clone()]);
+    assert!(!listed(&mgr), "empty probe → removed");
+    assert_eq!(
+        status(&f.ctx, Some(stuck.as_str())).unwrap()[0].state,
+        WorkerState::Discarded
+    );
+    assert!(store.lock().unwrap().cleanup_backoff.get(&stuck).is_none());
+}
+
+/// A1 C12b nit 2: source check — cleanup's probe sits before `remove_clean_owned`,
+/// goes through the registry-only wrapper and never creates a Job or sleeps.
+// Textual source scan only: it checks the cleanup body and wrapper as written; a
+// sleep or blocking poll inside a helper they call is not detected here.
+#[test]
+fn c12b_cleanup_probe_is_registry_only_and_precedes_remove() {
+    let src = include_str!("../workers.rs");
+    let start = src.find("fn cleanup(").expect("cleanup");
+    let body = &src[start..start + src[start..].find("\n    }\n}").expect("end")];
+    let probe = body.find("job_probe_empty(").expect("probe in cleanup");
+    let remove = body.find("remove_clean_owned(").expect("remove in cleanup");
+    assert!(probe < remove, "probe must precede remove");
+    for banned in [
+        "for_worker",
+        "sleeper_ms",
+        "thread::sleep",
+        "drain_parent_job",
+    ] {
+        assert!(!body.contains(banned), "cleanup must not call {banned}");
+    }
+    let w = src.find("fn job_probe_empty(").expect("wrapper");
+    let wrapper = &src[w..w + src[w..].find("\n}\n").unwrap()];
+    assert!(wrapper.contains("probe_worker_job_empty("));
+    assert!(!wrapper.contains("for_worker"));
+}
