@@ -67,7 +67,7 @@ test("P4 parity: symbols, null placeholder, all()", () => {
 });
 
 test("R1 vite-plugin-svelte resolves the vendored copy", { skip: !!process.env.DEEPMERGE_UNDER_TEST }, () => {
-  const vps = realpathSync(require.resolve("@sveltejs/vite-plugin-svelte/package.json", { paths: [root] }));
+  const vps = realpathSync(path.join(root, "node_modules/@sveltejs/vite-plugin-svelte/package.json")) // package has no ./package.json export;
   const fromVps = createRequire(vps).resolve("deepmerge");
   assert.equal(realpathSync(fromVps), realpathSync(vendored));
   assert.equal(realpathSync(require.resolve("deepmerge", { paths: [root] })), realpathSync(vendored));
