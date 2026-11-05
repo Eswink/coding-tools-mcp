@@ -9,6 +9,8 @@ Halliday, Josh Duff, and other contributors) is kept verbatim.
 - **Modified:** `dist/cjs.js` (the file Node loads, `main`): `keyIsForbidden()` skips
   `__proto__`, `constructor`, `prototype` in **both** the target-copy loop and the
   source loop of `mergeObject`. Diff: `ctm.1.patch`.
+  **Behavior change:** ordinary own keys literally named `constructor` or `prototype`
+  (not only `__proto__`) are now dropped from merge results too.
   `package.json` reduced to name/version/description/license/main/types/engines
   (no scripts, devDependencies or dependencies) so npm installs nothing extra.
 - **Removed:** `index.js` (source entry, requires `is-mergeable-object` which is not
