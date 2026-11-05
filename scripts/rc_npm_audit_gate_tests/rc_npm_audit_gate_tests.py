@@ -48,6 +48,17 @@ def exempt():
     })
 
 
+REPO = SCRIPTS.parent
+CLI_REPO = ["--repo", str(REPO), "--npm-version", "10.9.9", "--node-version", "v22.0.0"]
+
+
+def mitigated():
+    """npm 10 shape: the vendored link reports both lock nodes on the deepmerge entry."""
+    value = exempt()
+    value["vulnerabilities"]["deepmerge"]["nodes"] = ["node_modules/deepmerge", "vendor-js/deepmerge"]
+    return value
+
+
 class RcNpmAuditGateTests(unittest.TestCase):
     def rejects(self, value, code=1, today=TODAY):
         with self.assertRaises(module.GateError):
@@ -114,34 +125,39 @@ class RcNpmAuditGateTests(unittest.TestCase):
             module.check_prod(report({}), 1)
 
     def test_cli(self):
+        # C13c: the live CLI verifies the vendored mitigation and needs tool versions (capture v2).
         with tempfile.TemporaryDirectory() as directory:
             full, prod = Path(directory, "full.json"), Path(directory, "prod.json")
             full.write_text(json.dumps(report({})))
             prod.write_text(json.dumps(report({})))
-            self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "0",
+            self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "0",
                                           "--prod", str(prod), "--prod-exit-code", "0"]), 0)
+            Path(directory, module.CAPTURE_NAME).unlink()
             prod.write_text(json.dumps(exempt()))
-            self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "0",
+            self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "0",
                                           "--prod", str(prod), "--prod-exit-code", "1"]), 1)
 
     def test_cli_writes_capture_record_next_to_full_report(self):
         with tempfile.TemporaryDirectory() as directory:
             full, prod = Path(directory, "npm-audit.json"), Path(directory, "prod.json")
-            full.write_text(json.dumps(exempt()))
+            full.write_text(json.dumps(mitigated()))
             prod.write_text(json.dumps(report({})))
             clock = datetime(2026, 10, 28, 7, 0, 1, tzinfo=timezone.utc)
             with patch.object(module, "utc_now", return_value=clock):
-                self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "1",
+                self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "1",
                                               "--prod", str(prod), "--prod-exit-code", "0"]), 0)
             capture = json.loads(Path(directory, module.CAPTURE_NAME).read_text())
+            self.assertEqual(capture["schema"], module.CAPTURE_SCHEMA_V2)
             self.assertEqual(capture["captured_at"], "2026-10-28T07:00:01Z")
             self.assertEqual(capture["full_sha256"], hashlib.sha256(full.read_bytes()).hexdigest())
-            self.assertEqual(module.check_recorded(exempt(), full.read_bytes(), capture)["captured_at"],
+            self.assertEqual(module.check_recorded(mitigated(), full.read_bytes(), capture)["captured_at"],
                              "2026-10-28T07:00:01Z")
-            with patch.object(module, "utc_now", return_value=datetime(2026, 12, 1, tzinfo=timezone.utc)):
-                Path(directory, module.CAPTURE_NAME).unlink()
-                self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "1",
-                                              "--prod", str(prod), "--prod-exit-code", "0"]), 1)
+            for clock, code in ((datetime(2026, 12, 1, tzinfo=timezone.utc), 0),
+                                (datetime(2027, 3, 1, tzinfo=timezone.utc), 1)):
+                Path(directory, module.CAPTURE_NAME).unlink(missing_ok=True)
+                with patch.object(module, "utc_now", return_value=clock):
+                    self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "1",
+                                                  "--prod", str(prod), "--prod-exit-code", "0"]), code)
             self.assertFalse(Path(directory, module.CAPTURE_NAME).exists())
 
 
