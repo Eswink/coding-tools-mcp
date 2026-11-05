@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C18 MCP changed_files snapshot tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C19 app-version named import tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "066377206e2a6fb5e2189ed7ae4511f2f880e4ab",
-        "sha256": "fcf9d39e54773e88bc478ef9abcfbe8ab8f8045f60e1eabdd695b229c44dd6d9"
+        "blob_sha": "23f911e88226e2ee9cae2fe927b6d0b96293bf65",
+        "sha256": "3bf2a71770560873b1c95680a3274d54ff4985efec973c51bfcc4104fd1e6fa7"
       }
     },
     {
@@ -11265,6 +11265,20 @@
       }
     },
     {
+      "path": "src/lib/app-version.ts",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "b485c5c9016f97ca240f5ef90e8e18375d723aca",
+        "sha256": "374019239b87a00c7a66dfebcdb849495944be8d9e80367ed3a911748c93de7e"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "a0cbd1f89b49436663f64ac83cd1cad5dd3ecae9",
+        "sha256": "c1c7d0f97d6f72b2bd00eee3418922bb05627e1ce8221f3b0dfc43d1b6ecf983"
+      }
+    },
+    {
       "path": "src/lib/chat-authorization.ts",
       "status": "M",
       "before": {
@@ -11513,6 +11527,16 @@
         "sha256": "9b0bbab2c405c7c7e4a6f93923bbd7842a238d56d39b2058475ba48555ef458f"
       },
       "after": null
+    },
+    {
+      "path": "tests/app-version.test.mjs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "b9eb26c16beee2c1787454539de848570c95bcd3",
+        "sha256": "9d8d9b0cd673217538d79e8de0b1e817e275688b884c5af55137c27eadb78c2d"
+      }
     },
     {
       "path": "tests/approval-decision-order.test.mjs",
