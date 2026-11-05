@@ -141,6 +141,7 @@ jobs:
           set -euo pipefail
           npm ci
           npm run check
+          node --test tests/deepmerge-vendor.test.mjs
           npm run build
           set +e
           npm audit --json > "$RUNNER_TEMP/rc-contracts/npm-audit.json"

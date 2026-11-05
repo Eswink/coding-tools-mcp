@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "name": "deepmerge",
+  "upstream_version": "4.3.1",
+  "version": "4.3.1+ctm.1",
+  "archive_url": "https://registry.npmjs.org/deepmerge/-/deepmerge-4.3.1.tgz",
+  "archive_integrity": "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==",
+  "advisory": "GHSA-gcqx-w48m-w2h4",
+  "advisory_aliases": [
+    "CVE-2026-93753 (REJECTED by VulnCheck 2026-11-02)"
+  ],
+  "license": "MIT",
+  "license_sha256": "6cfc4687cb2f2d86f4a77e6b526290d3878e5e512f3fec2f4cb36a9cb36f798b",
+  "patch_file": "ctm.1.patch",
+  "patch_sha256": "65beaec215db7802139b5c4299f9f91d6b406c7b82916fcbaf7b6c210241e340",
+  "upstream_files": {
+    "changelog.md": "360f6a3465a3e82f7bc1428cf1dc0cf5e6935a83b97345d172d27a4d8703321e",
+    "dist/cjs.js": "2e5160f84a1141bd927264afe4d15766f1e6cf07daef182b37ff53fea121de7d",
+    "dist/umd.js": "f33e6596482d1fb5c7c427f8ef92f2aa849eea9223acd974176b2fb27ddbf73a",
+    "index.d.ts": "146ba4b99c5feb82663e17a671bf9f53bb39c704cd76345d6c5a801c26372f44",
+    "index.js": "12440c84957c1990ea2d5e33dc0091722dc1dc1585c6d20e0c780e568ffa9d30",
+    "license.txt": "6cfc4687cb2f2d86f4a77e6b526290d3878e5e512f3fec2f4cb36a9cb36f798b",
+    "package.json": "f56978e7a6da1a3c6edee41abb54f98584a2fa2680458c48db820ae772fef0c9",
+    "readme.md": "202430923abee498512b2f9cbab686a1e7d64759314a503ca0d5aaa29007fc0f",
+    "rollup.config.js": "abba48beb11daa282e69134e4928ec32737ae6f6d192dd5f00a6e660e032bb25"
+  },
+  "vendored_files": {
+    "changelog.md": "360f6a3465a3e82f7bc1428cf1dc0cf5e6935a83b97345d172d27a4d8703321e",
+    "dist/cjs.js": "8f4fbffea4088b18687f80ef0e6c7ad429b1ab682ef3d48c9680ebc43255cc60",
+    "index.d.ts": "146ba4b99c5feb82663e17a671bf9f53bb39c704cd76345d6c5a801c26372f44",
+    "license.txt": "6cfc4687cb2f2d86f4a77e6b526290d3878e5e512f3fec2f4cb36a9cb36f798b",
+    "package.json": "0a41c352db4edc4cc355d73d35878634e57ed95115caec13bf74d31164291ac5",
+    "readme.md": "202430923abee498512b2f9cbab686a1e7d64759314a503ca0d5aaa29007fc0f",
+    "ctm.1.patch": "65beaec215db7802139b5c4299f9f91d6b406c7b82916fcbaf7b6c210241e340"
+  },
+  "modified": [
+    "dist/cjs.js",
+    "package.json (minimal: no scripts/devDependencies/dependencies)"
+  ],
+  "removed": [
+    "index.js (requires uninstalled is-mergeable-object; not loaded, main=dist/cjs.js)",
+    "dist/umd.js (unpatched browser bundle; not loaded)",
+    "rollup.config.js"
+  ],
+  "removal_condition": "Drop vendor-js/deepmerge (and the root devDependency+override) when GHSA-gcqx-w48m-w2h4 is withdrawn (withdrawn_at != null) or upstream publishes a fixed deepmerge accepted by vite-plugin-svelte."
+}
