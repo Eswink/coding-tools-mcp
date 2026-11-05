@@ -673,7 +673,11 @@ fn c14_locked_or_pinned_interrupted_entry_is_refused_without_deleting() {
         }
         let before = c14_snapshot(&f, &id, &path);
         let (candidates, digest) = f.preview();
-        assert!(candidates.iter().any(|c| c.id == id), "pinned={pinned}");
+        let c = candidates.iter().find(|c| c.id == id).expect("listed");
+        let hint = if pinned { "PINNED" } else { "LOCKED" };
+        assert_eq!(c.hint, Some(hint), "pinned={pinned}");
+        let json = serde_json::to_value(c).unwrap();
+        assert_eq!(json["hint"], hint, "pinned={pinned}");
         let out = f
             .main
             .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest)
@@ -761,6 +765,7 @@ fn c14_evicted_journal_entry_falls_back_to_managed_counting() {
         path: PathBuf::from("/nonexistent"),
         root: PathBuf::from("/"),
         interrupted: false,
+        hint: None,
     };
     let mut j = f.journal();
     for n in 0..JOURNAL_LIMIT {
@@ -776,4 +781,63 @@ fn c14_evicted_journal_entry_falls_back_to_managed_counting() {
     f.main.remove_clean_owned(&id).unwrap();
     assert!(!f.registration(&id).exists());
     assert_eq!(f.main.slots_in_use_for_test().0, 0);
+}
+
+/// A1 C14 S1b (nit 1): an interrupted entry whose id is also present under the
+/// managed root is never offered, cannot be forced, and nothing is deleted.
+#[test]
+fn c14_interrupted_id_present_under_managed_root_is_not_offered() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let (candidates, _) = f.preview();
+    assert!(candidates
+        .iter()
+        .any(|c| c.id == id && c.interrupted && c.hint.is_none()));
+    let squat = f.main.managed_root.join(&id);
+    fs::create_dir_all(&squat).unwrap();
+    c14_assert_refused(&f, &id, &path);
+    assert!(squat.is_dir());
+}
+
+/// A1 C14 S1b (Grok probe): forged marker + Failed journal entry pointing at a
+/// live managed tree's id, with its gitdir deleted, is neither listed nor removed.
+#[test]
+fn c14_forged_journal_at_live_managed_tree_without_gitdir_is_refused() {
+    let f = Fixture::new();
+    // A real legacy root so the forged path passes the root-shape checks.
+    let (_, legacy_path) = f.legacy(&"ab".repeat(32));
+    let root = legacy_path.parent().unwrap().canonicalize().unwrap();
+    let live = f.main.create_detached().unwrap();
+    let live_path = f.main.managed_root.join(&live.id);
+    fs::write(live_path.join("keep.txt"), "keep\n").unwrap();
+    let forged = LegacyCandidate {
+        id: live.id.clone(),
+        display_path: String::new(),
+        head_short: String::new(),
+        head: git(&live_path, &["rev-parse", "HEAD"]),
+        clean: false,
+        path: root.join(&live.id),
+        root: root.clone(),
+        interrupted: false,
+        hint: None,
+    };
+    f.journal()
+        .record(&forged, "forged", LegacyState::Failed, None)
+        .unwrap();
+    let meta = f.registration(&live.id);
+    fs::write(
+        meta.join("managed-removing"),
+        "coding-tools-managed-removing\n",
+    )
+    .unwrap();
+    fs::remove_file(meta.join("gitdir")).unwrap();
+    let before = c14_snapshot(&f, &live.id, &live_path);
+    let (candidates, digest) = f.preview();
+    assert!(candidates.iter().all(|c| c.id != live.id), "{candidates:?}");
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), &[live.id.clone()], &digest);
+    assert_eq!(out.unwrap_err().code(), "INVALID_ARGUMENT");
+    assert_eq!(c14_snapshot(&f, &live.id, &live_path), before);
+    assert!(meta.is_dir() && live_path.join("keep.txt").is_file());
 }

@@ -34,6 +34,11 @@ pub(crate) struct LegacyCandidate {
     /// and whose registration no longer verifies; only its own leftover Git
     /// metadata remains. Part of the confirmation digest.
     pub interrupted: bool,
+    /// A1 C14 S1b (nit 2): preview-only hint, `LOCKED` or `PINNED`, when the
+    /// confirm would refuse this candidate with zero deletion. Not part of the
+    /// confirmation digest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<&'static str>,
     #[serde(skip)]
     pub(crate) path: PathBuf,
     #[serde(skip)]
@@ -271,6 +276,7 @@ impl WorktreeManager {
                 head,
                 clean,
                 interrupted: false,
+                hint: None,
                 path,
                 root,
             });
@@ -295,6 +301,7 @@ impl WorktreeManager {
                     head: entry.head.clone(),
                     clean: false,
                     interrupted: true,
+                    hint: None,
                     path: PathBuf::from(&entry.path),
                     id: entry.id.clone(),
                     root,
@@ -302,6 +309,9 @@ impl WorktreeManager {
             }
         }
         result.sort_by(|a, b| a.id.cmp(&b.id));
+        for c in &mut result {
+            c.hint = self.legacy_hint(c);
+        }
         Ok((result, warnings))
     }
 
@@ -315,6 +325,11 @@ impl WorktreeManager {
     /// prefix or case included) is `None`: fail closed, not listed.
     fn interrupted_root(&self, id: &str, path: &str) -> Option<PathBuf> {
         if !super::valid_id(id) {
+            return None;
+        }
+        // A1 C14 S1b (nit 1): an id that is live (or present in any form) under
+        // the managed root is never an interrupted legacy delete.
+        if fs::symlink_metadata(self.managed_root.join(id)).is_ok() {
             return None;
         }
         let root = Path::new(path).parent()?.to_path_buf();
@@ -344,6 +359,23 @@ impl WorktreeManager {
         }
         self.legacy_manager(&root).ok()?;
         interrupted_registration(&self.repository_root, &root, id).then_some(root)
+    }
+
+    /// A1 C14 S1b (nit 2): `LOCKED` / `PINNED` preview hint, mirroring the
+    /// refusals of the delete path (registration `locked` file; pin file next
+    /// to the tree under its legacy root). Display only.
+    fn legacy_hint(&self, c: &LegacyCandidate) -> Option<&'static str> {
+        if let Ok(meta) =
+            super::super::worktree_git::managed_metadata_dir(&self.repository_root, &c.id)
+        {
+            if fs::symlink_metadata(meta.join("locked")).is_ok() {
+                return Some("LOCKED");
+            }
+        }
+        if fs::symlink_metadata(c.root.join(format!("{}.native-profile-pin", c.id))).is_ok() {
+            return Some("PINNED");
+        }
+        None
     }
 
     fn legacy_tree_clean(&self, root: &Path, path: &Path) -> WorktreeResult<bool> {
@@ -519,6 +551,7 @@ impl WorktreeManager {
                 path: path.clone(),
                 root: root.clone(),
                 interrupted: false,
+                hint: None,
             };
             let (state, code) = if fs::symlink_metadata(&path).is_err() {
                 match prune_missing_registration(&self.repository_root, &root, &entry.id) {
