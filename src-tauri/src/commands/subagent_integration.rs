@@ -494,4 +494,31 @@ mod list_workers_tests {
             "list must read snaps via status_with_changed"
         );
     }
+
+    /// A1 C11b nit 1: the list path also runs `workers::status_with_changed`;
+    /// its body must stay a pure store/memory read (no diff, no git).
+    #[test]
+    fn status_with_changed_body_does_not_compute_diff_or_spawn_git() {
+        let src = include_str!("../tools/workers.rs");
+        let start = src
+            .find("pub(crate) fn status_with_changed(")
+            .expect("status_with_changed present in workers.rs");
+        let rest = &src[start..];
+        let end = rest.find("\n}\n").expect("function body end") + 3;
+        let body = &rest[..end];
+        assert!(body.contains(".changed_snap("), "{body}");
+        for banned in [
+            "worker_diff",
+            "Command::new",
+            "git2::",
+            "Repository::",
+            "diff_tree",
+            "remember_changed",
+        ] {
+            assert!(
+                !body.contains(banned),
+                "status_with_changed must not use `{banned}`:\n{body}"
+            );
+        }
+    }
 }
