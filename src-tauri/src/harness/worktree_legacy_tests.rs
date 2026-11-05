@@ -550,7 +550,7 @@ fn c14_failed_journal_without_marker_or_with_wrong_marker_is_not_offered() {
 #[test]
 fn c14_journal_path_must_bind_the_canonical_legacy_root() {
     let other_ws = "fedcba9876543210fedcba9876543210";
-    for variant in 0..5 {
+    for variant in 0..4 {
         let f = Fixture::new();
         let key = "ab".repeat(32);
         let (id, path) = c14_interrupted(&f, &key, 2);
@@ -581,19 +581,31 @@ fn c14_journal_path_must_bind_the_canonical_legacy_root() {
                 fs::create_dir_all(&r).unwrap();
                 r.canonicalize().unwrap().join(&id)
             }
-            // root reached through a symlink
-            3 => {
-                let link_key = chat.join("ef".repeat(32)).join("worktrees-v1");
-                fs::create_dir_all(&link_key).unwrap();
-                std::os::unix::fs::symlink(&root, link_key.join(WS)).unwrap();
-                link_key.join(WS).join(&id)
-            }
             // journal.path != canonical(root)/id serialization
             _ => PathBuf::from(format!("{}/./{id}", root.display())),
         };
         c14_set_journal_path(&f, &id, &forged.to_string_lossy());
         c14_assert_refused(&f, &id, &path);
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn c14_journal_root_reached_through_a_symlink_is_refused() {
+    let f = Fixture::new();
+    let (id, path) = c14_interrupted(&f, &"ab".repeat(32), 2);
+    let root = path.parent().unwrap().canonicalize().unwrap();
+    let link_key = f
+        .harness
+        .path()
+        .join("chat-v1")
+        .join("ef".repeat(32))
+        .join("worktrees-v1");
+    fs::create_dir_all(&link_key).unwrap();
+    std::os::unix::fs::symlink(&root, link_key.join(WS)).unwrap();
+    let forged = link_key.join(WS).join(&id);
+    c14_set_journal_path(&f, &id, &forged.to_string_lossy());
+    c14_assert_refused(&f, &id, &path);
 }
 
 /// At k=1 the readable gitdir is the binding: a journal naming another (valid)
