@@ -1,5 +1,5 @@
 {
- "entries": 1989,
+ "entries": 1990,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -220,11 +220,11 @@
    "sha256": "eba201b70f0664b5e2a14bfe02cb6ac4e4e25fffbe9f99a33d601b0764990be9"
   },
   {
-   "blob": "99107021c7ca1ef8f88a95bdd3854baa3f674a37",
-   "bytes": 816,
+   "blob": "e27c872cc5c180c8daaedbee64084edb742c4780",
+   "bytes": 1888,
    "mode": "100644",
    "path": ".github/workflows/deepmerge-vendor-guard.yml",
-   "sha256": "c6b0409c69d95259dc16bb250375afe9b70b08a21a5225dae523b1df04f81824"
+   "sha256": "f187f18b52a4d3f1d25f98096bd5bff71d4c40c2bd214c8ab32a620b1b8897a3"
   },
   {
    "blob": "39027309641cb80e8b47cdc3a9c5169dd8be7282",
@@ -269,11 +269,11 @@
    "sha256": "1ee07c23b87611a3326a4790dc38cdc91f47c79b0326789897f1247d8c1a3fec"
   },
   {
-   "blob": "2ea2b5e6954ff2cada511e2733fa50cc05b1269d",
-   "bytes": 20789,
+   "blob": "1a6b56b8f74db919475c142a4b457e6acacfb273",
+   "bytes": 20880,
    "mode": "100644",
    "path": ".github/workflows/final-rc-packages.yml",
-   "sha256": "1ff5bb6634ebc7b68d2d40e2291f97e5c9b658dcf68cf0f68456eaa0169c4da7"
+   "sha256": "4c948318052fbecf09230aabd595208a69b6de783d95700f9dcc7bf5907aeebe"
   },
   {
    "blob": "e5606a515b54f0601b97f27a26e607e357521ce0",
@@ -6800,18 +6800,25 @@
    "sha256": "2c5e2eb36d72f7f5f5eb0205a5242eb0d0dd3b29ee8583e9c2f8212e8a3603d5"
   },
   {
-   "blob": "ed093933d8f1d15a3174edc29582978540faeb7b",
-   "bytes": 10276,
+   "blob": "4bd979f74fbe6788323444a46fd00c4f8fa747ac",
+   "bytes": 24054,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate.py",
-   "sha256": "ffbe1a1ef926262be19771f1ba43d3ff0252a038980327ffd318e721ff94511d"
+   "sha256": "964a7e3599d85657b1c89890923643114d430bab6785c9c137f28b3b119453c5"
   },
   {
-   "blob": "b13f08767a3d99d82886e9b467208b7ec63d06d0",
-   "bytes": 17109,
+   "blob": "bfaf7c750f21f7d0ef0abf126588290bc66114f2",
+   "bytes": 17909,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate_tests/rc_npm_audit_gate_tests.py",
-   "sha256": "863f246c2cb2f05649692e92230e714b6863b35dc0d29972e67d5be1e8c9264d"
+   "sha256": "dfd2d816dad6c5fbd3aefbcedb67a2cedbd5281964d3f3df024b86b492d0b0ad"
+  },
+  {
+   "blob": "76d7dd0007fd9c5ee15ae03e072edb601f5ff844",
+   "bytes": 16492,
+   "mode": "100644",
+   "path": "scripts/rc_npm_audit_gate_tests/rc_npm_audit_mitigation_tests.py",
+   "sha256": "9e4e3341ea6cbb78daa4f488784ef441516b668b60d1136ec1f85e548453d5f1"
   },
   {
    "blob": "b22714f5ea5a2577ccd43ae873324c7dd20d83e3",
@@ -13009,11 +13016,11 @@
    "sha256": "38db93c8db84c5c7e8b29e1a52be22c8da7dc80b26db91b69cce0e01001dd732"
   },
   {
-   "blob": "6645d7c62f2ae4ec29834f41ea5487dfd7bd1269",
-   "bytes": 2097,
+   "blob": "af2d88b69099838e4926bf6facd2ceb68af43cad",
+   "bytes": 2129,
    "mode": "100644",
    "path": "vendor-js/deepmerge/PATCHES.md",
-   "sha256": "659b3c9e4121f60d2596c2b6273739fa8c3a17ffcf36e50cf8926071981fcc85"
+   "sha256": "b70cefff36d313c3397d7ef2433cdf33e946dbdb03f7a1659f6054c084131ca2"
   },
   {
    "blob": "082e0dd393f4dcee8668050a850c7e327762f976",
