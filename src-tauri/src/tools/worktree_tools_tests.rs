@@ -704,3 +704,70 @@ fn agents_manage_is_granted_only_through_request_and_explicit_local_approval() {
         )
         .is_err());
 }
+
+/// A1 C12b D2 (Grok probe-tool-path.patch as tests): an interrupted fresh delete
+/// through `worktree_remove` is finished by the next `worktree_remove` (no worker
+/// owns the id = owner proof): metadata and marker gone, slot freed, 8 creates OK.
+fn d2_interrupted_then_retried(step: usize, partial_target: bool) {
+    use crate::harness::worktree::WorktreeManager;
+    let f = Fixture::new(false);
+    let out = call_tool(&f.ctx, "worktree_create", &json!({}));
+    assert_eq!(out["ok"], true, "{out}");
+    let id = out["worktree"]["id"].as_str().unwrap().to_owned();
+    let target = workers::worktree_path(&f.ctx.host, &id);
+    let metadata = f.root.path().join(".git/worktrees").join(&id);
+    let marker = metadata.join("managed-removing");
+    WorktreeManager::set_delete_fail_at_for_test(Some(step));
+    let out = call_tool(&f.ctx, "worktree_remove", &json!({"id": id}));
+    WorktreeManager::set_delete_fail_at_for_test(None);
+    assert_eq!(out["error"]["code"], "IO_FAILED", "step={step}: {out}");
+    assert!(marker.is_file(), "step={step}: marker written");
+    if partial_target {
+        // e.g. Windows AV / handle lock mid-delete: a tracked file already gone.
+        fs::remove_file(target.join("fixture.txt")).expect("partial target delete");
+    }
+    let manager = workers::manager(&f.ctx).unwrap();
+    assert_eq!(manager.slots_in_use_for_test().0, 1, "step={step}");
+    let out = call_tool(&f.ctx, "worktree_remove", &json!({"id": id}));
+    assert_eq!(out["ok"], true, "step={step}: {out}");
+    assert_eq!(out["removed"], true, "step={step}: {out}");
+    assert!(!marker.exists(), "step={step}: marker gone");
+    assert!(!metadata.exists(), "step={step}: metadata gone");
+    assert!(
+        fs::symlink_metadata(&target).is_err(),
+        "step={step}: target gone"
+    );
+    assert_eq!(
+        manager.slots_in_use_for_test().0,
+        0,
+        "step={step}: slot freed"
+    );
+    // Idempotent: a further retry is a true absence.
+    let out = call_tool(&f.ctx, "worktree_remove", &json!({"id": id}));
+    assert_eq!(out["ok"], true, "step={step}: {out}");
+    for n in 0..8 {
+        let out = call_tool(&f.ctx, "worktree_create", &json!({}));
+        assert_eq!(out["ok"], true, "step={step} create {n}: {out}");
+    }
+    let out = call_tool(&f.ctx, "worktree_create", &json!({}));
+    assert_eq!(out["error"]["code"], "CAPACITY", "step={step}: {out}");
+    assert_eq!(
+        fs::read_to_string(f.root.path().join("fixture.txt")).unwrap(),
+        "original\n"
+    );
+}
+
+#[test]
+fn c12b_d2_worktree_remove_finishes_step0_leftover_with_partial_target() {
+    d2_interrupted_then_retried(0, true);
+}
+
+#[test]
+fn c12b_d2_worktree_remove_finishes_step0_leftover_intact_target() {
+    d2_interrupted_then_retried(0, false);
+}
+
+#[test]
+fn c12b_d2_worktree_remove_finishes_step1_leftover_and_frees_slot() {
+    d2_interrupted_then_retried(1, false);
+}

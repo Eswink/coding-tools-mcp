@@ -303,6 +303,11 @@ impl WorktreeManager {
             legacy,
         ))
     }
+    /// A1 C12b D2 test seam: fail delete step `step` on this thread (M11 hook).
+    #[cfg(test)]
+    pub(crate) fn set_delete_fail_at_for_test(step: Option<usize>) {
+        super::worktree_git::set_delete_fail_at_for_test(step);
+    }
     #[cfg(test)]
     pub(crate) fn slots_in_use_for_test(&self) -> (usize, usize) {
         self.slots_in_use().expect("slots_in_use")
@@ -425,18 +430,21 @@ impl WorktreeManager {
         legacy.sort_by(|left, right| left.0.id.cmp(&right.0.id));
         Ok((legacy, skipped))
     }
-    /// Remove a clean managed worktree that has no worker owner (`worktree_remove`).
+    /// Remove a clean managed worktree without an owner proof.
     /// A1 C12b nit 3 (M9): a delete marker alone never authorizes a resume here;
-    /// an orphan marker (no owner PendingCleanup record) is left alone and the
-    /// pre-marker rules apply (porcelain clean check, or the absence check).
+    /// the pre-marker rules apply (porcelain clean check, or the absence check).
+    /// A1 C12b D2: this never returns Ok while `.git/worktrees/<id>` (or its
+    /// marker) still exists. `worktree_remove` and legacy cleanup prove "no
+    /// worker owns this id" and use [`Self::remove_clean_owned`] instead.
     pub fn remove_clean(&self, id: &str) -> WorktreeResult<()> {
         let _guard = native::lock()?;
         self.remove_clean_locked(id, false)
     }
-    /// A1 C12b nit 3 (M9): worker lifecycle remove. Only the worker store calls
-    /// this, after proving an owner record for `id` (PendingCleanup retry, or an
-    /// owner-proven discard that ends Discarded or PendingCleanup). Only this
-    /// entry point may resume an interrupted delete from its marker.
+    /// A1 C12b nit 3 (M9): owner-proven remove. Callers: the worker store after
+    /// proving its owner record for `id` (PendingCleanup retry, or an owner-proven
+    /// discard that ends Discarded or PendingCleanup); and (A1 C12b D2)
+    /// `worktree_remove` / legacy cleanup after proving no worker record owns
+    /// `id`. Only this entry point may resume an interrupted delete from its marker.
     pub fn remove_clean_owned(&self, id: &str) -> WorktreeResult<()> {
         let _guard = native::lock()?;
         self.remove_clean_locked(id, true)
@@ -461,6 +469,14 @@ impl WorktreeManager {
             // Resume the managed remove directly; do not treat it as absence.
             if resuming {
                 return self.finish_managed_remove(id, &self.managed_root.join(id));
+            }
+            // A1 C12b D2: never Ok while metadata (or its marker) remains; only the
+            // owner-proven entry point above may finish an interrupted delete.
+            if fs::symlink_metadata(&metadata).is_ok() {
+                return Err(error(
+                    "REMOVE_INCOMPLETE",
+                    "An interrupted remove left Git metadata; it is finished only by an owner-proven remove.",
+                ));
             }
             // Absence is retry-safe only when no unregistered filesystem entry remains.
             return match fs::symlink_metadata(self.managed_root.join(id)) {

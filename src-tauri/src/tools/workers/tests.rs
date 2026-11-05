@@ -2941,6 +2941,8 @@ fn c12b_cleanup_skips_remove_while_job_probe_busy_or_errs() {
 
 /// A1 C12b nit 2: source check — cleanup's probe sits before `remove_clean_owned`,
 /// goes through the registry-only wrapper and never creates a Job or sleeps.
+// Textual source scan only: it checks the cleanup body and wrapper as written; a
+// sleep or blocking poll inside a helper they call is not detected here.
 #[test]
 fn c12b_cleanup_probe_is_registry_only_and_precedes_remove() {
     let src = include_str!("../workers.rs");

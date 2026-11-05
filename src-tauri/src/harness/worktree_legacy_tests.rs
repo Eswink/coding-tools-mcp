@@ -419,3 +419,29 @@ fn journal_times_are_asia_shanghai() {
     assert_eq!(beijing(0), "1970-01-01 08:00:00 +08:00");
     assert_eq!(beijing(1_793_404_800), "2026-10-31 08:00:00 +08:00");
 }
+
+/// A1 C12b D2: a legacy cleanup interrupted after its marker (step 0, target
+/// partly deleted) is finished by the next confirmed cleanup, not DIRTY forever.
+#[test]
+fn c12b_d2_interrupted_legacy_cleanup_is_finished_on_retry() {
+    let f = Fixture::new();
+    let (id, path) = f.legacy(&"ab".repeat(32));
+    let (_, digest) = f.preview();
+    WorktreeManager::set_delete_fail_at_for_test(Some(0));
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest)
+        .unwrap();
+    WorktreeManager::set_delete_fail_at_for_test(None);
+    assert_eq!(out[0].state, LegacyState::Failed);
+    assert!(f.registration(&id).join("managed-removing").is_file());
+    fs::remove_file(path.join("README.md")).expect("partial target delete");
+    let (_, digest) = f.preview();
+    let out = f
+        .main
+        .cleanup_legacy(&mut f.journal(), std::slice::from_ref(&id), &digest)
+        .unwrap();
+    assert_eq!(out[0].state, LegacyState::Removed, "{out:?}");
+    assert!(!path.exists() && !f.registration(&id).exists());
+    assert!(f.main.legacy_list().unwrap().is_empty());
+}

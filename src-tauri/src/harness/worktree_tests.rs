@@ -922,7 +922,9 @@ fn c12_resume_allows_partial_target_deletion() {
     // That surfaces as WT_DELETED, which M9 tolerates.
     fs::remove_file(target.join("README.md")).expect("tracked README.md removed");
     assert!(!target.join("README.md").exists());
-    // Fresh porcelain (no owner record) sees the deletion and refuses.
+    // Fresh porcelain (no owner proof: `remove_clean`) sees the deletion and
+    // refuses. A1 C12b D2: `worktree_remove` proves "no worker owns this id" and
+    // takes the owner entry point below (tool-level test in worktree_tools_tests).
     assert_eq!(
         fixture.manager.remove_clean(&item.id).unwrap_err().code(),
         "DIRTY"
@@ -981,9 +983,10 @@ fn c12b_unmarked_broken_registration_still_errs() {
     );
 }
 
-/// A1 C12b nit 3 (M9): `worktree_remove` (no owner record) never resumes from a
-/// marker. An orphan marker whose registration is broken is left alone; the
-/// pre-marker absence rules apply and nothing under `.git/worktrees/<id>` moves.
+/// A1 C12b nit 3 (M9): `remove_clean` (no owner proof) never resumes from a
+/// marker. An orphan marker whose registration is broken is left alone and
+/// nothing under `.git/worktrees/<id>` moves. A1 C12b D2: it is reported as
+/// REMOVE_INCOMPLETE (never Ok); `worktree_remove` itself uses the owner path.
 #[test]
 fn c12b_marker_without_owner_record_does_not_resume() {
     use super::super::worktree_git::{
@@ -1012,11 +1015,12 @@ fn c12b_marker_without_owner_record_does_not_resume() {
         v
     };
     assert!(before.iter().any(|n| n == REMOVING_MARKER));
-    // Non-owner remove: absence rule (tree gone) → Ok, but no resume happens.
-    fixture
-        .manager
-        .remove_clean(&item.id)
-        .expect("absent tree stays retry-safe");
+    // No owner proof: no resume, and (A1 C12b D2) never Ok while metadata or
+    // its marker remains — fail closed instead of leaking a slot silently.
+    assert_eq!(
+        fixture.manager.remove_clean(&item.id).unwrap_err().code(),
+        "REMOVE_INCOMPLETE"
+    );
     let after: Vec<_> = {
         let mut v: Vec<_> = fs::read_dir(&metadata)
             .unwrap()
@@ -1032,12 +1036,13 @@ fn c12b_marker_without_owner_record_does_not_resume() {
         1,
         "still counted"
     );
-    // A target re-appearing under the id is a boundary refusal, not a resume.
+    // A target re-appearing under the id is still refused, not resumed.
     fs::create_dir(&target).unwrap();
     assert_eq!(
         fixture.manager.remove_clean(&item.id).unwrap_err().code(),
-        "BOUNDARY_VIOLATION"
+        "REMOVE_INCOMPLETE"
     );
+    assert!(target.is_dir(), "re-appeared entry untouched");
     fs::remove_dir(&target).unwrap();
     assert!(has_removing_marker(&metadata));
     // The owner entry point does resume.
@@ -1113,4 +1118,38 @@ fn c12b_metadata_dir_follows_source_and_gitfile_fails_closed() {
     assert!(work.path().join(".git").is_file(), "gitfile .git");
     let err = managed_metadata_dir(work.path(), "0123456789abcdef0123456789abcdef").unwrap_err();
     assert_eq!(err.code(), "NOT_REPOSITORY");
+}
+
+/// A1 C12b D2 (Grok probe-tool-path, manager level): the no-proof entry point
+/// never reports Ok while metadata or its marker remains, after either failure.
+#[test]
+fn c12b_d2_no_owner_proof_never_ok_with_leftover_metadata() {
+    use super::super::worktree_git::{has_removing_marker, set_delete_fail_at_for_test};
+    for step in [0usize, 1] {
+        let fixture = TestRepo::new();
+        let item = fixture.manager.create_detached().expect("create");
+        let target = fixture.manager.managed_root.join(&item.id);
+        let metadata = fixture.repo.path().join(".git/worktrees").join(&item.id);
+        set_delete_fail_at_for_test(Some(step));
+        assert!(fixture.manager.remove_clean(&item.id).is_err());
+        set_delete_fail_at_for_test(None);
+        if step == 0 {
+            fs::remove_file(target.join("README.md")).expect("partial target delete");
+        }
+        for attempt in 0..3 {
+            let out = fixture.manager.remove_clean(&item.id);
+            assert!(
+                out.is_err(),
+                "step={step} attempt={attempt}: Ok with leftovers"
+            );
+        }
+        assert!(has_removing_marker(&metadata), "step={step}");
+        assert_eq!(fixture.manager.slots_in_use_for_test().0, 1, "step={step}");
+        fixture
+            .manager
+            .remove_clean_owned(&item.id)
+            .expect("owner-proven resume");
+        assert!(!metadata.exists() && !target.exists(), "step={step}");
+        assert_eq!(fixture.manager.slots_in_use_for_test().0, 0, "step={step}");
+    }
 }

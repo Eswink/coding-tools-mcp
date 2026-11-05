@@ -370,7 +370,9 @@ impl WorktreeManager {
             Ok(manager) => manager,
             Err(e) => return (LegacyState::Failed, Some(e.code())),
         };
-        match manager.remove_clean_locked(&candidate.id, false) {
+        // A1 C12b D2: legacy trees are never worker-owned and were re-verified
+        // above, so a marker left by an interrupted cleanup may be resumed.
+        match manager.remove_clean_locked(&candidate.id, true) {
             Ok(()) => {
                 // Only an empty `worktrees-v1/<ws>`; `chat-v1/<key>` itself stays.
                 let _ = fs::remove_dir(&candidate.root);
