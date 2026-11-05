@@ -48,8 +48,38 @@ DELTA_PATHS = 600
 DELTA_LINES = 40000
 
 
-def topology(ref, root, git, release, budget=DEPTH_LIMIT):
-    """Admit M and first-parent descendants of M within DEPTH_LIMIT; foreign merges fall through."""
+def topology(ref, root, git, release, budget=DEPTH_LIMIT, _memo=None):
+    """Admit M and first-parent descendants of M within DEPTH_LIMIT; foreign merges fall through.
+
+    C16: second-parent walks are memoized per top-level call on the exact key
+    (ref, budget); root, git and release are fixed for the call. Admission is
+    unchanged: a hit returns the same depth or re-raises the same reason.
+    _memo=False disables memoization (equivalence tests only).
+    """
+    if _memo is False:
+        return _topology(ref, root, git, release, budget, None)
+    return _topology(ref, root, git, release, budget, {} if _memo is None else _memo)
+
+
+def _topology(ref, root, git, release, budget, memo):
+    if memo is not None:
+        key = (ref, budget)
+        if key in memo:
+            kind, value = memo[key]
+            if kind == 'ok':
+                return value
+            raise o.TopologyError(*value)
+        try:
+            depth = _topology_walk(ref, root, git, release, budget, memo)
+        except o.TopologyError as error:
+            memo[key] = ('err', error.args)
+            raise
+        memo[key] = ('ok', depth)
+        return depth
+    return _topology_walk(ref, root, git, release, budget, None)
+
+
+def _topology_walk(ref, root, git, release, budget, memo):
     if release != p.R:
         raise o.TopologyError('rc080_release_anchor')
     if ref == M:
@@ -65,7 +95,7 @@ def topology(ref, root, git, release, budget=DEPTH_LIMIT):
         if row[0] == M:
             return depth
         if len(row) == 3:
-            topology(row[2], root, git, release, budget - depth - 1)
+            _topology(row[2], root, git, release, budget - depth - 1, memo)
         elif len(row) != 2:
             raise o.TopologyError('rc080_candidate_parents')
     raise o.TopologyError('rc080_not_descendant')
