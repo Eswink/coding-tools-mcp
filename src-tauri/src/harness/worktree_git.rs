@@ -720,6 +720,52 @@ fn remove_managed_worktree(source: &Source, managed: &Path, id: &str) -> Worktre
     Ok(())
 }
 
+/// A1 C14 (SCOPE A′ 1/2): `root/<id>` is an interrupted delete of a tree under
+/// `root`: `.git/worktrees/<id>` is a real directory holding a marker whose bytes
+/// are exactly the marker body, `root/<id>` does not exist, the registration no
+/// longer verifies, and `gitdir` is either gone (delete step 2+) or still names
+/// exactly `root/<id>/.git` (step 1). Any other state, or any error, is `false`;
+/// nothing is read beyond that and nothing is removed here.
+pub(super) fn interrupted_registration(authority: &Path, root: &Path, id: &str) -> bool {
+    if id.len() != 32
+        || !id
+            .bytes()
+            .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
+    {
+        return false;
+    }
+    let Ok(source) = objects::open_source(authority) else {
+        return false;
+    };
+    let metadata = source.git.join("worktrees").join(id);
+    if !fs::symlink_metadata(&metadata).is_ok_and(|m| m.is_dir() && !m.file_type().is_symlink())
+        || objects::checked_path(&source.git, &metadata).is_err()
+    {
+        return false;
+    }
+    if !matches!(
+        read_file(&removing_marker_path(&metadata), REMOVING_MARKER_MAX),
+        Ok(body) if body == REMOVING_MARKER_BODY
+    ) {
+        return false;
+    }
+    let target = root.join(id);
+    if !matches!(fs::symlink_metadata(&target), Err(e) if e.kind() == std::io::ErrorKind::NotFound)
+    {
+        return false;
+    }
+    if registration(&source, root, id).is_ok() {
+        return false;
+    }
+    let gitdir = metadata.join("gitdir");
+    match fs::symlink_metadata(&gitdir) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => true,
+        Err(_) => false,
+        Ok(_) => read_file(&gitdir, 8192)
+            .is_ok_and(|link| matches_git_link(&link, "", &target.join(".git"))),
+    }
+}
+
 /// A1 C2-ad (N2 crash recovery, v5 §1.7 / §4.1): the tree `root/id` is
 /// already gone; drop only its own `.git/worktrees/<id>` registration, and only
 /// when that registration's back-pointer names exactly that tree and it is not

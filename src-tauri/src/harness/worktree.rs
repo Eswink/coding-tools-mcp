@@ -308,6 +308,12 @@ impl WorktreeManager {
     pub(crate) fn set_delete_fail_at_for_test(step: Option<usize>) {
         super::worktree_git::set_delete_fail_at_for_test(step);
     }
+    /// A1 C14 (SCOPE A′ 6): lock-order assertion seam (store lock is never
+    /// taken while this thread holds the native lifecycle lock).
+    #[cfg(test)]
+    pub(crate) fn lifecycle_held_for_test() -> bool {
+        native::held_by_current_thread()
+    }
     #[cfg(test)]
     pub(crate) fn slots_in_use_for_test(&self) -> (usize, usize) {
         self.slots_in_use().expect("slots_in_use")
@@ -475,7 +481,7 @@ impl WorktreeManager {
             if fs::symlink_metadata(&metadata).is_ok() {
                 return Err(error(
                     "REMOVE_INCOMPLETE",
-                    "An interrupted remove left Git metadata; it is finished only by an owner-proven remove.",
+                    "An interrupted remove left Git metadata behind; retry worktree_remove to finish it.",
                 ));
             }
             // Absence is retry-safe only when no unregistered filesystem entry remains.

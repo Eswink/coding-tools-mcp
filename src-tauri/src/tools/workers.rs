@@ -681,6 +681,12 @@ impl WorkerStore {
         Ok(Some(Self::insert(&mut registry, namespace, disk, doc)))
     }
     fn lock(&self) -> Result<std::sync::MutexGuard<'_, Inner>, WorkerError> {
+        // A1 C14 (SCOPE A′ 6): lock order is store → native, never the reverse.
+        #[cfg(test)]
+        assert!(
+            !WorktreeManager::lifecycle_held_for_test(),
+            "worker store lock taken under the native lifecycle lock"
+        );
         self.state.lock().map_err(|_| unavailable())
     }
     fn flight(&self) -> MutexGuard<'_, Flight> {
@@ -1892,6 +1898,47 @@ pub(crate) fn owned_worktrees(ctx: &ToolContext) -> Result<BTreeSet<String>, Wor
         .filter(|r| r.state != WorkerState::Discarded)
         .filter_map(|r| r.worktree_id.clone())
         .collect())
+}
+
+/// A1 C14: whether the worker store exists (never creates it).
+#[cfg(test)]
+pub(crate) fn store_exists_for_test(ctx: &ToolContext) -> bool {
+    matches!(WorkerStore::open_existing(&ctx.host), Ok(Some(_)))
+}
+
+/// A1 C14 (SCOPE A′ 6) outcome of [`remove_unowned_worktree`].
+pub(crate) enum UnownedRemove {
+    /// A non-discarded worker record owns `id`; nothing was touched.
+    Owned,
+    /// No worker owns `id`; the owner-proven remove ran with this result.
+    Removed(Result<(), crate::harness::worktree::WorktreeError>),
+}
+
+/// A1 C14 (SCOPE A′ 6, C12b-D2 n2): the "no worker owns `id`" proof and the
+/// remove happen under one store lock (order store → native, as in spawn and
+/// discard), so no record can claim `id` between the check and the delete.
+/// An absent store is never created for this; then only the native lock is
+/// taken. Nothing here sleeps.
+pub(crate) fn remove_unowned_worktree(
+    ctx: &ToolContext,
+    manager: &WorktreeManager,
+    id: &str,
+) -> Result<UnownedRemove, WorkerError> {
+    let Some(store) = WorkerStore::open_existing(&ctx.host)? else {
+        return Ok(UnownedRemove::Removed(manager.remove_clean_owned(id)));
+    };
+    let inner = store.lock()?;
+    let owned = inner
+        .doc
+        .workers
+        .iter()
+        .any(|r| r.state != WorkerState::Discarded && r.worktree_id.as_deref() == Some(id));
+    if owned {
+        return Ok(UnownedRemove::Owned);
+    }
+    let result = manager.remove_clean_owned(id);
+    drop(inner);
+    Ok(UnownedRemove::Removed(result))
 }
 
 /// A1 C9-1 (SPEC-A1 v5.8 §2.3, C8 nit 3): implicit ownership of a worker-tagged
