@@ -1,5 +1,5 @@
 {
- "entries": 1990,
+ "entries": 1993,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "d838c7db3753bd43d171f55cb737da877d742149",
-   "bytes": 436636,
+   "blob": "89fd7e486d46fdba56f69049441f6d7f50c6c191",
+   "bytes": 436550,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "b7fbebf743d0b70921ccccc6a0bfe57f2008d85ae6b022212fc8011cabd15241"
+   "sha256": "0d8060e25cf110425f1f323d079b170673f55a58b3b0e6ec6f78fd404049428b"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -11994,6 +11994,13 @@
    "sha256": "3c727c2d09eab736406d804ae6115253315f0dd3671ac4082b99c1f180119295"
   },
   {
+   "blob": "34abd7bdb7589630d6f14ed1e55c6d06a839130f",
+   "bytes": 4970,
+   "mode": "100644",
+   "path": "src/lib/components/LegacyCleanupPanel.svelte",
+   "sha256": "0994dfba3af9072f9722d716dc32df459de964997b3bb821435e737edcd9938a"
+  },
+  {
    "blob": "470669cdd0aff38c778cd1cddb54d861df313086",
    "bytes": 2263,
    "mode": "100644",
@@ -12204,6 +12211,13 @@
    "sha256": "113dcdc566c446b05268993a6a301349e112cb132b3a78aa504a337b49e6f4a5"
   },
   {
+   "blob": "c3344f33e2016ce7f4da7a201ebd4ac06004d477",
+   "bytes": 7946,
+   "mode": "100644",
+   "path": "src/lib/legacy-cleanup.ts",
+   "sha256": "9adf7519c985d91fede48ae4b8416570daf798b044352e20bb24785ff55c9884"
+  },
+  {
    "blob": "64c6a1da4524f5a02b8b8f2a499a966034611a55",
    "bytes": 8478,
    "mode": "100644",
@@ -12407,11 +12421,11 @@
    "sha256": "5c9dbfd72abae42d5726bd6492adbf95b968c3fa1030eb5b758ecce458bb5605"
   },
   {
-   "blob": "cf26427a429825ec7785d6188f924038125b4a6c",
-   "bytes": 23706,
+   "blob": "def42507c4428a836447311acc4af89d38fab072",
+   "bytes": 23877,
    "mode": "100644",
    "path": "src/routes/workspace/[id]/+page.svelte",
-   "sha256": "0badca28d98c1cab7b13309575e807f6cda52f1feb0a899cdd0cadac38a9ca2b"
+   "sha256": "22f6b7bf3786cb99ee08e9d4b697e2559b854bb8a05f38ad869621c86e1b8bc2"
   },
   {
    "blob": "6da31117633bc5aa62e9c7e7d8f31ac4afff82e4",
@@ -12755,6 +12769,13 @@
    "mode": "100644",
    "path": "tests/integration-attention-ui.test.mjs",
    "sha256": "dd80b9588640738141e90fc1189dfa44f3e4c9ca824d1b9137a9e19764d91e61"
+  },
+  {
+   "blob": "42b6f2271eb765a97b83d030fce438e9ec1d241e",
+   "bytes": 12486,
+   "mode": "100644",
+   "path": "tests/legacy-cleanup-ui.test.mjs",
+   "sha256": "f417ebda67f91be168606d747c129c07b0b2ec68f7e2ed30a5c1f670416d6a38"
   },
   {
    "blob": "5091f6e82d57c34a63e8878c18cac51738064a8f",
