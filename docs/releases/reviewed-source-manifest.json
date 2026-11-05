@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "LOCAL PROTOTYPE ONLY - a1-c13c-audit-gate (C13c: npm audit gate pinned deepmerge mitigation; merged C15 a1-c15-rc080-manifest) on develop/0.8.0 c9655059, not pushed",
+  "review_reference": "A1 C14 S1c tip (soft nits + merge develop@74fe4fa3 post-#194/#195 + probe refresh) — interrupted managed_root NotFound-only; LOCKED/PINNED preview hint; owner-confirmed interrupted legacy finish; LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4550,8 +4550,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "eb25691cb774bdcfe4c9a029dff1ac69196028b2",
-        "sha256": "ebb9d47aac7d049bb146b4626f250ef56ee7117f5cb9f68f045840310673d201"
+        "blob_sha": "1dd61b8751ee3cebdd08e0fbb8ca54bd8770302d",
+        "sha256": "8d4db6ac4aa58e2deb9d0047bdfa8ff4ae97b52afdd391fdcd306d6e57dd6c7c"
       }
     },
     {
@@ -8922,8 +8922,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6cbfb26ef2f141d635738a438004417730b890ff",
-        "sha256": "e926c79524cec187a144571313f929738ffdbc927f38e24eda885795ae7741f0"
+        "blob_sha": "c88bdbea5f9745e44ec3e8f53a15dda3529d39a6",
+        "sha256": "01013666a38611c18a95f20fdf98c67c95d347fa31c9b9b601a93ce8f35bc917"
       }
     },
     {
@@ -9416,8 +9416,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "050fd5a9d752543567fa07b2d7a1afef177ac217",
-        "sha256": "72aad13dc99ad67c1bfebf3db7229fe19ef0ecb813fd84596357c6fa79ef30c9"
+        "blob_sha": "d2667219c66755eca8ec8c4ddd10bf3923bd28f6",
+        "sha256": "2ea8926b05bbaa94fee32f414a77407917ec2280d2cbbe88ff7e94985d93a939"
       }
     },
     {
@@ -9446,8 +9446,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9cce57aa6fe29a7b3cb2def0f58d4a48a5b20b04",
-        "sha256": "244c8d9119f3e650c2c1cba7d496cac9014de8c00d0675cfe80754bad5170d20"
+        "blob_sha": "dd133c09cc6d075586d3dbd419d26ac3a1c63936",
+        "sha256": "e27da8266817d4c66a09942ad3fc0534ac747c3f0a7910f9e949619d26a20cf4"
       }
     },
     {
@@ -9456,8 +9456,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "48d2e2370b62d5a572fc53025ad63912f2127e85",
-        "sha256": "2965acbb309dfc22781f3dbeb1be34ee7b4eefa0b1693963f890f1eea41c3031"
+        "blob_sha": "cae636d78fef38d0c26e57162d8712f5c1aabb0d",
+        "sha256": "3521d8a4a44e79a25548e06c142564b6ae7be32b4cbb5d9845e5f9b89f31a867"
       }
     },
     {
@@ -9466,8 +9466,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cf7ec9dd700f6e24b2b3e972429ab0d2485b61bc",
-        "sha256": "1b5cb9104b89116e9d66dbee442bc607622588b4f3457886970ae5f840e1f171"
+        "blob_sha": "05a5503345b6bc2cfa6ec7516444a0adf3665495",
+        "sha256": "1e7a1a814e48ff69664c1c45e8b0f2599791b8d12b02873ccb78c493e3b53eea"
       }
     },
     {
@@ -10594,8 +10594,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a38be60ed67076f690163ba566e8a02157c26d38",
-        "sha256": "c3f863e49b1bea90a5c5dd80d260e68969227eb46db3fec3960501d7b1cd7bce"
+        "blob_sha": "0fbfbea8765b0b561c0ee2b3cf01a007485aa308",
+        "sha256": "760ee93572dd03427e05f9c7981bcc6fbb37579313f067f553fd73f2f6010ac5"
       }
     },
     {
@@ -10718,8 +10718,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "36b7265a6b6b2687e23e848188f5a4e43563a51e",
-        "sha256": "caf4e69b8d33cce12a7e2cc9a997aec5a458a0ac0e353449c4a33112114a3d40"
+        "blob_sha": "713e442e5cb25d8418c6a4afe1ab5a9917db2356",
+        "sha256": "9666a70884130bbdc3da6a7a6ae540e1bf58bbf2fe9fc235d6b3c8eea10edf45"
       }
     },
     {
@@ -10728,8 +10728,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "55f3ed4383d4dcd7ce26399a4ce66109d7eb29fa",
-        "sha256": "f8a4b6e9f518daa35f0f491f167babe252c36ffee6d1f27a4f7d9deea02649ba"
+        "blob_sha": "4074db069fb1973e7889769f8201be3f2cca9487",
+        "sha256": "9a31ed128a7ed9c9c97e23cb4191074c67e683dec6932b9d49f6b19221d04ab1"
       }
     },
     {
