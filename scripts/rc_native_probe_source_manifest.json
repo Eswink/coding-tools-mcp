@@ -1,5 +1,5 @@
 {
- "entries": 1993,
+ "entries": 1994,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "1b19be02f4807c122d7c2b3b0d48848e4f9d4edc",
-   "bytes": 437439,
+   "blob": "89e9d681a498fee3bd89ce471c0c26baac686eed",
+   "bytes": 437416,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "b896129f3e88c0c039dbbbd3f233e7a5a360fbeffb7e5a4a2967bb8874b5e901"
+   "sha256": "7ab0c4931c62730058b58bdfdf31a5da4c23e74009b55805d65a0a395d049a0d"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -11847,11 +11847,11 @@
    "sha256": "11b54abe3ccf9516b4930ae4f41b134571da41d3e7e5e53f5701466472dd8a6d"
   },
   {
-   "blob": "b485c5c9016f97ca240f5ef90e8e18375d723aca",
-   "bytes": 95,
+   "blob": "a0cbd1f89b49436663f64ac83cd1cad5dd3ecae9",
+   "bytes": 83,
    "mode": "100644",
    "path": "src/lib/app-version.ts",
-   "sha256": "374019239b87a00c7a66dfebcdb849495944be8d9e80367ed3a911748c93de7e"
+   "sha256": "c1c7d0f97d6f72b2bd00eee3418922bb05627e1ce8221f3b0dfc43d1b6ecf983"
   },
   {
    "blob": "25057cb6fb2e9edb9caae65e7195f7f44eb41e94",
@@ -12433,6 +12433,13 @@
    "mode": "100644",
    "path": "static/favicon.png",
    "sha256": "bd976b6c82b13852226f71e81ddc6bf0b86a09a3ab0ad00f577d3582cc597955"
+  },
+  {
+   "blob": "b9eb26c16beee2c1787454539de848570c95bcd3",
+   "bytes": 2045,
+   "mode": "100644",
+   "path": "tests/app-version.test.mjs",
+   "sha256": "9d8d9b0cd673217538d79e8de0b1e817e275688b884c5af55137c27eadb78c2d"
   },
   {
    "blob": "37ac53747b99c2835ad77e4ae3f2bcd490df996e",
