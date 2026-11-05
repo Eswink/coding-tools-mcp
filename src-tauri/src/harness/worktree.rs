@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use uuid::Uuid;
 
-use super::worktree_git::{git_path_arg, list_registered_under, run_git};
+use super::worktree_git::{
+    count_removing_under, git_path_arg, has_removing_marker, list_registered_under, run_git,
+};
 
 const MAX_MANAGED_WORKTREES: usize = 8;
 const OPAQUE_ID_LEN: usize = 32;
@@ -293,10 +295,16 @@ impl WorktreeManager {
     /// chat-v1 trees of the same workspace, and not-yet-built reservations.
     fn slots_in_use(&self) -> WorktreeResult<(usize, usize)> {
         let legacy = self.legacy_list()?.len();
+        // A1 C12 M8: in-progress deletes skipped by list() still consume slots.
+        let removing = count_removing_under(&self.repository_root, &self.managed_root)?;
         Ok((
-            self.list()?.len() + legacy + reservations::count(&self.managed_root),
+            self.list()?.len() + legacy + reservations::count(&self.managed_root) + removing,
             legacy,
         ))
+    }
+    #[cfg(test)]
+    pub(crate) fn slots_in_use_for_test(&self) -> (usize, usize) {
+        self.slots_in_use().expect("slots_in_use")
     }
     /// CAPACITY when `limit` or more slots are in use. A1 C2-ad (N2, v5 §1.7):
     /// when the legacy trees alone hold all eight, the error carries their count
@@ -425,6 +433,8 @@ impl WorktreeManager {
         if !valid_id(id) {
             return Err(error("INVALID_ID", "Invalid managed worktree identifier."));
         }
+        let metadata = self.repository_root.join(".git/worktrees").join(id);
+        let resuming = has_removing_marker(&metadata);
         let item = self.list()?.into_iter().find(|item| item.id == id);
         let Some(item) = item else {
             if self.legacy_list()?.iter().any(|item| item.id == id) {
@@ -433,6 +443,11 @@ impl WorktreeManager {
                     "This worktree belongs to a pre-0.8 conversation root and is not removed here.",
                 ));
             }
+            // A1 C12 M8/M9: list() may skip a marker+broken-registration entry.
+            // Resume the managed remove directly; do not treat it as absence.
+            if resuming {
+                return self.finish_managed_remove(id, &self.managed_root.join(id), true);
+            }
             // Absence is retry-safe only when no unregistered filesystem entry remains.
             return match fs::symlink_metadata(self.managed_root.join(id)) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -440,39 +455,61 @@ impl WorktreeManager {
             };
         };
         let target = self.managed_root.join(&item.id);
-        let target = target.canonicalize().map_err(|_| boundary_error())?;
-        if target.parent() != Some(self.managed_root.as_path()) || target.is_symlink() {
-            return Err(boundary_error());
+        // Fresh delete needs a real checkout; resume may have already deleted it.
+        if !resuming {
+            let target = target.canonicalize().map_err(|_| boundary_error())?;
+            if target.parent() != Some(self.managed_root.as_path()) || target.is_symlink() {
+                return Err(boundary_error());
+            }
+            let status = run_git(
+                &target,
+                &[
+                    OsString::from("status"),
+                    OsString::from("--porcelain=v1"),
+                    OsString::from("--untracked-files=all"),
+                    OsString::from("--ignored"),
+                    OsString::from("-z"),
+                ],
+                &self.repository_root,
+                Some(&self.managed_root),
+            )?;
+            if !status.success {
+                return Err(git_failed());
+            }
+            if !status.stdout.is_empty() {
+                return Err(error("DIRTY", "Managed worktree contains local changes."));
+            }
+            return self.finish_managed_remove(id, &target, false);
         }
-        let status = run_git(
-            &target,
-            &[
-                OsString::from("status"),
-                OsString::from("--porcelain=v1"),
-                OsString::from("--untracked-files=all"),
-                OsString::from("--ignored"),
-                OsString::from("-z"),
-            ],
-            &self.repository_root,
-            Some(&self.managed_root),
-        )?;
-        if !status.success {
-            return Err(git_failed());
-        }
-        if !status.stdout.is_empty() {
-            return Err(error("DIRTY", "Managed worktree contains local changes."));
-        }
+        // Resume: skip porcelain (deletion-tolerant check lives inside remove).
+        self.finish_managed_remove(id, &target, true)
+    }
+
+    /// Shared remove + post-conditions for fresh and resume paths.
+    fn finish_managed_remove(
+        &self,
+        id: &str,
+        target: &Path,
+        _resuming: bool,
+    ) -> WorktreeResult<()> {
         let output = run_git(
             &self.repository_root,
             &[
                 OsString::from("worktree"),
                 OsString::from("remove"),
-                git_path_arg(&target),
+                git_path_arg(target),
             ],
             &self.repository_root,
             Some(&self.managed_root),
         )?;
-        if !output.success || target.exists() || self.list()?.iter().any(|value| value.id == id) {
+        if !output.success {
+            return Err(git_failed());
+        }
+        let metadata = self.repository_root.join(".git/worktrees").join(id);
+        if metadata.exists() || has_removing_marker(&metadata) {
+            return Err(git_failed());
+        }
+        if target.exists() || self.list()?.iter().any(|value| value.id == id) {
             return Err(git_failed());
         }
         Ok(())

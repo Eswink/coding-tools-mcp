@@ -45,6 +45,16 @@ pub(crate) fn terminate_worker_job(_worker_id: &str) -> std::io::Result<bool> {
 #[cfg(not(windows))]
 pub(crate) fn release_worker_job(_worker_id: &str) {}
 
+/// A1 C12 M6: registry-only emptiness probe. Never creates a Job (`for_worker`).
+/// `Ok(true)` = empty or no Job registered; `Err` = query failed (treat as busy).
+#[cfg(windows)]
+pub(crate) use platform::probe_worker_job_empty;
+
+#[cfg(not(windows))]
+pub(crate) fn probe_worker_job_empty(_worker_id: &str) -> std::io::Result<bool> {
+    Ok(true)
+}
+
 #[cfg(test)]
 mod contract_tests {
     use super::*;
@@ -87,22 +97,10 @@ mod contract_tests {
             log.push(step);
             prior = Some(step);
         }
-        assert_eq!(
-            log,
-            [
-                NestAssignStep::CommandJob,
-                NestAssignStep::ParentJob
-            ]
-        );
+        assert_eq!(log, [NestAssignStep::CommandJob, NestAssignStep::ParentJob]);
         // Correct sequence still ends parent→command.
-        assert_eq!(
-            nest_assign_sequence()[0],
-            NestAssignStep::ParentJob
-        );
-        assert_eq!(
-            nest_assign_sequence()[1],
-            NestAssignStep::CommandJob
-        );
+        assert_eq!(nest_assign_sequence()[0], NestAssignStep::ParentJob);
+        assert_eq!(nest_assign_sequence()[1], NestAssignStep::CommandJob);
     }
 
     #[test]

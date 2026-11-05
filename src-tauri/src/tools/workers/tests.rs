@@ -2861,7 +2861,7 @@ fn c11b_cleanup_to_discarded_forgets_the_snap_and_card_is_null() {
         .unwrap();
     store.lock().unwrap().remember_changed(&stuck, 9, 0);
     assert!(changed_snap_for(&f.ctx, &stuck).is_some());
-    store.lock().unwrap().cleanup(&mgr).unwrap();
+    store.lock().unwrap().cleanup(&mgr, None).unwrap();
     assert_eq!(
         status(&f.ctx, Some(stuck.as_str())).unwrap()[0].state,
         WorkerState::Discarded

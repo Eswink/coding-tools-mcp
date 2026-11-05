@@ -160,6 +160,105 @@ fn worker_busy() -> WorkerError {
 }
 /// Discard's bounded wait for the main-root exclusive guard (v5 §5.2 C2-a).
 const DISCARD_ROOT_BACKOFF_MS: &[u64] = &[50, 100, 200, 400, 600, 650];
+/// A1 C12 M7: PendingCleanup due-gate intervals (seconds), then capped at 16s.
+const CLEANUP_BACKOFF_SECS: &[u64] = &[1, 2, 4, 8, 16];
+/// A1 C12 M6: parent-Job drain poll intervals (ms) after Terminate.
+const JOB_DRAIN_POLL_MS: &[u64] = &[50, 100, 200, 400];
+
+#[derive(Clone, Debug)]
+struct CleanupBackoff {
+    /// Failed attempts so far (0 = never failed / due immediately).
+    failures: u32,
+    next_due: Instant,
+}
+
+fn mono_now() -> Instant {
+    #[cfg(test)]
+    {
+        if let Some(t) = test_clock::now() {
+            return t;
+        }
+    }
+    Instant::now()
+}
+
+fn cleanup_interval_secs(failures: u32) -> u64 {
+    let idx = failures.saturating_sub(1) as usize;
+    *CLEANUP_BACKOFF_SECS
+        .get(idx)
+        .unwrap_or(CLEANUP_BACKOFF_SECS.last().unwrap())
+}
+
+#[cfg(test)]
+mod test_clock {
+    use super::*;
+    use std::cell::Cell;
+    thread_local! {
+        static NOW: Cell<Option<Instant>> = const { Cell::new(None) };
+        static SLEEPS: Cell<Vec<u64>> = const { Cell::new(Vec::new()) };
+    }
+    pub(super) fn now() -> Option<Instant> {
+        NOW.with(|c| c.get())
+    }
+    pub(crate) fn set(t: Instant) {
+        NOW.with(|c| c.set(Some(t)));
+    }
+    pub(crate) fn clear() {
+        NOW.with(|c| c.set(None));
+        SLEEPS.with(|c| c.set(Vec::new()));
+    }
+    pub(crate) fn take_sleeps() -> Vec<u64> {
+        SLEEPS.with(|c| c.replace(Vec::new()))
+    }
+    pub(super) fn note_sleep(ms: u64) {
+        SLEEPS.with(|c| {
+            let mut v = c.take();
+            v.push(ms);
+            c.set(v);
+        });
+    }
+}
+
+fn sleeper_ms(ms: u64) {
+    #[cfg(test)]
+    {
+        test_clock::note_sleep(ms);
+        if test_clock::now().is_some() {
+            return; // injectable clock: do not actually sleep
+        }
+    }
+    std::thread::sleep(Duration::from_millis(ms));
+}
+
+#[cfg(test)]
+mod c12_backoff_tests {
+    use super::*;
+
+    #[test]
+    fn cleanup_intervals_are_1_2_4_8_16_then_capped() {
+        assert_eq!(cleanup_interval_secs(1), 1);
+        assert_eq!(cleanup_interval_secs(2), 2);
+        assert_eq!(cleanup_interval_secs(3), 4);
+        assert_eq!(cleanup_interval_secs(4), 8);
+        assert_eq!(cleanup_interval_secs(5), 16);
+        assert_eq!(cleanup_interval_secs(6), 16);
+        assert_eq!(cleanup_interval_secs(100), 16);
+        assert_eq!(cleanup_interval_secs(0), 1); // saturating_sub → idx 0
+    }
+
+    #[test]
+    fn injectable_clock_and_sleeper_do_not_block() {
+        let start = Instant::now();
+        test_clock::set(start);
+        assert_eq!(mono_now(), start);
+        sleeper_ms(400);
+        sleeper_ms(50);
+        assert_eq!(test_clock::take_sleeps(), vec![400, 50]);
+        test_clock::clear();
+        assert!(test_clock::now().is_none());
+    }
+}
+
 fn now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -330,6 +429,8 @@ struct Inner {
     journal: Option<journal::Journal>,
     /// A1 C11: collect/integrate hitchhiked `changes.len()` (memory only).
     changed: HashMap<WorkerId, ChangedSnap>,
+    /// A1 C12 M7: in-memory PendingCleanup due-gate (never serialized).
+    cleanup_backoff: HashMap<WorkerId, CleanupBackoff>,
 }
 /// One per main root for the life of the process (v4 N3): loaded and decrypted
 /// once; the document lock is held until the process exits.
@@ -514,6 +615,7 @@ impl WorkerStore {
                 states_recovered: false,
                 journal: None,
                 changed: HashMap::new(),
+                cleanup_backoff: HashMap::new(),
             }),
             flight: Mutex::default(),
             generation: GENERATION.fetch_add(1, Ordering::Relaxed),
@@ -863,16 +965,29 @@ impl Inner {
             change(record)
         })
     }
-    /// PendingCleanup retry (v4 §1.5 / N2). Exclusive callers only: it removes worktrees.
-    fn cleanup(&mut self, manager: &WorktreeManager) -> Result<(), WorkerError> {
+    /// PendingCleanup retry (v4 §1.5 / N2 / A1 C12 M7). Exclusive callers only.
+    /// Never sleeps. `skip` (N1) is tried by the caller instead, at most once.
+    /// Returns newly Discarded ids so the caller can `finish_discarded`.
+    fn cleanup(
+        &mut self,
+        manager: &WorktreeManager,
+        skip: Option<&WorkerId>,
+    ) -> Result<Vec<WorkerId>, WorkerError> {
+        let now = mono_now();
         let stuck: Vec<(WorkerId, Option<String>)> = self
             .doc
             .workers
             .iter()
             .filter(|r| r.state == WorkerState::PendingCleanup)
+            .filter(|r| skip.map(|s| &r.worker_id != s).unwrap_or(true))
+            .filter(|r| match self.cleanup_backoff.get(&r.worker_id) {
+                None => true, // no record → due immediately (restart-safe)
+                Some(b) => now >= b.next_due,
+            })
             .map(|r| (r.worker_id.clone(), r.worktree_id.clone()))
             .collect();
         let mut done = Vec::new();
+        let mut failed = Vec::new();
         for (id, tree) in stuck {
             let removed = match tree.as_deref() {
                 Some(tree) => manager.remove_clean(tree).is_ok(),
@@ -880,10 +995,31 @@ impl Inner {
             };
             if removed {
                 done.push(id);
+            } else {
+                failed.push(id);
             }
         }
+        for id in &failed {
+            let failures = self
+                .cleanup_backoff
+                .get(id)
+                .map(|b| b.failures.saturating_add(1))
+                .unwrap_or(1);
+            let wait = cleanup_interval_secs(failures);
+            self.cleanup_backoff.insert(
+                id.clone(),
+                CleanupBackoff {
+                    failures,
+                    next_due: now + Duration::from_secs(wait),
+                },
+            );
+        }
         if done.is_empty() {
-            return Ok(());
+            return Ok(Vec::new());
+        }
+        for id in &done {
+            self.cleanup_backoff.remove(id);
+            self.forget_changed(id);
         }
         self.apply(|doc| {
             for record in doc
@@ -895,12 +1031,41 @@ impl Inner {
             }
             Ok(())
         })?;
-        // A1 C11b: same as discard — ops_seq does not move, so drop the snap.
-        for id in &done {
-            self.forget_changed(id);
-        }
-        Ok(())
+        Ok(done)
     }
+}
+
+/// A1 C12 M10: shared Discarded finalizer — flight background, cgroup, parent Job.
+fn finish_discarded(store: &WorkerStore, id: &WorkerId) {
+    store.flight().background.remove(id);
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    coding_tools_local_agent::release_worker_cgroup(id.as_str());
+    #[cfg(windows)]
+    crate::tools::worker_job::release_worker_job(id.as_str());
+}
+
+/// A1 C12 M6: drain this worker's parent Job. Blocking polls hold no store/root lock.
+/// Registry-only probe (never `for_worker`). No Job → empty. Query error → busy.
+fn drain_parent_job(worker_id: &str) -> bool {
+    fn probe(id: &str) -> Result<bool, ()> {
+        crate::tools::worker_job::probe_worker_job_empty(id).map_err(|_| ())
+    }
+    match probe(worker_id) {
+        Ok(true) => return true,
+        Ok(false) => {
+            let _ = crate::tools::worker_job::terminate_worker_job(worker_id);
+        }
+        Err(()) => return false,
+    }
+    for ms in JOB_DRAIN_POLL_MS {
+        sleeper_ms(*ms);
+        match probe(worker_id) {
+            Ok(true) => return true,
+            Ok(false) => continue,
+            Err(()) => return false,
+        }
+    }
+    matches!(probe(worker_id), Ok(true))
 }
 fn make_room(doc: &mut Document) -> Result<(), WorkerError> {
     if doc.workers.len() < MAX_RECORDS {
@@ -980,7 +1145,10 @@ pub(crate) fn spawn(
     let _root = root_work::exclusive_context(ctx).map_err(|_| root_unavailable())?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
-    inner.cleanup(&manager)?;
+    let discarded = inner.cleanup(&manager, None)?;
+    for id in &discarded {
+        finish_discarded(&store, id);
+    }
     let print = fingerprint(label);
     if let Some(existing) = inner
         .doc
@@ -1072,7 +1240,10 @@ pub(crate) fn complete_spawn(
     let (manager, store) = open(ctx)?;
     {
         let mut inner = store.lock()?;
-        inner.cleanup(&manager)?;
+        let discarded = inner.cleanup(&manager, None)?;
+        for did in &discarded {
+            finish_discarded(&store, did);
+        }
         let record = inner.owned(&owner, &id)?;
         match record.state {
             WorkerState::Creating => {}
@@ -1351,21 +1522,37 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
     // stores reveal nothing about foreign workers; the flight registry is only
     // consulted once ownership is proven.
     worker_idle(ctx, &id)?;
+    let mut owned_ok = false;
     if let Some(store) = WorkerStore::open_existing(&ctx.host)? {
         if store.draining() {
             return Err(busy());
         }
-        let owned = store.lock()?.owned(&owner, &id).is_ok();
-        if owned && background_busy(&store, &id) {
+        owned_ok = store.lock()?.owned(&owner, &id).is_ok();
+        if owned_ok && background_busy(&store, &id) {
             return Err(worker_busy());
         }
+    }
+    // A1 C12 M6 / T-C12-16: drain only AFTER ownership is proven. No store/root lock.
+    if owned_ok && !drain_parent_job(id.as_str()) {
+        // Not empty / query error → still proceed to PendingCleanup path below;
+        // do not delete while the Job reports busy. We re-probe under the lock.
     }
     #[cfg(test)]
     discard_hooks::after_idle_check();
     let _root = exclusive_with_backoff(ctx)?;
     let (manager, store) = open(ctx)?;
     let mut inner = store.lock()?;
-    inner.cleanup(&manager)?;
+    // N1: if this worker is already PendingCleanup, skip it in the bulk cleanup
+    // and attempt remove at most once below.
+    let already_pending = inner
+        .owned(&owner, &id)
+        .map(|r| r.state == WorkerState::PendingCleanup)
+        .unwrap_or(false);
+    let skip = if already_pending { Some(&id) } else { None };
+    let discarded = inner.cleanup(&manager, skip)?;
+    for did in &discarded {
+        finish_discarded(&store, did);
+    }
     let record = inner.owned(&owner, &id)?;
     match record.state {
         WorkerState::Discarded => return Ok(record.clone()),
@@ -1379,6 +1566,20 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
     if store.in_flight(&id) || background_busy(&store, &id) {
         return Err(worker_busy());
     }
+    // A1 C12 M6: one non-blocking registry probe under the lock, immediately before removal.
+    match crate::tools::worker_job::probe_worker_job_empty(id.as_str()) {
+        Ok(true) => {}
+        Ok(false) | Err(_) => {
+            let out = inner.update(&owner, &id, |record| {
+                record.state = WorkerState::PendingCleanup;
+                record.last_activity_at = now();
+                Ok(record.clone())
+            })?;
+            inner.forget_changed(&id);
+            projection_bus::mark_dirty(&ctx.host);
+            return Ok(out);
+        }
+    }
     let removal = match record.worktree_id.as_deref() {
         Some(tree) => manager.remove_clean(tree),
         None => Ok(()),
@@ -1388,6 +1589,23 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
         Err(error) if error.code() == "DIRTY" => return Err(error.into()),
         Err(_) => WorkerState::PendingCleanup,
     };
+    if next == WorkerState::PendingCleanup {
+        let failures = inner
+            .cleanup_backoff
+            .get(&id)
+            .map(|b| b.failures.saturating_add(1))
+            .unwrap_or(1);
+        let wait = cleanup_interval_secs(failures);
+        inner.cleanup_backoff.insert(
+            id.clone(),
+            CleanupBackoff {
+                failures,
+                next_due: mono_now() + Duration::from_secs(wait),
+            },
+        );
+    } else {
+        inner.cleanup_backoff.remove(&id);
+    }
     let out = inner.update(&owner, &id, |record| {
         record.state = next;
         record.last_activity_at = now();
@@ -1399,11 +1617,7 @@ pub(crate) fn discard(ctx: &ToolContext, worker_id: &str) -> Result<WorkerRecord
     // A1 C7-3: discarded leaves the projected set (pending_cleanup stays active).
     projection_bus::mark_dirty(&ctx.host);
     if out.state == WorkerState::Discarded {
-        store.flight().background.remove(&id);
-        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-        coding_tools_local_agent::release_worker_cgroup(id.as_str());
-        #[cfg(windows)]
-        crate::tools::worker_job::release_worker_job(id.as_str());
+        finish_discarded(&store, &id);
     }
     Ok(out)
 }
