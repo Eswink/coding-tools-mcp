@@ -1,5 +1,5 @@
 {
- "entries": 1994,
+ "entries": 2017,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "bc9013177f9521e19d1ee3d7b5d372a3265cff67",
-   "bytes": 61905,
+   "blob": "5f3c954cc8af771e07083626911889f35cc0c72d",
+   "bytes": 63476,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "a76e8cf467d2e27f6a22e4fc47fc004313d02aaaa50e26ec070aa84467b6f2f3"
+   "sha256": "8a65109a51475e9bfa02dae406735b16b04b976d2a2b9cffd1094739e1b1c6ee"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "89e9d681a498fee3bd89ce471c0c26baac686eed",
-   "bytes": 437416,
+   "blob": "8fd1c41f9d7afd41bc2cf115f86a184c37d449c5",
+   "bytes": 502821,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "7ab0c4931c62730058b58bdfdf31a5da4c23e74009b55805d65a0a395d049a0d"
+   "sha256": "79ea310c5ac028a651b465b6deb2adf894bf25d41ac2de3c0450b7802f2b2b69"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -5757,6 +5757,160 @@
    "sha256": "05e562bc1e616d95c4f4cfdd7a63d904cca89cef19260af1de6640144b399337"
   },
   {
+   "blob": "3d6c9919e76e05271a8b5f03505642eb660e1e64",
+   "bytes": 1472,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/README.md",
+   "sha256": "d3327e174acf5a7043be990558f8043e53f1873562762f3f16dad5831a28e128"
+  },
+  {
+   "blob": "d274c4e03d1087c026bc1c1fe5868c3ec855cd09",
+   "bytes": 120,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/.gitignore",
+   "sha256": "414f612df0ae6714888121242915187193f284dca25466ea7d0728ac1e5215d7"
+  },
+  {
+   "blob": "57e5f4ec210aac75480cb9a74e1eb42bc5ab5a3e",
+   "bytes": 6612,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/Cargo.toml",
+   "sha256": "fe22e05e396d6c64d64f9ff1f0b026717cc6168d589abb5ebc0ea326f48d1dc2"
+  },
+  {
+   "blob": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
+   "bytes": 10243,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/LICENSE-APACHE",
+   "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
+  },
+  {
+   "blob": "861bf60855b35fa5a4815321c63b6c44fa469320",
+   "bytes": 1060,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/LICENSE-MIT",
+   "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
+  },
+  {
+   "blob": "e7fc3b8149dc3d16154a690eb3269ce6470ce2b0",
+   "bytes": 1145,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/build.rs",
+   "sha256": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a"
+  },
+  {
+   "blob": "ed76c5f5eedb07afb7792ddd2ff06782d44a76b7",
+   "bytes": 4908,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/src/lib.rs",
+   "sha256": "3e1c881fefb728ce4f3492163377424011031cb8f2a33de7f98536fa604e2437"
+  },
+  {
+   "blob": "ba7c97e22c99e84232db35bce90979dc219c2b67",
+   "bytes": 18008,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/crate/upstream-src.tar.gz",
+   "sha256": "9d44580ca58ae198f95ec74c8299304f58ad5e18e1472d36dfc9b81e0521cfd1"
+  },
+  {
+   "blob": "23b6d360bcdd9b4457b9f2b7715a07ab1bd3b6c2",
+   "bytes": 5521,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/drop-optional-mysql-sqlite.patch",
+   "sha256": "0942b5577cac63f7b1d3e09afeb67f29711aa8db45bf2875ebb6d3a1ad0aa092"
+  },
+  {
+   "blob": "f015fd141d1a4554761abfe830049885afc7d1ce",
+   "bytes": 2053,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/provenance.json",
+   "sha256": "b14620c1fb9084d5542fa6b6b800c164b2248cfd00528cc2388243afa15f022f"
+  },
+  {
+   "blob": "9d99a1c54add03f0a762ba749eca34a49696c77d",
+   "bytes": 190134,
+   "mode": "100644",
+   "path": "patches/sqlx-0.8.6/sqlx-0.8.6.crate",
+   "sha256": "1fefb893899429669dcdd979aff487bd78f4064e5e7907e4269081e0ef7d97dc"
+  },
+  {
+   "blob": "a4b5f4f0502005bd6affd3ed7364f8549c3941f4",
+   "bytes": 722,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/README.md",
+   "sha256": "b9965ba4df946619f1afabbaef650e33224dbfbca6fbeaae35f2e494ca36020c"
+  },
+  {
+   "blob": "d274c4e03d1087c026bc1c1fe5868c3ec855cd09",
+   "bytes": 120,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/.gitignore",
+   "sha256": "414f612df0ae6714888121242915187193f284dca25466ea7d0728ac1e5215d7"
+  },
+  {
+   "blob": "c8bc32534b09a2cf2340a7b42b14ec907f5b4b9e",
+   "bytes": 3261,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/Cargo.toml",
+   "sha256": "f6b66f50ecd9914d2500439c6406552aa9082c73fbecd38e5ef8bacef2e8d277"
+  },
+  {
+   "blob": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
+   "bytes": 10243,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/LICENSE-APACHE",
+   "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
+  },
+  {
+   "blob": "861bf60855b35fa5a4815321c63b6c44fa469320",
+   "bytes": 1060,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/LICENSE-MIT",
+   "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
+  },
+  {
+   "blob": "e7fc3b8149dc3d16154a690eb3269ce6470ce2b0",
+   "bytes": 1145,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/build.rs",
+   "sha256": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a"
+  },
+  {
+   "blob": "e8804f57fee57045f0d064f68f9196bbce03a8fc",
+   "bytes": 2373,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/src/lib.rs",
+   "sha256": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d"
+  },
+  {
+   "blob": "c058dafcd14fb0d4b29d212665754e8f8ca6ccf4",
+   "bytes": 24657,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/crate/upstream-src.tar.gz",
+   "sha256": "a1f41ecea7c28e91dc91eb90d0dc9deea448f16d02851e065374315e27901934"
+  },
+  {
+   "blob": "39b53527822597fe8ddce3c5a2e0a4d0f60649e4",
+   "bytes": 2025,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/drop-optional-mysql-sqlite.patch",
+   "sha256": "83ad9bcee83e70bc5b7f20c0bc46490416148315fdf47bb43a8da35875adfed7"
+  },
+  {
+   "blob": "1b23ec1a992b011dc4a6af5b58da5a9dee9047ef",
+   "bytes": 2113,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/provenance.json",
+   "sha256": "1459674a31b4b23419dbe5a15ee16bbeb37947f104246a533b05948bde4e5a0b"
+  },
+  {
+   "blob": "0a8e6ff2368ba799fe62af89771b4c1fc0b0aaea",
+   "bytes": 30587,
+   "mode": "100644",
+   "path": "patches/sqlx-macros-core-0.8.6/sqlx-macros-core-0.8.6.crate",
+   "sha256": "19a9c1841124ac5a61741f96e1d9e2ec77424bf323962dd894bdb93f37d5219b"
+  },
+  {
    "blob": "d1a5ee0628fb2d1c8337b4dd96e70c5cae54f376",
    "bytes": 50768,
    "mode": "100644",
@@ -6315,6 +6469,13 @@
    "mode": "100644",
    "path": "scripts/final_rc_evidence_tests.py",
    "sha256": "79181d1b464965a7083ae4562a0f0cb40ad87990e5546ac29dd6ce153b03f10a"
+  },
+  {
+   "blob": "02e757a7333a44f1fcc5fd36459fffd930332fe0",
+   "bytes": 3313,
+   "mode": "100644",
+   "path": "scripts/gateway_rsa_absent_lock_tests.py",
+   "sha256": "32e8335c4eee90a3790a18add5f4bee203f3ff51971ef32b335b2bad9584a089"
   },
   {
    "blob": "6c158d525d746fe2116859a90f79d8214547db76",
@@ -8431,18 +8592,18 @@
    "sha256": "0a4280e5ee8f75c7bee390b97e95b2d6ea55ab42e2701f013563db9aeded4b65"
   },
   {
-   "blob": "9bb3dd9d5b6f5944369b5b39f181fbe71c97e7d2",
-   "bytes": 54444,
+   "blob": "12001d3d4e3d3f345e517510c97ab2e4749cdb37",
+   "bytes": 48391,
    "mode": "100644",
    "path": "services/cloud-gateway/Cargo.lock",
-   "sha256": "2eccd0e1c398d36017a28d11a30f80ed46b6be66280bc8b6d70cf49d4a34f9f2"
+   "sha256": "c280a3c9dc93906e0e5f8e2400accfa4a3f581e380dee73edc8417d554b87cc8"
   },
   {
-   "blob": "fff7efb79f63ce40bd213a9fcb05a60866959ea8",
-   "bytes": 1446,
+   "blob": "917bc7ca9aa18c4682cadf998d30c8511979f93a",
+   "bytes": 1897,
    "mode": "100644",
    "path": "services/cloud-gateway/Cargo.toml",
-   "sha256": "0c738c51eb53ac2f08563f26090e9d695245cb444b4c04e778b5962deefa5efe"
+   "sha256": "998f6d83ce88019bcc513c62a62f5eeb2737fce20693dfcef6018f889df69435"
   },
   {
    "blob": "0d5264553d659329dbf09cd867c40c3183ccf181",

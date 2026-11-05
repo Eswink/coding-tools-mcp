@@ -1,0 +1,100 @@
+--- patches/sqlx-macros-core-0.8.6/crate/Cargo.toml.official
++++ patches/sqlx-macros-core-0.8.6/crate/Cargo.toml
+@@ -65,14 +65,6 @@
+ version = "=0.8.6"
+ features = ["offline"]
+ 
+-[dependencies.sqlx-mysql]
+-version = "=0.8.6"
+-features = [
+-    "offline",
+-    "migrate",
+-]
+-optional = true
+-
+ [dependencies.sqlx-postgres]
+ version = "=0.8.6"
+ features = [
+@@ -81,14 +73,6 @@
+ ]
+ optional = true
+ 
+-[dependencies.sqlx-sqlite]
+-version = "=0.8.6"
+-features = [
+-    "offline",
+-    "migrate",
+-]
+-optional = true
+-
+ [dependencies.syn]
+ version = "2.0.52"
+ features = [
+@@ -125,14 +109,12 @@
+     "tokio",
+     "sqlx-core/_rt-tokio",
+ ]
+-_sqlite = []
+ _tls-native-tls = ["sqlx-core/_tls-native-tls"]
+ _tls-rustls-aws-lc-rs = ["sqlx-core/_tls-rustls-aws-lc-rs"]
+ _tls-rustls-ring-native-roots = ["sqlx-core/_tls-rustls-ring-native-roots"]
+ _tls-rustls-ring-webpki = ["sqlx-core/_tls-rustls-ring-webpki"]
+ bigdecimal = [
+     "sqlx-core/bigdecimal",
+-    "sqlx-mysql?/bigdecimal",
+     "sqlx-postgres?/bigdecimal",
+ ]
+ bit-vec = [
+@@ -141,9 +123,7 @@
+ ]
+ chrono = [
+     "sqlx-core/chrono",
+-    "sqlx-mysql?/chrono",
+     "sqlx-postgres?/chrono",
+-    "sqlx-sqlite?/chrono",
+ ]
+ default = []
+ derive = []
+@@ -157,9 +137,7 @@
+ ]
+ json = [
+     "sqlx-core/json",
+-    "sqlx-mysql?/json",
+     "sqlx-postgres?/json",
+-    "sqlx-sqlite?/json",
+ ]
+ mac_address = [
+     "sqlx-core/mac_address",
+@@ -167,32 +145,18 @@
+ ]
+ macros = []
+ migrate = ["sqlx-core/migrate"]
+-mysql = ["sqlx-mysql"]
+ postgres = ["sqlx-postgres"]
+ rust_decimal = [
+     "sqlx-core/rust_decimal",
+-    "sqlx-mysql?/rust_decimal",
+     "sqlx-postgres?/rust_decimal",
+ ]
+-sqlite = [
+-    "_sqlite",
+-    "sqlx-sqlite/bundled",
+-]
+-sqlite-unbundled = [
+-    "_sqlite",
+-    "sqlx-sqlite/unbundled",
+-]
+ time = [
+     "sqlx-core/time",
+-    "sqlx-mysql?/time",
+     "sqlx-postgres?/time",
+-    "sqlx-sqlite?/time",
+ ]
+ uuid = [
+     "sqlx-core/uuid",
+-    "sqlx-mysql?/uuid",
+     "sqlx-postgres?/uuid",
+-    "sqlx-sqlite?/uuid",
+ ]
+ 
+ [lints.rust.unexpected_cfgs]

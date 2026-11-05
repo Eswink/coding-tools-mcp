@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C19 app-version named import tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C21b thin sqlx path patches (topology DELTA_LINES) tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bc9013177f9521e19d1ee3d7b5d372a3265cff67",
-        "sha256": "a76e8cf467d2e27f6a22e4fc47fc004313d02aaaa50e26ec070aa84467b6f2f3"
+        "blob_sha": "5f3c954cc8af771e07083626911889f35cc0c72d",
+        "sha256": "8a65109a51475e9bfa02dae406735b16b04b976d2a2b9cffd1094739e1b1c6ee"
       }
     },
     {
@@ -3401,6 +3401,226 @@
       }
     },
     {
+      "path": "patches/sqlx-0.8.6/README.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "3d6c9919e76e05271a8b5f03505642eb660e1e64",
+        "sha256": "d3327e174acf5a7043be990558f8043e53f1873562762f3f16dad5831a28e128"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/.gitignore",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d274c4e03d1087c026bc1c1fe5868c3ec855cd09",
+        "sha256": "414f612df0ae6714888121242915187193f284dca25466ea7d0728ac1e5215d7"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/Cargo.toml",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "57e5f4ec210aac75480cb9a74e1eb42bc5ab5a3e",
+        "sha256": "fe22e05e396d6c64d64f9ff1f0b026717cc6168d589abb5ebc0ea326f48d1dc2"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/LICENSE-APACHE",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
+        "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/LICENSE-MIT",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "861bf60855b35fa5a4815321c63b6c44fa469320",
+        "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/build.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "e7fc3b8149dc3d16154a690eb3269ce6470ce2b0",
+        "sha256": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/src/lib.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ed76c5f5eedb07afb7792ddd2ff06782d44a76b7",
+        "sha256": "3e1c881fefb728ce4f3492163377424011031cb8f2a33de7f98536fa604e2437"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/crate/upstream-src.tar.gz",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "ba7c97e22c99e84232db35bce90979dc219c2b67",
+        "sha256": "9d44580ca58ae198f95ec74c8299304f58ad5e18e1472d36dfc9b81e0521cfd1"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/drop-optional-mysql-sqlite.patch",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "23b6d360bcdd9b4457b9f2b7715a07ab1bd3b6c2",
+        "sha256": "0942b5577cac63f7b1d3e09afeb67f29711aa8db45bf2875ebb6d3a1ad0aa092"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/provenance.json",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "f015fd141d1a4554761abfe830049885afc7d1ce",
+        "sha256": "b14620c1fb9084d5542fa6b6b800c164b2248cfd00528cc2388243afa15f022f"
+      }
+    },
+    {
+      "path": "patches/sqlx-0.8.6/sqlx-0.8.6.crate",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "9d99a1c54add03f0a762ba749eca34a49696c77d",
+        "sha256": "1fefb893899429669dcdd979aff487bd78f4064e5e7907e4269081e0ef7d97dc"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/README.md",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "a4b5f4f0502005bd6affd3ed7364f8549c3941f4",
+        "sha256": "b9965ba4df946619f1afabbaef650e33224dbfbca6fbeaae35f2e494ca36020c"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/.gitignore",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d274c4e03d1087c026bc1c1fe5868c3ec855cd09",
+        "sha256": "414f612df0ae6714888121242915187193f284dca25466ea7d0728ac1e5215d7"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/Cargo.toml",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c8bc32534b09a2cf2340a7b42b14ec907f5b4b9e",
+        "sha256": "f6b66f50ecd9914d2500439c6406552aa9082c73fbecd38e5ef8bacef2e8d277"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/LICENSE-APACHE",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c79147e8738e73f34c7285b4757f16e7c0a9fe91",
+        "sha256": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/LICENSE-MIT",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "861bf60855b35fa5a4815321c63b6c44fa469320",
+        "sha256": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/build.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "e7fc3b8149dc3d16154a690eb3269ce6470ce2b0",
+        "sha256": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/src/lib.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "e8804f57fee57045f0d064f68f9196bbce03a8fc",
+        "sha256": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/crate/upstream-src.tar.gz",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "c058dafcd14fb0d4b29d212665754e8f8ca6ccf4",
+        "sha256": "a1f41ecea7c28e91dc91eb90d0dc9deea448f16d02851e065374315e27901934"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/drop-optional-mysql-sqlite.patch",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "39b53527822597fe8ddce3c5a2e0a4d0f60649e4",
+        "sha256": "83ad9bcee83e70bc5b7f20c0bc46490416148315fdf47bb43a8da35875adfed7"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/provenance.json",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "1b23ec1a992b011dc4a6af5b58da5a9dee9047ef",
+        "sha256": "1459674a31b4b23419dbe5a15ee16bbeb37947f104246a533b05948bde4e5a0b"
+      }
+    },
+    {
+      "path": "patches/sqlx-macros-core-0.8.6/sqlx-macros-core-0.8.6.crate",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "0a8e6ff2368ba799fe62af89771b4c1fc0b0aaea",
+        "sha256": "19a9c1841124ac5a61741f96e1d9e2ec77424bf323962dd894bdb93f37d5219b"
+      }
+    },
+    {
       "path": "pnpm-lock.yaml",
       "status": "M",
       "before": {
@@ -3870,6 +4090,16 @@
         "mode": "100644",
         "blob_sha": "ed9ee239e0825f9b53f907669a43762bf1ef5dde",
         "sha256": "79181d1b464965a7083ae4562a0f0cb40ad87990e5546ac29dd6ce153b03f10a"
+      }
+    },
+    {
+      "path": "scripts/gateway_rsa_absent_lock_tests.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "02e757a7333a44f1fcc5fd36459fffd930332fe0",
+        "sha256": "32e8335c4eee90a3790a18add5f4bee203f3ff51971ef32b335b2bad9584a089"
       }
     },
     {
@@ -4550,8 +4780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "23f911e88226e2ee9cae2fe927b6d0b96293bf65",
-        "sha256": "3bf2a71770560873b1c95680a3274d54ff4985efec973c51bfcc4104fd1e6fa7"
+        "blob_sha": "6814fabe88412bb73352640d4fc3d55e59543388",
+        "sha256": "1e30d3c1afc463446daa95c1595fad0d10b09ac08378c6422327ac66298ef8b7"
       }
     },
     {
@@ -6440,8 +6670,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9bb3dd9d5b6f5944369b5b39f181fbe71c97e7d2",
-        "sha256": "2eccd0e1c398d36017a28d11a30f80ed46b6be66280bc8b6d70cf49d4a34f9f2"
+        "blob_sha": "12001d3d4e3d3f345e517510c97ab2e4749cdb37",
+        "sha256": "c280a3c9dc93906e0e5f8e2400accfa4a3f581e380dee73edc8417d554b87cc8"
       }
     },
     {
@@ -6450,8 +6680,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fff7efb79f63ce40bd213a9fcb05a60866959ea8",
-        "sha256": "0c738c51eb53ac2f08563f26090e9d695245cb444b4c04e778b5962deefa5efe"
+        "blob_sha": "917bc7ca9aa18c4682cadf998d30c8511979f93a",
+        "sha256": "998f6d83ce88019bcc513c62a62f5eeb2737fce20693dfcef6018f889df69435"
       }
     },
     {

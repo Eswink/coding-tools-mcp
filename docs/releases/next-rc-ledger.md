@@ -238,3 +238,14 @@ All package source/version/architecture/installed payload checks remain separate
 - Downloaded Ubuntu artifact11123538382 is908bytes, SHA256 `cd0e281ea6201fc660f67ece1d52f11265e4ad54b0181a770b4fdbadd87cfd28`; Windows artifact11124536347 is915bytes, SHA256 `97afbf04ff54ab70db0ee4752be88cc51764152419e15cd630984b26a7593d4d`. API size/digest, ZIP CRC, three expected files and exact-source/version receipts match. The Issue remains open pending its stated remaining acceptance.
 - Five project-context documents now describe the actual Svelte/Tauri/Rust/services layout and real test entry points. Static checks verified27relative links, existing npm/Cargo targets, six unchanged desktop versions and service metadata. These documentation checks do not execute runtime tests. The July generated graph summary is explicitly historical, not silently replaced by invented graph evidence.
 - Windows mandatory isolation, snapshot opened-root authority, final-version selection, final source audits/packaging, PR integration and real-host boundaries remain unresolved. No main merge, tag, release or Issue closure is established by this receipt. Forward revert the documentation or routing increment if necessary; do not rewrite history or tags.
+
+## A1 C21 — gateway rsa lock half (packaging #85 remaining) — 2026-11-06 Asia/Shanghai
+
+- develop/0.8.0 tip base `60680e2d` / tree `9a257189`. Branch `a1-c21-rsa-packaging` (local only; no push/tag/main).
+- Reachability matrix: `cargo tree -i rsa` / `-i sqlx-mysql` empty on default, conservative (`--target all --all-features --edges normal,build,dev`), and four shipped targets. Metadata BFS still listed optional drivers pre-clear; **metadata ≠ build-reachable**.
+- B1: checksum-pinned official `sqlx 0.8.6` / `sqlx-macros-core 0.8.6` vendored under `vendor/` with Cargo.toml-only drop of unused optional mysql/sqlite deps/feature forwards; `[patch.crates-io]` in `services/cloud-gateway/Cargo.toml`. Provenance: `patches/sqlx-0.8.6/` + `patches/sqlx-macros-core-0.8.6/`.
+- Regenerated `services/cloud-gateway/Cargo.lock` omits `rsa` / `sqlx-mysql` / `sqlx-sqlite`. Real `cargo-audit 0.22.2` → vulnerabilities.count=0 for RUSTSEC-2023-0071; `settings.ignore=[]`; no `--ignore`.
+- Regression: `scripts/gateway_rsa_absent_lock_tests.py`. Product sqlx features remain postgres-only.
+- **Does not close whole #85** (GLib installed-bytes / yoke informational / FINAL `release_approved` / Win #177/#178/#179 remain OOS). Never claim Windows PASS/QUALIFIED/FINAL.
+
+- C21b (topology): replaced full `vendor/sqlx*` trees with thin `patches/*/crate` path patches (Cargo.toml-only edit + binary `upstream-src.tar.gz` extracted by `build.rs`). Keeps lock free of rsa/sqlx-mysql/sqlx-sqlite without raising DELTA_LINES / without `--ignore`. Whole #85 still open; Win OOS.
