@@ -4,7 +4,7 @@ on:
     branches: ['feat/cloud-gateway-agent-runtime']
     paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-service.yml']
   pull_request:
-    branches: [main]
+    branches: [main, 'develop/0.8.0']
     paths: ['services/cloud-gateway/**', '.github/workflows/cloud-gateway-service.yml']
   workflow_dispatch:
 permissions:
