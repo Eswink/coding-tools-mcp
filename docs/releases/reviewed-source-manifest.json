@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C21b thin sqlx path patches (topology DELTA_LINES) tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C23 gateway process-and-browser B1 phase tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -174,8 +174,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bf7968823246b6bec22fa7b351f59c546328cfb2",
-        "sha256": "ae9928dda2cc671ca009a554e51150736974cea517ee212654777d4ba8fe2fcc"
+        "blob_sha": "cda3e63455dc16f7217c27682a6a3462ed89ed59",
+        "sha256": "8b9a8a9aa7c566b81a81e1812024a9ff14db9e56846b6fec244370a18052202e"
       }
     },
     {
@@ -4780,8 +4780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6814fabe88412bb73352640d4fc3d55e59543388",
-        "sha256": "1e30d3c1afc463446daa95c1595fad0d10b09ac08378c6422327ac66298ef8b7"
+        "blob_sha": "c2711e87f7372bd14e1321575701e4ea2943a6e9",
+        "sha256": "3cccc7e4d272005a4e03b89482ed384bf95ce6580595beaa9d90ebccc5ce0084"
       }
     },
     {
@@ -7760,8 +7760,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "aa20b719ceb214a80a1fb6ddc8b09bebb8380467",
-        "sha256": "f967f1d7b2ca019f0812705b234013757f65d70fe9633af557a379b0f0951a15"
+        "blob_sha": "f53c9b0a8c9416da11c475da583cfdfb7512a40f",
+        "sha256": "4aa2c741587aa4d0d3bd217c2b87c8616be83a7f5cd55aaed19d4421e0e3fae4"
       }
     },
     {
@@ -7800,8 +7800,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "22aaa3d6ffa6c532c17a242754a902ed863c2104",
-        "sha256": "2ab55030ac15184205eb76268c176ec83d1b6a0ca6bbdbb0cfdb302abf5ab85e"
+        "blob_sha": "95fa0ccdcde608e935a377805b16f7d72a2489ca",
+        "sha256": "73ef9c26f7cee5e80a7789631aa4f03ee8dff0bf4c20e4ea994d9eb08c3c59b8"
       }
     },
     {
@@ -7820,8 +7820,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c07d704b0b0faba35ff0280316b8433e4df79dbb",
-        "sha256": "2584f4ce84c4136843c1f4820c5f6e8178f7419eeb0865194df1d98b95b62f50"
+        "blob_sha": "12c224bb18646b357ca59d098da0dbe2795f10e9",
+        "sha256": "47b4cab177ce0d08268302cfa9b8401e03c7ab6f47c635494e7e56df2532fa21"
       }
     },
     {
