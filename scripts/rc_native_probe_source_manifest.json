@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "bbae53c86669a2988c2e55162ffaa56380dfe3cb",
-   "bytes": 445502,
+   "blob": "8444ce97ec452738dc0bb17d8a1ef848df976738",
+   "bytes": 445484,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "f68e2b095a857f0495ea4d8ac06d39126777ec23c1fe2cc61c5a026434d3e4d5"
+   "sha256": "a06455f42ce90af62f0102cef8631728cd62ea0362d2571fee42ca5d782457c5"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -9383,11 +9383,11 @@
    "sha256": "fd801004a8134c4cfbc58b1e3129200c643dc89bd30d84bdaf9412de6b3828fd"
   },
   {
-   "blob": "2edb622e8a35fdd1eb7de1708c275ce0c64ca7d1",
-   "bytes": 6613,
+   "blob": "3213023719ba85e21fe60612a4ba81eb14421e1a",
+   "bytes": 7045,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/service_diagnostics.py",
-   "sha256": "830c6c6376139e97ca8b2dd81cc8c78927a9a6daab8c668d6300f795a6bf7e64"
+   "sha256": "21de90fe46543b3e661e696e6a066f087e97bfb9e16629143b9cb2bfc84b4bfc"
   },
   {
    "blob": "680b12ed6ecfd70adeac997d48fbd79ca948324b",
@@ -9397,11 +9397,11 @@
    "sha256": "1c943cc6afbbe864cae070cdaedea8dff33eaf36fe15791938de256ba22df2ec"
   },
   {
-   "blob": "b1a5a8f40095837a597f92f7e0849ad06056c10e",
-   "bytes": 15196,
+   "blob": "b6db637df8f8acddd5f279acc56ef900a0b749e2",
+   "bytes": 20718,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/test_service_diagnostics.py",
-   "sha256": "4d112ce806bf69bcbceae17509561b65d29f8a6d795dbead5700e9a602dd40ba"
+   "sha256": "2611296d1b977b1efdf0351f15773370cfd5ea79826761b15c340d42d537e636"
   },
   {
    "blob": "b492aaf15b28d230ba1e1af48cb71eb2a5708a0e",
