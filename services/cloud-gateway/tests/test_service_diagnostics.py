@@ -318,6 +318,135 @@ class DiagnosticsContracts(unittest.TestCase):
         self.assertNotIn("sandbox", json.dumps(report))
 
 
+    def test_same_node_specific_signal_beats_generic_target_closed(self):
+        """Closed phrase + specific phrase on one node → specific wins (no table expand)."""
+        from service_diagnostics import ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        # Existing phrases only: generic closed text AND sandbox on the SAME message.
+        msg = (
+            "Target page, context or browser has been closed; "
+            "No usable sandbox! https://evil/?code=canary\n/home/runner/secret"
+        )
+        text = ci_exception_summary(TargetClosedError(msg))
+        self.assertIn("signal=sandbox_unavailable", text)
+        self.assertNotIn("signal=target_closed", text)
+        self.assertNotIn("canary", text)
+        self.assertNotIn("https://", text)
+        self.assertNotIn("/home/", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+
+    def test_target_closed_parent_defers_to_specific_child_cause(self):
+        """TargetClosedError must not early-return before walking child chain."""
+        from service_diagnostics import ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        child = RuntimeError(
+            "Failed to move to new namespace: Operation not permitted https://x/?t=secret"
+        )
+        parent = TargetClosedError(
+            "Target page, context or browser has been closed https://evil/?code=canary"
+        )
+        parent.__cause__ = child
+        outer = RuntimeError("browser_launch")
+        outer.__cause__ = parent
+        text = ci_exception_summary(outer)
+        self.assertIn("phase=browser_launch", text)
+        self.assertIn("signal=userns_denied", text)
+        self.assertNotIn("signal=target_closed", text)
+        self.assertNotIn("secret", text)
+        self.assertNotIn("canary", text)
+        self.assertNotIn("https://", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+
+    def test_target_closed_fallback_when_chain_has_no_specific(self):
+        """Generic target_closed only after full bounded walk finds nothing specific."""
+        from service_diagnostics import ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        inner = ValueError("opaque-no-phrase https://leak/?x=1\n/etc/passwd")
+        mid = TargetClosedError("Target page, context or browser has been closed")
+        mid.__cause__ = inner
+        top = RuntimeError("browser_launch")
+        top.__cause__ = mid
+        text = ci_exception_summary(top)
+        self.assertIn("phase=browser_launch", text)
+        self.assertIn("signal=target_closed", text)
+        self.assertNotIn("opaque", text)
+        self.assertNotIn("https://", text)
+        self.assertNotIn("/etc/", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+
+    def test_target_closed_child_walk_respects_depth_and_cycle(self):
+        from service_diagnostics import ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        # Cycle under TargetClosed: must not hang; specific on peer still found.
+        a = TargetClosedError("Target page, context or browser has been closed")
+        b = RuntimeError("No usable sandbox! https://cycle/?tok=leak")
+        a.__cause__ = b
+        b.__cause__ = a
+        top = RuntimeError("browser_launch")
+        top.__cause__ = a
+        text = ci_exception_summary(top)
+        self.assertIn("phase=browser_launch", text)
+        self.assertIn("signal=sandbox_unavailable", text)
+        self.assertNotIn("leak", text)
+        self.assertNotIn("https://", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+
+        # Depth: TargetClosed at top must walk children within cap for specific.
+        leaf = RuntimeError("error while loading shared libraries: libx.so https://z/")
+        cur = leaf
+        for _ in range(5):
+            nxt = RuntimeError("wrap")
+            nxt.__cause__ = cur
+            cur = nxt
+        tc = TargetClosedError("Target page, context or browser has been closed")
+        tc.__cause__ = cur
+        top2 = RuntimeError("browser_launch")
+        top2.__cause__ = tc
+        text2 = ci_exception_summary(top2)
+        self.assertIn("phase=browser_launch", text2)
+        self.assertIn("signal=missing_shared_library", text2)
+        self.assertNotIn("https://", text2)
+        self.assertNotIn("wrap", text2)
+        self.assertLessEqual(len(text2.splitlines()), 2)
+
+    def test_b4_signals_never_leak_into_failure_report(self):
+        from service_diagnostics import browser_phase, failure_report, ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        with self.assertRaises(RuntimeError) as raised:
+            with browser_phase("browser_launch"):
+                inner = RuntimeError("No usable sandbox! https://x/?code=canary")
+                raise TargetClosedError(
+                    "Target page, context or browser has been closed"
+                ) from inner
+        report = failure_report(raised.exception)
+        dumped = json.dumps(report)
+        self.assertEqual(report["reason"], "browser_launch")
+        self.assertNotIn("ci_diag", dumped)
+        self.assertNotIn("signal=", dumped)
+        self.assertNotIn("sandbox", dumped)
+        self.assertNotIn("canary", dumped)
+        summary = ci_exception_summary(raised.exception)
+        self.assertIn("signal=sandbox_unavailable", summary)
+        self.assertNotIn("canary", summary)
+        self.assertNotIn("https://", summary)
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

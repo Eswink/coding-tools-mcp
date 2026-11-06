@@ -140,18 +140,16 @@ def _iter_exception_chain(exc):
 
 
 def _classify_signal(exc):
-    """Return a closed-set signal token from exc and its bounded cause chain."""
+    """Return a closed-set signal token from exc and its bounded cause chain.
+
+    Specific phrase tokens beat generic ``target_closed``. A TargetClosedError
+    node must not settle on the generic signal before the remainder of the
+    bounded chain (depth cap + cycle break) is scanned. Phrase table is not
+    expanded — ``target_closed`` is only a deferred fallback.
+    """
+    generic_fallback = None
     for node in _iter_exception_chain(exc):
         cls = type(node).__name__
-        if cls == 'TargetClosedError':
-            try:
-                message = str(node)
-            except Exception:
-                message = ''
-            for phrase, token in _SAFE_PHRASE_SIGNALS:
-                if phrase in message:
-                    return token
-            return 'target_closed'
         if cls == 'TimeoutError':
             return 'timeout'
         try:
@@ -159,9 +157,19 @@ def _classify_signal(exc):
         except Exception:
             message = ''
         for phrase, token in _SAFE_PHRASE_SIGNALS:
-            if phrase in message:
-                return token
-    return None
+            if phrase not in message:
+                continue
+            if token == 'target_closed':
+                if generic_fallback is None:
+                    generic_fallback = token
+                continue
+            return token
+        if cls == 'TargetClosedError':
+            if generic_fallback is None:
+                generic_fallback = 'target_closed'
+            # Keep walking __cause__/__context__; do not early-return.
+            continue
+    return generic_fallback
 
 
 def ci_exception_summary(exc):
