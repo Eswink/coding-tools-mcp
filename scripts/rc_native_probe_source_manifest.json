@@ -206,11 +206,11 @@
    "sha256": "50b551fc31d534920e39556b409279616196159e0851607601ba5fa43fcf60e2"
   },
   {
-   "blob": "bf7968823246b6bec22fa7b351f59c546328cfb2",
-   "bytes": 3509,
+   "blob": "cda3e63455dc16f7217c27682a6a3462ed89ed59",
+   "bytes": 3526,
    "mode": "100644",
    "path": ".github/workflows/cloud-gateway-service.yml",
-   "sha256": "ae9928dda2cc671ca009a554e51150736974cea517ee212654777d4ba8fe2fcc"
+   "sha256": "8b9a8a9aa7c566b81a81e1812024a9ff14db9e56846b6fec244370a18052202e"
   },
   {
    "blob": "491152152e7611ea9f39f98e05c68e24d27a0f04",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "8fd1c41f9d7afd41bc2cf115f86a184c37d449c5",
-   "bytes": 502821,
+   "blob": "c28894567d87444a58126f0d1df44eefb59c54e7",
+   "bytes": 445508,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "79ea310c5ac028a651b465b6deb2adf894bf25d41ac2de3c0450b7802f2b2b69"
+   "sha256": "75c02787f9a72c4134c604ec56b031f7d8bfe1731a891101d4af3bad1bcb2180"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -9355,11 +9355,11 @@
    "sha256": "9d18641135d4719984f88949b69c249b7137c2b8a85c6749366bad3fe15aeae7"
   },
   {
-   "blob": "aa20b719ceb214a80a1fb6ddc8b09bebb8380467",
-   "bytes": 16341,
+   "blob": "f53c9b0a8c9416da11c475da583cfdfb7512a40f",
+   "bytes": 16607,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/run_service_acceptance.py",
-   "sha256": "f967f1d7b2ca019f0812705b234013757f65d70fe9633af557a379b0f0951a15"
+   "sha256": "4aa2c741587aa4d0d3bd217c2b87c8616be83a7f5cd55aaed19d4421e0e3fae4"
   },
   {
    "blob": "459ac7624782480006487ac8d93885f4aac55792",
@@ -9383,11 +9383,11 @@
    "sha256": "fd801004a8134c4cfbc58b1e3129200c643dc89bd30d84bdaf9412de6b3828fd"
   },
   {
-   "blob": "22aaa3d6ffa6c532c17a242754a902ed863c2104",
-   "bytes": 2074,
+   "blob": "95fa0ccdcde608e935a377805b16f7d72a2489ca",
+   "bytes": 2874,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/service_diagnostics.py",
-   "sha256": "2ab55030ac15184205eb76268c176ec83d1b6a0ca6bbdbb0cfdb302abf5ab85e"
+   "sha256": "73ef9c26f7cee5e80a7789631aa4f03ee8dff0bf4c20e4ea994d9eb08c3c59b8"
   },
   {
    "blob": "680b12ed6ecfd70adeac997d48fbd79ca948324b",
@@ -9397,11 +9397,11 @@
    "sha256": "1c943cc6afbbe864cae070cdaedea8dff33eaf36fe15791938de256ba22df2ec"
   },
   {
-   "blob": "c07d704b0b0faba35ff0280316b8433e4df79dbb",
-   "bytes": 3022,
+   "blob": "12c224bb18646b357ca59d098da0dbe2795f10e9",
+   "bytes": 5929,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/test_service_diagnostics.py",
-   "sha256": "2584f4ce84c4136843c1f4820c5f6e8178f7419eeb0865194df1d98b95b62f50"
+   "sha256": "47b4cab177ce0d08268302cfa9b8401e03c7ab6f47c635494e7e56df2532fa21"
   },
   {
    "blob": "b492aaf15b28d230ba1e1af48cb71eb2a5708a0e",
