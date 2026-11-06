@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C23 B3 cause-chain ci_diag tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C23 B4 target_closed deferral tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4780,8 +4780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a83d65cded77dc70fb48d9dc975505938120601e",
-        "sha256": "30452b86898f6f3f377b1bfe394ef022be1433ba3a5076ea6189c0bb238cfa75"
+        "blob_sha": "186c94626f2743299a70f408bf404be31c7258be",
+        "sha256": "096750eab8bd4127a9b5f451adae36647e91472d4eb8adc3b72b04fbe09bb2c0"
       }
     },
     {
@@ -7800,8 +7800,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2edb622e8a35fdd1eb7de1708c275ce0c64ca7d1",
-        "sha256": "830c6c6376139e97ca8b2dd81cc8c78927a9a6daab8c668d6300f795a6bf7e64"
+        "blob_sha": "3213023719ba85e21fe60612a4ba81eb14421e1a",
+        "sha256": "21de90fe46543b3e661e696e6a066f087e97bfb9e16629143b9cb2bfc84b4bfc"
       }
     },
     {
@@ -7820,8 +7820,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b1a5a8f40095837a597f92f7e0849ad06056c10e",
-        "sha256": "4d112ce806bf69bcbceae17509561b65d29f8a6d795dbead5700e9a602dd40ba"
+        "blob_sha": "b6db637df8f8acddd5f279acc56ef900a0b749e2",
+        "sha256": "2611296d1b977b1efdf0351f15773370cfd5ea79826761b15c340d42d537e636"
       }
     },
     {
