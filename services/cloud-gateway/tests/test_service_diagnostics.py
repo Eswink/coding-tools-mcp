@@ -121,6 +121,78 @@ class DiagnosticsContracts(unittest.TestCase):
         self.assertNotIn("http", output.getvalue())
 
 
+    def test_ci_exception_summary_maps_target_closed_without_url(self):
+        from service_diagnostics import ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        secret = "https://localhost/callback?code=canary-secret\n/home/runner/.cache/ms-playwright/evil"
+        text = ci_exception_summary(
+            TargetClosedError("Target page, context or browser has been closed " + secret)
+        )
+        self.assertIsInstance(text, str)
+        lines = text.splitlines()
+        self.assertGreaterEqual(len(lines), 1)
+        self.assertLessEqual(len(lines), 2)
+        joined = "\n".join(lines)
+        self.assertIn("class=TargetClosedError", joined)
+        self.assertIn("signal=target_closed", joined)
+        self.assertNotIn("canary-secret", joined)
+        self.assertNotIn("https://", joined)
+        self.assertNotIn("/home/", joined)
+        self.assertNotIn("ms-playwright", joined)
+        self.assertNotIn("\n\n", text)
+
+    def test_ci_exception_summary_reports_allowlisted_phase_only(self):
+        from service_diagnostics import ci_exception_summary
+        text = ci_exception_summary(RuntimeError("browser_launch"))
+        self.assertIn("phase=browser_launch", text)
+        self.assertIn("class=RuntimeError", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+
+    def test_ci_exception_summary_does_not_echo_raw_unknown_text(self):
+        from service_diagnostics import ci_exception_summary
+        payload = "token=leak-me\npath=/etc/passwd\nhttps://evil.test/?x=1"
+        text = ci_exception_summary(ValueError(payload))
+        self.assertLessEqual(len(text.splitlines()), 2)
+        self.assertIn("signal=unclassified", text)
+        self.assertNotIn("leak-me", text)
+        self.assertNotIn("/etc/passwd", text)
+        self.assertNotIn("https://", text)
+        self.assertNotIn("evil.test", text)
+        # Must not be a scrubbed copy of the raw message
+        self.assertNotIn("token=", text)
+
+    def test_ci_exception_summary_not_in_failure_report_json(self):
+        from service_diagnostics import ci_exception_summary
+        class TargetClosedError(Exception):
+            pass
+        exc = TargetClosedError("Target page, context or browser has been closed https://x/?code=canary")
+        report = failure_report(RuntimeError("browser_launch"))
+        dumped = json.dumps(report)
+        self.assertNotIn("ci_diag", dumped)
+        self.assertNotIn("signal=", dumped)
+        summary = ci_exception_summary(exc)
+        self.assertTrue(summary.startswith("ci_diag "))
+
+    def test_ci_wrapper_prints_summary_on_stderr_only(self):
+        from service_diagnostics import browser_phase
+        err = io.StringIO()
+        out = io.StringIO()
+        with patch("run_service_acceptance.main", side_effect=RuntimeError("browser_launch")):
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                runpy.run_module("run_service_browser_ci", run_name="__main__")
+        stdout = out.getvalue()
+        stderr = err.getvalue()
+        payload = json.loads(stdout)
+        self.assertEqual(payload["reason"], "browser_launch")
+        self.assertNotIn("ci_diag", stdout)
+        self.assertIn("ci_diag ", stderr)
+        self.assertIn("phase=browser_launch", stderr)
+        self.assertLessEqual(len([ln for ln in stderr.splitlines() if ln.startswith("ci_diag ")]), 2)
+
+
 
 if __name__ == "__main__":
     unittest.main()

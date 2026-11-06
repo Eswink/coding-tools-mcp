@@ -88,3 +88,65 @@ def browser_phase(name):
         if type(exc).__name__ == "TargetClosedError":
             raise RuntimeError(name) from None
         raise
+
+# Closed sets for CI-only stderr diagnostics. Never echo exception payloads.
+ALLOWED_EXCEPTION_CLASSES = frozenset({
+    'BrowserError',
+    'Error',
+    'Exception',
+    'RuntimeError',
+    'TargetClosedError',
+    'TimeoutError',
+})
+
+# Exact phrase → signal token. Message is scanned only for these phrases;
+# surrounding exception text is never copied into the summary.
+_SAFE_PHRASE_SIGNALS = (
+    ('Target page, context or browser has been closed', 'target_closed'),
+    ('ERR_BLOCKED_BY_ADMINISTRATOR', 'blocked_by_administrator'),
+    ('Timeout', 'timeout'),
+)
+
+
+def ci_exception_summary(exc):
+    """Return at most two allowlisted CI log lines; never echo exception text.
+
+    For stderr CI logs only — must not enter failure_report / browser.json.
+    Uses closed class names, SAFE_CHECKS phase tokens, and exact phrase→signal
+    maps. Unknown payloads become signal=unclassified with no raw fragments.
+    """
+    cls = type(exc).__name__
+    class_token = cls if cls in ALLOWED_EXCEPTION_CLASSES else 'Other'
+    line1 = f'ci_diag class={class_token}'
+    phase = None
+    if type(exc) is RuntimeError and len(exc.args) == 1 and isinstance(exc.args[0], str):
+        if exc.args[0] in SAFE_CHECKS:
+            phase = exc.args[0]
+            line1 += f' phase={phase}'
+    signal = None
+    if cls == 'TargetClosedError':
+        signal = 'target_closed'
+    elif cls == 'TimeoutError':
+        signal = 'timeout'
+    else:
+        try:
+            message = str(exc)
+        except Exception:
+            message = ''
+        for phrase, token in _SAFE_PHRASE_SIGNALS:
+            if phrase in message:
+                signal = token
+                break
+    if signal is None and phase is None:
+        signal = 'unclassified'
+    lines = [line1]
+    if signal is not None:
+        if phase is not None:
+            lines.append(f'ci_diag signal={signal}')
+        else:
+            lines[0] += f' signal={signal}'
+    # Enforce 1-2 single-line records; strip any accidental newlines from tokens.
+    clean = []
+    for line in lines[:2]:
+        clean.append(''.join(ch for ch in line if ch not in '\r\n'))
+    return '\n'.join(clean)
