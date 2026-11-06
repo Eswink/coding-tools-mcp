@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C23 B2 Playwright 1.58 + allowlisted ci_diag tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C23 B3 cause-chain ci_diag tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4780,8 +4780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9d38ad201282ce47dda150792c445ff8ee9f0c48",
-        "sha256": "1faa9b98c5587d4c8a94b59fd60ff4778267d5196d0bd65652bd11f323fe56dd"
+        "blob_sha": "a83d65cded77dc70fb48d9dc975505938120601e",
+        "sha256": "30452b86898f6f3f377b1bfe394ef022be1433ba3a5076ea6189c0bb238cfa75"
       }
     },
     {
@@ -7800,8 +7800,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "e4c2ea9afc43011f611e3d1115b9b77f98c4f946",
-        "sha256": "ce2f763f0538ff05b187d369a6f0340e12dcc39feb7d8165e019717ca06cb2da"
+        "blob_sha": "2edb622e8a35fdd1eb7de1708c275ce0c64ca7d1",
+        "sha256": "830c6c6376139e97ca8b2dd81cc8c78927a9a6daab8c668d6300f795a6bf7e64"
       }
     },
     {
@@ -7820,8 +7820,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "dd91531f587c8b5dfa470ae30b1651b744d6b234",
-        "sha256": "0ac505ba6f80d42e9036d8fbcfd239d084e49dbe448855a9e8480b318d9604d6"
+        "blob_sha": "b1a5a8f40095837a597f92f7e0849ad06056c10e",
+        "sha256": "4d112ce806bf69bcbceae17509561b65d29f8a6d795dbead5700e9a602dd40ba"
       }
     },
     {
