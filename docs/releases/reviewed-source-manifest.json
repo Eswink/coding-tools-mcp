@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C23 gateway process-and-browser B1 phase tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C23 B2 Playwright 1.58 + allowlisted ci_diag tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -174,8 +174,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cda3e63455dc16f7217c27682a6a3462ed89ed59",
-        "sha256": "8b9a8a9aa7c566b81a81e1812024a9ff14db9e56846b6fec244370a18052202e"
+        "blob_sha": "f473e2a79b9b6ca8652ca732078275f87c824ebe",
+        "sha256": "8fb7d46ebb831dddb6e6496a6e195852e85cf123f9032ae88e67d115a3663056"
       }
     },
     {
@@ -4780,8 +4780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c2711e87f7372bd14e1321575701e4ea2943a6e9",
-        "sha256": "3cccc7e4d272005a4e03b89482ed384bf95ce6580595beaa9d90ebccc5ce0084"
+        "blob_sha": "9d38ad201282ce47dda150792c445ff8ee9f0c48",
+        "sha256": "1faa9b98c5587d4c8a94b59fd60ff4778267d5196d0bd65652bd11f323fe56dd"
       }
     },
     {
@@ -7770,8 +7770,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "459ac7624782480006487ac8d93885f4aac55792",
-        "sha256": "be7d7935102218c6ac5664cc05ba1bbf1aa8377c991e617d81d8b2d8906a9d13"
+        "blob_sha": "4fcf746ef81e2679c692f2628925c5cab2dee273",
+        "sha256": "c1c644c9c3e23529b0e565ba9abf70cff453b856a8eedf39f232b043676aed4f"
       }
     },
     {
@@ -7800,8 +7800,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "95fa0ccdcde608e935a377805b16f7d72a2489ca",
-        "sha256": "73ef9c26f7cee5e80a7789631aa4f03ee8dff0bf4c20e4ea994d9eb08c3c59b8"
+        "blob_sha": "e4c2ea9afc43011f611e3d1115b9b77f98c4f946",
+        "sha256": "ce2f763f0538ff05b187d369a6f0340e12dcc39feb7d8165e019717ca06cb2da"
       }
     },
     {
@@ -7820,8 +7820,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "12c224bb18646b357ca59d098da0dbe2795f10e9",
-        "sha256": "47b4cab177ce0d08268302cfa9b8401e03c7ab6f47c635494e7e56df2532fa21"
+        "blob_sha": "dd91531f587c8b5dfa470ae30b1651b744d6b234",
+        "sha256": "0ac505ba6f80d42e9036d8fbcfd239d084e49dbe448855a9e8480b318d9604d6"
       }
     },
     {
