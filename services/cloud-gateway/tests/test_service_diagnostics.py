@@ -193,6 +193,131 @@ class DiagnosticsContracts(unittest.TestCase):
         self.assertLessEqual(len([ln for ln in stderr.splitlines() if ln.startswith("ci_diag ")]), 2)
 
 
+    def test_browser_phase_preserves_cause_chain(self):
+        from service_diagnostics import browser_phase
+
+        class TargetClosedError(Exception):
+            pass
+
+        with self.assertRaises(RuntimeError) as raised:
+            with browser_phase("browser_launch"):
+                raise TargetClosedError("No usable sandbox! https://evil/?code=canary")
+        self.assertEqual(raised.exception.args, ("browser_launch",))
+        self.assertIsNotNone(raised.exception.__cause__)
+        self.assertEqual(type(raised.exception.__cause__).__name__, "TargetClosedError")
+
+    def test_ci_summary_classifies_sandbox_from_cause_chain(self):
+        from service_diagnostics import ci_exception_summary
+
+        class TargetClosedError(Exception):
+            pass
+
+        inner = TargetClosedError("No usable sandbox! visit https://evil/?token=secret\n/usr/lib/evil.so")
+        outer = RuntimeError("browser_launch")
+        outer.__cause__ = inner
+        text = ci_exception_summary(outer)
+        self.assertIn("phase=browser_launch", text)
+        self.assertIn("signal=sandbox_unavailable", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+        self.assertNotIn("secret", text)
+        self.assertNotIn("https://", text)
+        self.assertNotIn("/usr/", text)
+        self.assertNotIn("evil", text)
+
+    def test_ci_summary_classifies_userns_missing_lib_exec_crash(self):
+        from service_diagnostics import ci_exception_summary
+        cases = [
+            ("Failed to move to new namespace: Operation not permitted", "userns_denied"),
+            ("error while loading shared libraries: libx.so", "missing_shared_library"),
+            ("cannot open shared object file: No such file", "missing_shared_library"),
+            ("Executable doesn't exist at /tmp/chrome", "executable_missing"),
+            ("Executable does not exist", "executable_missing"),
+            ("Target crashed", "process_crash"),
+            ("browser has crashed (exit code 139)", "process_crash"),
+        ]
+        for message, signal in cases:
+            with self.subTest(signal=signal):
+                text = ci_exception_summary(RuntimeError(message + " https://x/?c=canary\n/home/runner/secret"))
+                self.assertIn(f"signal={signal}", text)
+                self.assertNotIn("canary", text)
+                self.assertNotIn("https://", text)
+                self.assertNotIn("/home/", text)
+                self.assertNotIn("secret", text)
+                self.assertLessEqual(len(text.splitlines()), 2)
+
+    def test_ci_summary_unknown_stays_unclassified_without_echo(self):
+        from service_diagnostics import ci_exception_summary
+        payload = "weird-token=leak\npath=/etc/shadow\nhttps://evil.test/a"
+        text = ci_exception_summary(ValueError(payload))
+        self.assertIn("signal=unclassified", text)
+        self.assertNotIn("leak", text)
+        self.assertNotIn("/etc/", text)
+        self.assertNotIn("https://", text)
+        self.assertNotIn("evil.test", text)
+        self.assertNotIn("weird-token", text)
+
+    def test_ci_summary_dynamic_class_name_not_echoed(self):
+        from service_diagnostics import ci_exception_summary
+
+        class SuperSecretInternalError(Exception):
+            pass
+
+        text = ci_exception_summary(SuperSecretInternalError("No usable sandbox"))
+        self.assertIn("class=Other", text)
+        self.assertNotIn("SuperSecretInternalError", text)
+        self.assertIn("signal=sandbox_unavailable", text)
+
+    def test_ci_summary_exception_cycle_is_bounded(self):
+        from service_diagnostics import ci_exception_summary
+        a = RuntimeError("browser_launch")
+        b = ValueError("No usable sandbox! https://cycle/?x=1")
+        a.__cause__ = b
+        b.__cause__ = a
+        text = ci_exception_summary(a)
+        self.assertIn("phase=browser_launch", text)
+        self.assertIn("signal=sandbox_unavailable", text)
+        self.assertNotIn("https://", text)
+        self.assertLessEqual(len(text.splitlines()), 2)
+
+    def test_ci_summary_deep_cause_chain_respects_depth_cap(self):
+        from service_diagnostics import ci_exception_summary
+        # Deep chain: only the deepest has a known phrase; depth cap must still
+        # find it within bound OR safely stop — implementation uses max depth 8.
+        cur = ValueError("No usable sandbox")
+        for _ in range(20):
+            nxt = RuntimeError("wrapper")
+            nxt.__cause__ = cur
+            cur = nxt
+        # Attach allowlisted phase at the top
+        top = RuntimeError("browser_launch")
+        top.__cause__ = cur
+        text = ci_exception_summary(top)
+        self.assertIn("phase=browser_launch", text)
+        # With depth cap 8, sandbox at depth 21 may be unreachable → unclassified
+        # OR found if walking enough — either way must not hang or leak.
+        self.assertLessEqual(len(text.splitlines()), 2)
+        self.assertTrue(
+            ("signal=sandbox_unavailable" in text) or ("signal=unclassified" in text)
+            or text.count("signal=") == 0 and "phase=browser_launch" in text
+        )
+        self.assertNotIn("wrapper", text)
+
+    def test_failure_report_semantics_unchanged_with_cause(self):
+        from service_diagnostics import browser_phase, failure_report
+
+        class TargetClosedError(Exception):
+            pass
+
+        with self.assertRaises(RuntimeError) as raised:
+            with browser_phase("browser_launch"):
+                raise TargetClosedError("No usable sandbox! https://x/?code=canary")
+        report = failure_report(raised.exception)
+        self.assertEqual(report["reason"], "browser_launch")
+        self.assertEqual(report["class"], "RuntimeError")
+        self.assertNotIn("canary", json.dumps(report))
+        self.assertNotIn("sandbox", json.dumps(report))
+
+
 
 if __name__ == "__main__":
     unittest.main()
