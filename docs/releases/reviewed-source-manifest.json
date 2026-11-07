@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C26 #178 engineering evidence-close (ledger only) — LOCAL tip pending push",
+  "review_reference": "A1 C28 #173 engineering evidence-close (ledger only) — LOCAL tip pending push",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7c61a7f941cd56589c52296ce8be3783ae5ac844",
-        "sha256": "8a28bd8ea50f909a3aff5488a6bac78f6c38851e7506ae66d7e424a5ed6ae934"
+        "blob_sha": "90f47520ca774f3eeb2643be159db23a0d8c6911",
+        "sha256": "75675ccca42829a25dd873c830cc24c00872aaf48b199912ea0d73d2669ed0bb"
       }
     },
     {
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f9fcd7ee8c4c756ddb7c06a96239bb71048c5769",
-        "sha256": "f26d82db3cb96aa7aca2a5a501c85c7873b9a8fb9c56cd3cc58d4bc171b6a034"
+        "blob_sha": "89addafbddacfa21491bb28ace916a5f26fae13f",
+        "sha256": "ecca24a252ff046af2e11ed4d6beab3b38f033ca3a075f8cd45e1728feb4b19e"
       }
     },
     {
