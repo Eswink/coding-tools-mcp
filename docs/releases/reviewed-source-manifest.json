@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C28 #173 engineering evidence-close (ledger only) — LOCAL tip pending push",
+  "review_reference": "A1 C29 DEPTH_LIMIT 256→512 tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "90f47520ca774f3eeb2643be159db23a0d8c6911",
-        "sha256": "75675ccca42829a25dd873c830cc24c00872aaf48b199912ea0d73d2669ed0bb"
+        "blob_sha": "a00910f6f9a04652228bf88ee8f4fe861e52a7c9",
+        "sha256": "c8733108c96db8d0e4feff8224dd1ad993677b3e6e7467cf22c36139ca4092b6"
       }
     },
     {
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "89addafbddacfa21491bb28ace916a5f26fae13f",
-        "sha256": "ecca24a252ff046af2e11ed4d6beab3b38f033ca3a075f8cd45e1728feb4b19e"
+        "blob_sha": "02360534c990a08bed8990b5b0cb67033ca63fc2",
+        "sha256": "ca242b02bd630c5a2fff4efaf9fe543f79a1d2f9adce335b98d13d6fca895806"
       }
     },
     {
@@ -5384,8 +5384,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f88d66a91b69093a33785c2898a11b03144e178a",
-        "sha256": "9cfeb31bb7f33f486887dcd901ef24ee52e47af772c624092ed0226d23c79061"
+        "blob_sha": "6703f3742db0de778efa414379b2a9e380f329f2",
+        "sha256": "08744ba8fec9710c0d7ed2d83c7e4d7dbc9d56d24577f5edfdbb6af356cc8665"
       }
     },
     {
@@ -5394,8 +5394,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cfe3517b0c807fe326f8b9cee544aa85c1298360",
-        "sha256": "1f091dd56479ea9ceb51f7e97bbc3def989fd7cc5ecf46c139cab6869191a9e5"
+        "blob_sha": "bc37d06b48abd8138d996e65ed67adbfb2ef49ea",
+        "sha256": "cf74522cd0618efaf19260f25073ca2831ec89c1f9824b0ed8a1a30cf188af30"
       }
     },
     {

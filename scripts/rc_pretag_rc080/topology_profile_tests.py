@@ -197,8 +197,9 @@ class Rc080DepthBudgetTests(unittest.TestCase):
         cls.repo = Path(cls.tmp.name) / 'repo'
         subprocess.check_call(['git', 'clone', '-q', '--shared', '--no-checkout', str(ROOT), str(cls.repo)])
         cls.tree = git('rev-parse', rc080.M + '^{tree}', root=cls.repo).decode().strip()
-        # fixed length: the absolute 255/256/257 cases must exist whatever DEPTH_LIMIT is
-        cls.chain = cls.build(rc080.M, max(cls.limit, 257) + 4, 'chain')
+        # fixed length: the absolute 511/512/513 cases must exist whatever DEPTH_LIMIT is
+        # (C29: floor follows current absolute boundary; was 257 under DEPTH_LIMIT=256 / C7pre)
+        cls.chain = cls.build(rc080.M, max(cls.limit, 513) + 4, 'chain')
 
     @classmethod
     def tearDownClass(cls):
@@ -227,19 +228,19 @@ class Rc080DepthBudgetTests(unittest.TestCase):
         except AssertionError as error:
             return 'rejected: %s' % error
 
-    def test_depth_limit_is_256(self):
-        self.assertEqual(rc080.DEPTH_LIMIT, 256)
+    def test_depth_limit_is_512(self):
+        self.assertEqual(rc080.DEPTH_LIMIT, 512)
 
-    def test_depth_255_is_admitted(self):
-        self.assertEqual(self.outcome(self.chain[255]), 255)
+    def test_depth_511_is_admitted(self):
+        self.assertEqual(self.outcome(self.chain[511]), 511)
 
-    def test_depth_256_is_admitted(self):
+    def test_depth_512_is_admitted(self):
         # topology only: the synthetic chain carries M's tree, which predates the rc080 paths
-        self.assertEqual(self.outcome(self.chain[256]), 256)
+        self.assertEqual(self.outcome(self.chain[512]), 512)
 
-    def test_depth_257_is_rejected(self):
-        self.assertEqual(self.outcome(self.chain[257]), 'rejected: rc080_not_descendant')
-        self.assertIsNone(rc080.select(self.chain[257], self.repo, git, entries, None, p.R, p.R_TREE,
+    def test_depth_513_is_rejected(self):
+        self.assertEqual(self.outcome(self.chain[513]), 'rejected: rc080_not_descendant')
+        self.assertIsNone(rc080.select(self.chain[513], self.repo, git, entries, None, p.R, p.R_TREE,
                                        p.R_DOCUMENTS))
 
     def test_headroom_16_passes_and_15_fails_on_the_fixture(self):

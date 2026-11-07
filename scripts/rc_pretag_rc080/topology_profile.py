@@ -42,8 +42,9 @@ PROFILE_CAP = 200
 # + 1 (the merge row itself) + 13 (second parent d6a45088 is 13 first-parent steps below M)
 # + headroom; i.e. a tip is admitted iff d + 14 <= DEPTH_LIMIT. 128 left the C2-ad
 # line (d = 53 then) 61 commits; A1 C7pre raises it to 256 (need 112 at this change,
-# headroom 128 -> 144); self-tests fail once headroom < 16.
-DEPTH_LIMIT = 256
+# headroom 128 -> 144); A1 C29 raises it to 512 (need 241 at merge tip 50dbd850,
+# headroom 15 -> 271); self-tests fail once headroom < 16.
+DEPTH_LIMIT = 512
 DELTA_PATHS = 600
 DELTA_LINES = 40000
 
