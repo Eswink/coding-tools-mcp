@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C24 desktop GLib installed-bytes gate tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C24 S1b desktop GLib installed-bytes gate (noncloud fail-closed) tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1068,8 +1068,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d25e5615372432bfb57b035c7ed4e53693d76215",
-        "sha256": "ff0c40e4b91389f219c49c5f385153e297dae863d2c08d3de525bd4d244ec0ce"
+        "blob_sha": "07e5d39b1c517b36bb4573297a57020bdea765e5",
+        "sha256": "f1ccaa2cb0bbf579a4ae51bd7609ca87dbc3f1cf9a3a4f95706d8736c8dc0d9c"
       }
     },
     {
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d66fa38ef9d279cf713b93c6ae9cfd50a82ea136",
-        "sha256": "a9957bb940afa1cee0a5485e430600fe55d86c0a67bccf813a85d4fa4e87ea4f"
+        "blob_sha": "bb61080b432f975df34692161af0674c6b54c0d1",
+        "sha256": "d9546205cc379c0c3eb4a7910c0e38496a9916b893ea22528bf6ef1ea83009f3"
       }
     },
     {
@@ -3976,8 +3976,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "da4a3c004417012888ca6810a70d131dca7c7e9d",
-        "sha256": "151fb7b4c923d97bf48858933c7341b5ecf6b9cd98acee746b6f077d9deb1ba5"
+        "blob_sha": "5f4d66d89e23964944a51be4e8e2a60446794556",
+        "sha256": "510f99789f4cbb95c6ba12de0623b08bf8d3df153a7c339724f7a3db060d9809"
       }
     },
     {
@@ -3986,8 +3986,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "43f23debe38fd686bd64aeb92056252c15cfa628",
-        "sha256": "b33a23df520626ab9a7e139f9cad3baf45712895fe23698402c947bea4d9d5fc"
+        "blob_sha": "2b895814bf9aacea792b96b4dad1d2eaa4d55419",
+        "sha256": "622be96b69fcbdcc08ed192bc104c47fb23d9248e8c5e75319241883a3df91ee"
       }
     },
     {
@@ -3996,8 +3996,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "dc728006b04516af3e0f86d34f83b2c7dfe9d64a",
-        "sha256": "ec287f466384e41c342577fb44889638caf753fbd66f1ee37e9c87a2f9710b43"
+        "blob_sha": "4ee6c558ca6e5f38cfe5efed059e5c53dc99dd58",
+        "sha256": "2fd480f64962c51f053653b367af31c99b472278b54c624a3cc8da303954b66e"
       }
     },
     {
@@ -4536,8 +4536,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5d1234617d4f29ed36695a296208cc87fe2ffeb6",
-        "sha256": "59d5d87dd5c804a6c226125f67dbaf7d0058985e4d4c5093f3ba9a1924c54eaf"
+        "blob_sha": "d0ee23a2d15aaabe42ff033111d830717ac43ead",
+        "sha256": "1a0080109872218d6e66e463e8c74bb0a9df74bf1a50daea57a9b65924ce152a"
       }
     },
     {
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2be7b7ef50c6c32cf434616baf72094807fc1f1c",
-        "sha256": "e1348e6a2f78e9b98e6389f9e39f51b5033950b2f72745d2bbab4eef398cb3fb"
+        "blob_sha": "f6ee82e9fd426e779376976ea059916b7791ab32",
+        "sha256": "5dbfc2b077989bed0f5b7062bd5a9436c8ca098a76daa35ed353b0747669f4e8"
       }
     },
     {
