@@ -116,3 +116,14 @@ The full added-file diff whitespace check reports two provenance-preserving
 exceptions: the official LICENSE ends with a blank line, and the saved standard
 unified patch contains a space-only context line. Both are retained byte-for-byte;
 the non-vendor implementation and documentation diff has no whitespace errors.
+
+## Installed-bytes lane (C24, engineering-only)
+
+`desktop_glib_build_evidence.py verify --installed-root DIR` additionally checks a
+controlled root produced by `dpkg-deb -x` (or, when DIR is empty, the in-process
+reviewed unpacker) against the authenticated DEB data payload, byte-for-byte, with
+no-follow reads and fail-closed path, link and mode checks. Only
+`desktop_glib_installed.installed_gate` can yield
+`installed_desktop_bytes_verified=True`. Limitations: maintainer scripts are not
+run, this is not a dpkg install, and it is not a real machine; it grants no
+security, release or publish approval.
