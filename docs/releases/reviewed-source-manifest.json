@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C23 B4 target_closed deferral tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C23 B5 AppArmor userns probe tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -174,8 +174,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f473e2a79b9b6ca8652ca732078275f87c824ebe",
-        "sha256": "8fb7d46ebb831dddb6e6496a6e195852e85cf123f9032ae88e67d115a3663056"
+        "blob_sha": "ec89664fabe9e2a13f4e645c4836c0dfcfcd0c3c",
+        "sha256": "f31491f2bd4e62515d367e26defcef92453d4de3b04b435e115eef30cfd0f005"
       }
     },
     {
@@ -4780,8 +4780,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "186c94626f2743299a70f408bf404be31c7258be",
-        "sha256": "096750eab8bd4127a9b5f451adae36647e91472d4eb8adc3b72b04fbe09bb2c0"
+        "blob_sha": "6580ec45e856a95e45ed48bb4a7fb2940524f437",
+        "sha256": "7572a2c3b59a6d589c3132102d9e9983fb039cb8587f373c73d90f095d17b5eb"
       }
     },
     {
