@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C24 S1b desktop GLib installed-bytes gate (noncloud fail-closed) + merge develop@7084d392 post-#204 C23 — LOCAL tip pending push",
+  "review_reference": "A1 C25 B5 soft nits (after≠0 abort + CI-runner AppArmor ledger boundary) — LOCAL tip pending push",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -174,8 +174,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "ec89664fabe9e2a13f4e645c4836c0dfcfcd0c3c",
-        "sha256": "f31491f2bd4e62515d367e26defcef92453d4de3b04b435e115eef30cfd0f005"
+        "blob_sha": "0ee41d489332cd3d71b81f50d2698a6f5981f46f",
+        "sha256": "cc470cea730f5cefd57b6af6bc2a6096b122c2ae2d590af51d2b7b82d58913fe"
       }
     },
     {
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "bb61080b432f975df34692161af0674c6b54c0d1",
-        "sha256": "d9546205cc379c0c3eb4a7910c0e38496a9916b893ea22528bf6ef1ea83009f3"
+        "blob_sha": "3ef421ab80fb9170eaadbaeba0b51d32a37ac3e8",
+        "sha256": "c31210ccf85a9e964138c7c812349c7c2ea918de5953b0561947adb21c8f8cb6"
       }
     },
     {
@@ -7790,8 +7790,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f53c9b0a8c9416da11c475da583cfdfb7512a40f",
-        "sha256": "4aa2c741587aa4d0d3bd217c2b87c8616be83a7f5cd55aaed19d4421e0e3fae4"
+        "blob_sha": "3e7b65448115531631ab79d1328927628f436547",
+        "sha256": "fe3353a4be61b3d27596e7f98941eaf925a2e9ce0e4fe50c0af748a2fdf31c75"
       }
     },
     {
