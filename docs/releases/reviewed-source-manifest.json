@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C21b thin sqlx path patches (topology DELTA_LINES) tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C24 desktop GLib installed-bytes gate tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -278,8 +278,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c4a1105646c25d6190f63fe1b5f610de460fac57",
-        "sha256": "71b867b94974e2aa730eaa1382d026aeba42dcac550fa88db0a6282180e71357"
+        "blob_sha": "428e664576349f260df60264cc1f8e6feec5cb94",
+        "sha256": "d2174e66fefc231f7552ae85617f6692238e9fb540f535d15cc79030f5479446"
       }
     },
     {
@@ -1068,8 +1068,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fcf7939fb8de8c516a7ddc3209065da062e72d56",
-        "sha256": "dcbf1c54da62d1b894a89a81ab1ec8bbe3e57745d9dceb785246b2585b067852"
+        "blob_sha": "d25e5615372432bfb57b035c7ed4e53693d76215",
+        "sha256": "ff0c40e4b91389f219c49c5f385153e297dae863d2c08d3de525bd4d244ec0ce"
       }
     },
     {
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "5f3c954cc8af771e07083626911889f35cc0c72d",
-        "sha256": "8a65109a51475e9bfa02dae406735b16b04b976d2a2b9cffd1094739e1b1c6ee"
+        "blob_sha": "d66fa38ef9d279cf713b93c6ae9cfd50a82ea136",
+        "sha256": "a9957bb940afa1cee0a5485e430600fe55d86c0a67bccf813a85d4fa4e87ea4f"
       }
     },
     {
@@ -3906,8 +3906,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "3a0d5c34424f344dfb622b74bc750cc3becd6c9d",
-        "sha256": "6597e7302058ca15e4198fde9bbfae1132c493fb73d5ac881140438efa54bbf4"
+        "blob_sha": "21e67e66dcff8103e8613b2f21b0dbef5172113b",
+        "sha256": "1ff547892d04502e92175aad217bc9d82d1fe4e7027c6167ea4e10ccb097b2b6"
       }
     },
     {
@@ -3916,8 +3916,8 @@
       "before": null,
       "after": {
         "mode": "100755",
-        "blob_sha": "46638243c98fbd2c7ba6fd1fc90439fd70c2bd21",
-        "sha256": "52526fe848208e7a9307a036939f326ed92b2a3b5a09d9029cddd8eb6e2aa5f7"
+        "blob_sha": "247b56a05cba6f915d91229bb0fe204cb3791bc7",
+        "sha256": "3910c9f40c3a40ae91a780bbfcd2b5976da869d5f14ac1ae6e53987b56120bb6"
       }
     },
     {
@@ -3926,8 +3926,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "229e46713df40af2f8d68c85192aa19e5200e816",
-        "sha256": "4ceab8c2d5fc68c0923ad42d6c0e4cdbdecd93eece002c1dec86ed46e261cb97"
+        "blob_sha": "ea0920895083c258f337282e200e26c67bd64c57",
+        "sha256": "7fc8bf35ba6d41e3534295504bb5b973884563bb434b4832979dfaeaf0899921"
       }
     },
     {
@@ -3936,8 +3936,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b2c522d74eae61c64a09c55028dfffbdf23de059",
-        "sha256": "db20ebcbf85cd32910872a173a0ac807f39eb97f54909c11de91c1f88c7d6962"
+        "blob_sha": "015f25b985eea21cab950ac9a2c9b2a64faa252e",
+        "sha256": "a0510c9eadf649cf24d82332e3364271c374a7897a2c964545099d60395e9580"
       }
     },
     {
@@ -3968,6 +3968,36 @@
         "mode": "100644",
         "blob_sha": "dc183c985645949249bd515837110929ca177030",
         "sha256": "54b350ff34ac1f2d22834d5fc60fa87db05d2ae9f614ccab90d1a5ac4d6ea66f"
+      }
+    },
+    {
+      "path": "scripts/desktop_glib_installed.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "da4a3c004417012888ca6810a70d131dca7c7e9d",
+        "sha256": "151fb7b4c923d97bf48858933c7341b5ecf6b9cd98acee746b6f077d9deb1ba5"
+      }
+    },
+    {
+      "path": "scripts/desktop_glib_installed_consumer_tests.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "43f23debe38fd686bd64aeb92056252c15cfa628",
+        "sha256": "b33a23df520626ab9a7e139f9cad3baf45712895fe23698402c947bea4d9d5fc"
+      }
+    },
+    {
+      "path": "scripts/desktop_glib_installed_tests.py",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "dc728006b04516af3e0f86d34f83b2c7dfe9d64a",
+        "sha256": "ec287f466384e41c342577fb44889638caf753fbd66f1ee37e9c87a2f9710b43"
       }
     },
     {
@@ -4506,8 +4536,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "99955a06ad5edae85b097c7b64aabccac276d31f",
-        "sha256": "14858e275d2ab28938b3da22dc39a4bbea77b9650147737c79c969c9b885d210"
+        "blob_sha": "5d1234617d4f29ed36695a296208cc87fe2ffeb6",
+        "sha256": "59d5d87dd5c804a6c226125f67dbaf7d0058985e4d4c5093f3ba9a1924c54eaf"
       }
     },
     {
@@ -4780,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6814fabe88412bb73352640d4fc3d55e59543388",
-        "sha256": "1e30d3c1afc463446daa95c1595fad0d10b09ac08378c6422327ac66298ef8b7"
+        "blob_sha": "2be7b7ef50c6c32cf434616baf72094807fc1f1c",
+        "sha256": "e1348e6a2f78e9b98e6389f9e39f51b5033950b2f72745d2bbab4eef398cb3fb"
       }
     },
     {
