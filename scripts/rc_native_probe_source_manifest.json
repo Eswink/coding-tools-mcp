@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "90f47520ca774f3eeb2643be159db23a0d8c6911",
-   "bytes": 69567,
+   "blob": "a00910f6f9a04652228bf88ee8f4fe861e52a7c9",
+   "bytes": 70714,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "75675ccca42829a25dd873c830cc24c00872aaf48b199912ea0d73d2669ed0bb"
+   "sha256": "c8733108c96db8d0e4feff8224dd1ad993677b3e6e7467cf22c36139ca4092b6"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "32e746e1ed302dc23d5f1e8b60254c9cfc52a40e",
+   "blob": "cc9abbe756b3808cb55f7ae9f0109be99ff823b6",
    "bytes": 446446,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "97ef93278fba2c75d36e617a741dcf978582ba2f3f067bc745a701bae4d5c5c8"
+   "sha256": "6ef88cf19c9c9200624fa5b76f38a01d27d0399f1b969e5040e3a194ad67e6d4"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -7381,18 +7381,18 @@
    "sha256": "81aa8bbe75aa4de50b339286b82d21315aa033d45a8663b6c5144250aa3536be"
   },
   {
-   "blob": "f88d66a91b69093a33785c2898a11b03144e178a",
-   "bytes": 8747,
+   "blob": "6703f3742db0de778efa414379b2a9e380f329f2",
+   "bytes": 8827,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile.py",
-   "sha256": "9cfeb31bb7f33f486887dcd901ef24ee52e47af772c624092ed0226d23c79061"
+   "sha256": "08744ba8fec9710c0d7ed2d83c7e4d7dbc9d56d24577f5edfdbb6af356cc8665"
   },
   {
-   "blob": "cfe3517b0c807fe326f8b9cee544aa85c1298360",
-   "bytes": 17282,
+   "blob": "bc37d06b48abd8138d996e65ed67adbfb2ef49ea",
+   "bytes": 17378,
    "mode": "100644",
    "path": "scripts/rc_pretag_rc080/topology_profile_tests.py",
-   "sha256": "1f091dd56479ea9ceb51f7e97bbc3def989fd7cc5ecf46c139cab6869191a9e5"
+   "sha256": "cf74522cd0618efaf19260f25073ca2831ec89c1f9824b0ed8a1a30cf188af30"
   },
   {
    "blob": "50b6b211fac0aa81812898217d8c19eebcbb1ec5",
