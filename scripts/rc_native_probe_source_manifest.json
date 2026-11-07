@@ -206,11 +206,11 @@
    "sha256": "50b551fc31d534920e39556b409279616196159e0851607601ba5fa43fcf60e2"
   },
   {
-   "blob": "ec89664fabe9e2a13f4e645c4836c0dfcfcd0c3c",
-   "bytes": 5404,
+   "blob": "0ee41d489332cd3d71b81f50d2698a6f5981f46f",
+   "bytes": 5786,
    "mode": "100644",
    "path": ".github/workflows/cloud-gateway-service.yml",
-   "sha256": "f31491f2bd4e62515d367e26defcef92453d4de3b04b435e115eef30cfd0f005"
+   "sha256": "cc470cea730f5cefd57b6af6bc2a6096b122c2ae2d590af51d2b7b82d58913fe"
   },
   {
    "blob": "491152152e7611ea9f39f98e05c68e24d27a0f04",
@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "bb61080b432f975df34692161af0674c6b54c0d1",
-   "bytes": 64613,
+   "blob": "3ef421ab80fb9170eaadbaeba0b51d32a37ac3e8",
+   "bytes": 65942,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "d9546205cc379c0c3eb4a7910c0e38496a9916b893ea22528bf6ef1ea83009f3"
+   "sha256": "c31210ccf85a9e964138c7c812349c7c2ea918de5953b0561947adb21c8f8cb6"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "459c0c972b6feb096e73e5502034ba5246c6ff24",
-   "bytes": 445486,
+   "blob": "992ff880e3221c34827a3bb0c500e81848d3edc8",
+   "bytes": 446500,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "5b7176723a34fdb1ab7561799b772ab947433ce842e39d625b4e2c135b051752"
+   "sha256": "6edf6d8a6df25b3c97ea24b2f9ec3898b127ac61997045721bd173d1fe42d267"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -9376,11 +9376,11 @@
    "sha256": "9d18641135d4719984f88949b69c249b7137c2b8a85c6749366bad3fe15aeae7"
   },
   {
-   "blob": "f53c9b0a8c9416da11c475da583cfdfb7512a40f",
-   "bytes": 16607,
+   "blob": "3e7b65448115531631ab79d1328927628f436547",
+   "bytes": 16711,
    "mode": "100644",
    "path": "services/cloud-gateway/tests/run_service_acceptance.py",
-   "sha256": "4aa2c741587aa4d0d3bd217c2b87c8616be83a7f5cd55aaed19d4421e0e3fae4"
+   "sha256": "fe3353a4be61b3d27596e7f98941eaf925a2e9ce0e4fe50c0af748a2fdf31c75"
   },
   {
    "blob": "4fcf746ef81e2679c692f2628925c5cab2dee273",

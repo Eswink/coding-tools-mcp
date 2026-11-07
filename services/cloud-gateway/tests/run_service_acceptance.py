@@ -250,6 +250,7 @@ def main():
             passed("slow_header_connection_deadline")
             f.stop()
             passed("bounded_graceful_shutdown")
+        # browser_os_sandbox_tested stays False: CI AppArmor userns open (B5/C25) ≠ OS sandbox proof.
         print(json.dumps({"suite": "service_process_and_chromium", "passed": len(cases), "cases": cases,
                           "agent_connected": False, "production_touched": False,
                           "browser_sandbox_enabled": True,
