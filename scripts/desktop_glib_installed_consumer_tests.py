@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Downstream consumers accept installed_desktop_bytes_verified=True only with a bound gate summary."""
+"""Downstream consumers stay fail-closed on installed_desktop_bytes_verified=True (C24 S1b).
+
+Neither consumer holds an authenticated DEB package_sha256, so True is confined to the GLib DEB lane
+(desktop_glib_installed.verify_installed_root -> installed_gate bound to verify_deb package_sha256)."""
 import copy
 from pathlib import Path
 import tempfile
@@ -74,14 +77,32 @@ class ConsumerInstalledClaims(unittest.TestCase):
             self.assertIs(s['installed_desktop_bytes_verified'], False)
             self.assertNotIn('installed_desktop_bytes', s)
 
-    def test_bound_true_accepted_and_sanitized(self):
+    def forged(self):
+        # Grok C24 S1 HARD: self-consistent forgery (all sha fields one arbitrary hex, file_digests filled).
+        f = copy.deepcopy(self.proof['installed_desktop_bytes']); fake = 'b' * 64
+        f.update(package_sha256=fake, payload_sha256=fake, installed_sha256=fake)
+        f['file_digests'] = {k: fake for k in f['file_digests']}
+        return f
+
+    def test_noncloud_rejects_true_even_with_genuine_bound_summary(self):
         good = self.proof['installed_desktop_bytes']
-        n = noncloud.audit_summary(noncloud_value(installed_desktop_bytes_verified=True,
-                                                  installed_desktop_bytes=good))['desktop_source']
-        for s in (n,):
-            self.assertIs(s['installed_desktop_bytes_verified'], True)
-            self.assertEqual(s['installed_desktop_bytes']['installed_sha256'], good['payload_sha256'])
-            self.assertNotIn('file_digests', s['installed_desktop_bytes'])
+        for required in (True, False):
+            with self.subTest(required=required), self.assertRaisesRegex(ValueError, 'invalid_desktop_proof_summary'):
+                noncloud.audit_summary(noncloud_value(installed_desktop_bytes_verified=True,
+                                                      installed_desktop_bytes=good, required=required))
+
+    def test_noncloud_rejects_self_consistent_forgery(self):
+        for flag in (True, False):
+            with self.subTest(flag=flag), self.assertRaisesRegex(ValueError, 'invalid_desktop_proof_summary'):
+                noncloud.audit_summary(noncloud_value(installed_desktop_bytes_verified=flag,
+                                                      installed_desktop_bytes=self.forged()))
+        with self.assertRaises((ValueError, KeyError)):
+            artifact.audit(artifact_value(installed_desktop_bytes_verified=True, installed_desktop_bytes=self.forged()))
+
+    def test_noncloud_not_required_true_rejected(self):
+        with self.assertRaisesRegex(ValueError, 'invalid_desktop_proof_summary'):
+            noncloud.audit_summary(dict(raw_vulnerability_count=0, raw_warnings={},
+                                        desktop_source={'required': False, 'installed_desktop_bytes_verified': True}))
 
     def test_missing_forged_or_misbound_rejected(self):
         for proof in self.cases():
@@ -92,12 +113,18 @@ class ConsumerInstalledClaims(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'invalid_desktop_proof_summary'):
                     noncloud.audit_summary(noncloud_value(**proof))
 
-    def test_noncloud_true_never_carries_approval(self):
-        good = self.proof['installed_desktop_bytes']
+    def test_noncloud_never_carries_approval(self):
         for k in ('release_approved', 'security_approved', 'publish_approved'):
             with self.subTest(k=k), self.assertRaisesRegex(ValueError, 'invalid_desktop_proof_summary'):
-                noncloud.audit_summary(noncloud_value(installed_desktop_bytes_verified=True,
-                                                      installed_desktop_bytes=good, **{k: True}))
+                noncloud.audit_summary(noncloud_value(**{k: True}))
+
+    def test_noncloud_does_not_import_installed_gate(self):
+        # True must not be reachable from noncloud: no installed_gate/claim wiring without an authenticated sha.
+        src = Path(noncloud.__file__).read_text()
+        self.assertNotIn('import desktop_glib_installed', src)
+        self.assertNotIn('from desktop_glib_installed', src)
+        self.assertNotIn('installed_gate(', src)
+        self.assertNotIn('claim(', src)
 
 
 if __name__ == '__main__':
