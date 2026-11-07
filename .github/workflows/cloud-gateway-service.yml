@@ -66,6 +66,51 @@ jobs:
           sudo apt-get install -y postgresql-16 openssl
           python -m pip install playwright==1.58.0
           python -m playwright install --with-deps chromium
+      - name: B5 single-variable userns AppArmor probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Single knob only: kernel.apparmor_restrict_unprivileged_userns
+          # Closed-set logs (token values only). No paths/URLs/raw sysctl dumps.
+          # Keep chromium_sandbox=True; never pass --no-sandbox.
+          KEY=kernel.apparmor_restrict_unprivileged_userns
+          mkdir -p evidence
+          raw_before="$(sysctl -n "$KEY" 2>/dev/null || true)"
+          case "$raw_before" in
+            0) before=0 ;;
+            1) before=1 ;;
+            '') before=absent ;;
+            *) before=other ;;
+          esac
+          echo "ci_env key=apparmor_restrict_unprivileged_userns before=$before"
+          apply=denied
+          if [[ "$before" == "absent" ]]; then
+            apply=absent
+          elif [[ "$before" == "0" ]]; then
+            apply=already_open
+          elif [[ "$before" == "1" || "$before" == "other" ]]; then
+            if sudo -n sysctl -w "${KEY}=0" >/dev/null 2>&1; then
+              apply=ok
+            elif sudo sysctl -w "${KEY}=0" >/dev/null 2>&1; then
+              apply=ok
+            else
+              apply=denied
+            fi
+          fi
+          raw_after="$(sysctl -n "$KEY" 2>/dev/null || true)"
+          case "$raw_after" in
+            0) after=0 ;;
+            1) after=1 ;;
+            '') after=absent ;;
+            *) after=other ;;
+          esac
+          echo "ci_env key=apparmor_restrict_unprivileged_userns after=$after"
+          echo "ci_env key=apparmor_restrict_unprivileged_userns apply=$apply"
+          printf 'before=%s\nafter=%s\napply=%s\n' "$before" "$after" "$apply" > evidence/b5-userns-apparmor.env
+          if [[ "$apply" == "denied" || "$apply" == "absent" ]]; then
+            echo "ci_env probe=abort reason=sysctl_${apply}"
+            exit 1
+          fi
       - name: Independent disposable process and browser gates
         shell: bash
         run: |
