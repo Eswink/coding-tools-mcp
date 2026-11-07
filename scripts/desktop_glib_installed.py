@@ -170,8 +170,12 @@ def verify_installed_root(root, package: bytes, version: str, deb_summary: dict)
                 installed_desktop_bytes=summary)
 
 
-def installed_gate(summary, package_sha256=None) -> bool:
-    """The only producer of installed_desktop_bytes_verified=True; raises on any unbound summary."""
+def installed_gate(summary, package_sha256) -> bool:
+    """The only producer of installed_desktop_bytes_verified=True; raises on any unbound summary.
+
+    package_sha256 is mandatory and must come from the caller's own authenticated DEB verification
+    (verify_deb); a summary is never self-authenticating, so a self-consistent forgery is rejected."""
+    need(type(package_sha256) is str and HEX64.fullmatch(package_sha256) is not None, 'unbound_installed_summary')
     need(type(summary) is dict and set(summary) == SUMMARY_KEYS, 'invalid_installed_summary')
     need(summary['carrier'] == CARRIER and summary['installed_path'] == deb.BINARY and
          summary['limitations'] == list(LIMITATIONS) and
@@ -185,12 +189,13 @@ def installed_gate(summary, package_sha256=None) -> bool:
     need(summary['installed_sha256'] == summary['payload_sha256'] == hashes[deb.BINARY] and
          type(summary['installed_size']) is int and 64 <= summary['installed_size'] <= MAX_FILE,
          'unbound_installed_summary')
-    need(package_sha256 is None or summary['package_sha256'] == package_sha256, 'unbound_installed_summary')
+    need(summary['package_sha256'] == package_sha256, 'unbound_installed_summary')
     return True
 
 
-def claim(proof: dict, package_sha256=None):
-    """Consumer view: (flag, summary-or-None). True only via installed_gate on a bound summary."""
+def claim(proof: dict, package_sha256):
+    """Consumer view: (flag, summary-or-None). True only via installed_gate bound to an authenticated
+    package_sha256 supplied by the caller (GLib DEB lane); consumers without one must stay fail-closed."""
     flag, summary = proof.get('installed_desktop_bytes_verified'), proof.get('installed_desktop_bytes')
     if flag is False:
         need(summary is None, 'installed_summary_without_claim')

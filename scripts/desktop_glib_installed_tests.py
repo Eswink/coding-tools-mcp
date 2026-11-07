@@ -164,17 +164,44 @@ class InstalledGateTests(unittest.TestCase):
         for m in mutations:
             bad = copy.deepcopy(good); m(bad)
             with self.subTest(m=m), self.assertRaises(EvidenceError):
-                inst.installed_gate(bad)
+                inst.installed_gate(bad, self.summary['package_sha256'])
         with self.assertRaisesRegex(EvidenceError, 'unbound_installed_summary'):
             inst.installed_gate(good, '2' * 64)
         with self.assertRaises(EvidenceError):
-            inst.installed_gate(None)
+            inst.installed_gate(None, self.summary['package_sha256'])
+
+    def test_gate_requires_authenticated_package_sha(self):
+        self.unpacked()
+        good = self.verify()['installed_desktop_bytes']
+        for sha in (None, '', 'Z' * 64, good['package_sha256'].upper(), 1):
+            with self.subTest(sha=sha), self.assertRaisesRegex(EvidenceError, 'unbound_installed_summary'):
+                inst.installed_gate(good, sha)
+        with self.assertRaises(TypeError):
+            inst.installed_gate(good)
+        with self.assertRaises(TypeError):
+            inst.claim({'installed_desktop_bytes_verified': True, 'installed_desktop_bytes': good})
+
+    def test_self_consistent_forgery_rejected(self):
+        # Grok C24 S1 HARD: all sha fields equal to one arbitrary hex + filled file_digests is internally
+        # consistent; only binding to the authenticated DEB package_sha256 rejects it.
+        self.unpacked()
+        good = self.verify()['installed_desktop_bytes']
+        forged = copy.deepcopy(good); fake = 'a' * 64
+        forged.update(package_sha256=fake, payload_sha256=fake, installed_sha256=fake)
+        forged['file_digests'] = {k: fake for k in forged['file_digests']}
+        self.assertIs(inst.installed_gate(forged, fake), True)  # the hole: self-bound passes
+        for proof_sha in (self.summary['package_sha256'], '2' * 64):
+            with self.subTest(sha=proof_sha), self.assertRaisesRegex(EvidenceError, 'unbound_installed_summary'):
+                inst.installed_gate(forged, proof_sha)
+            with self.subTest(sha=proof_sha), self.assertRaisesRegex(EvidenceError, 'unbound_installed_summary'):
+                inst.claim({'installed_desktop_bytes_verified': True, 'installed_desktop_bytes': forged}, proof_sha)
 
     def test_claim_requires_summary_for_true_and_none_for_false(self):
         self.unpacked()
         good = self.verify()['installed_desktop_bytes']
-        self.assertEqual(inst.claim({'installed_desktop_bytes_verified': False}), (False, None))
-        flag, bound = inst.claim({'installed_desktop_bytes_verified': True, 'installed_desktop_bytes': good})
+        sha = self.summary['package_sha256']
+        self.assertEqual(inst.claim({'installed_desktop_bytes_verified': False}, sha), (False, None))
+        flag, bound = inst.claim({'installed_desktop_bytes_verified': True, 'installed_desktop_bytes': good}, sha)
         self.assertIs(flag, True)
         self.assertEqual(bound['installed_sha256'], good['installed_sha256'])
         for proof, code in (({'installed_desktop_bytes_verified': True}, 'invalid_installed_summary'),
@@ -182,7 +209,7 @@ class InstalledGateTests(unittest.TestCase):
                 ({'installed_desktop_bytes_verified': 1, 'installed_desktop_bytes': good}, 'invalid_installed_claim'),
                 ({}, 'invalid_installed_claim')):
             with self.subTest(proof=proof), self.assertRaisesRegex(EvidenceError, code):
-                inst.claim(proof)
+                inst.claim(proof, sha)
 
 
 if __name__ == '__main__':
