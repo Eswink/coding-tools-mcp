@@ -1424,11 +1424,11 @@
    "sha256": "8680f0ac4539bccdfda70ffb2a628642c0033569c2f00bede774ad820767e2f9"
   },
   {
-   "blob": "d25e5615372432bfb57b035c7ed4e53693d76215",
-   "bytes": 7136,
+   "blob": "07e5d39b1c517b36bb4573297a57020bdea765e5",
+   "bytes": 7330,
    "mode": "100644",
    "path": "docs/releases/glib-variant-backport.md",
-   "sha256": "ff0c40e4b91389f219c49c5f385153e297dae863d2c08d3de525bd4d244ec0ce"
+   "sha256": "f1ccaa2cb0bbf579a4ae51bd7609ca87dbc3f1cf9a3a4f95706d8736c8dc0d9c"
   },
   {
    "blob": "2da0d96d74aeb032144cd85aaea471dbccda940f",
@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "d66fa38ef9d279cf713b93c6ae9cfd50a82ea136",
-   "bytes": 64181,
+   "blob": "bb61080b432f975df34692161af0674c6b54c0d1",
+   "bytes": 64613,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "a9957bb940afa1cee0a5485e430600fe55d86c0a67bccf813a85d4fa4e87ea4f"
+   "sha256": "d9546205cc379c0c3eb4a7910c0e38496a9916b893ea22528bf6ef1ea83009f3"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "c28894567d87444a58126f0d1df44eefb59c54e7",
-   "bytes": 445508,
+   "blob": "6768746e68ae555c51fa95845b049ce68a1aac9d",
+   "bytes": 446437,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "75c02787f9a72c4134c604ec56b031f7d8bfe1731a891101d4af3bad1bcb2180"
+   "sha256": "e049e170f9a020c94d89c8cc5b962b9bd67f5127d59684a3aca00c62aa7c414e"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6331,25 +6331,25 @@
    "sha256": "54b350ff34ac1f2d22834d5fc60fa87db05d2ae9f614ccab90d1a5ac4d6ea66f"
   },
   {
-   "blob": "da4a3c004417012888ca6810a70d131dca7c7e9d",
-   "bytes": 9100,
+   "blob": "5f4d66d89e23964944a51be4e8e2a60446794556",
+   "bytes": 9489,
    "mode": "100644",
    "path": "scripts/desktop_glib_installed.py",
-   "sha256": "151fb7b4c923d97bf48858933c7341b5ecf6b9cd98acee746b6f077d9deb1ba5"
+   "sha256": "510f99789f4cbb95c6ba12de0623b08bf8d3df153a7c339724f7a3db060d9809"
   },
   {
-   "blob": "43f23debe38fd686bd64aeb92056252c15cfa628",
-   "bytes": 5406,
+   "blob": "2b895814bf9aacea792b96b4dad1d2eaa4d55419",
+   "bytes": 7064,
    "mode": "100644",
    "path": "scripts/desktop_glib_installed_consumer_tests.py",
-   "sha256": "b33a23df520626ab9a7e139f9cad3baf45712895fe23698402c947bea4d9d5fc"
+   "sha256": "622be96b69fcbdcc08ed192bc104c47fb23d9248e8c5e75319241883a3df91ee"
   },
   {
-   "blob": "dc728006b04516af3e0f86d34f83b2c7dfe9d64a",
-   "bytes": 8646,
+   "blob": "4ee6c558ca6e5f38cfe5efed059e5c53dc99dd58",
+   "bytes": 10472,
    "mode": "100644",
    "path": "scripts/desktop_glib_installed_tests.py",
-   "sha256": "ec287f466384e41c342577fb44889638caf753fbd66f1ee37e9c87a2f9710b43"
+   "sha256": "2fd480f64962c51f053653b367af31c99b472278b54c624a3cc8da303954b66e"
   },
   {
    "blob": "aa5d8289966eabf16781996cf39eb3e786559ed6",
@@ -6793,11 +6793,11 @@
    "sha256": "3133f08f28b5bfc12221dbc146039c09437ed784532c7099424b474ad1c41825"
   },
   {
-   "blob": "5d1234617d4f29ed36695a296208cc87fe2ffeb6",
-   "bytes": 8528,
+   "blob": "d0ee23a2d15aaabe42ff033111d830717ac43ead",
+   "bytes": 8705,
    "mode": "100644",
    "path": "scripts/rc_consumer_noncloud.py",
-   "sha256": "59d5d87dd5c804a6c226125f67dbaf7d0058985e4d4c5093f3ba9a1924c54eaf"
+   "sha256": "1a0080109872218d6e66e463e8c74bb0a9df74bf1a50daea57a9b65924ce152a"
   },
   {
    "blob": "879b0e60167458590f9a1c6abf55cf44399e2834",
