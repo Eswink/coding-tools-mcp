@@ -12,6 +12,7 @@ import tomllib
 
 import release_dependency_contract as dependency
 from rc_consumer_io import hash_file, json_file, need, read_bytes
+from desktop_glib_installed import claim as installed_claim
 
 WARNING_KINDS = ('unmaintained', 'unsound', 'notice', 'yanked')
 REPOSITORY = 'Eswink/coding-tools-mcp'
@@ -131,12 +132,16 @@ def audit_summary(value):
         proof = value['desktop_source']
         required = proof.get('required')
         need(type(required) is bool, 'invalid_desktop_proof_summary')
+        try: flag, bound = installed_claim(proof) if required or 'installed_desktop_bytes_verified' in proof else (False, None)
+        except ValueError: need(False, 'invalid_desktop_proof_summary')
+        need(required or not flag, 'invalid_desktop_proof_summary')
         summary = dict(required=required, source_backport_verified=required,
-                       installed_desktop_bytes_verified=False)
+                       installed_desktop_bytes_verified=flag)
+        if flag: summary['installed_desktop_bytes'] = bound
         if required:
             need(proof.get('source_backport_verified') is True and proof.get('raw_zero_claim') is False and
-                 proof.get('release_approved') is False and proof.get('installed_desktop_bytes_verified') is False,
-                 'invalid_desktop_proof_summary')
+                 proof.get('release_approved') is False and proof.get('security_approved', False) is False and
+                 proof.get('publish_approved', False) is False, 'invalid_desktop_proof_summary')
             findings = proof.get('upstream_identity_vulnerabilities')
             need(type(findings) is list, 'invalid_desktop_proof_summary')
             summary.update(upstream_identity_raw_vulnerability_count=len(findings),
