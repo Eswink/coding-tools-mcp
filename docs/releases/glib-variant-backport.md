@@ -124,6 +124,8 @@ controlled root produced by `dpkg-deb -x` (or, when DIR is empty, the in-process
 reviewed unpacker) against the authenticated DEB data payload, byte-for-byte, with
 no-follow reads and fail-closed path, link and mode checks. Only
 `desktop_glib_installed.installed_gate` can yield
-`installed_desktop_bytes_verified=True`. Limitations: maintainer scripts are not
+`installed_desktop_bytes_verified=True`, and only when bound to the authenticated DEB
+`package_sha256`; downstream consumers (`rc_artifact_consumer`,
+`release_dependency_contract`, `rc_consumer_noncloud`) still emit/accept only False. Limitations: maintainer scripts are not
 run, this is not a dpkg install, and it is not a real machine; it grants no
 security, release or publish approval.
