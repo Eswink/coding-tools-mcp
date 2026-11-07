@@ -67,6 +67,8 @@ jobs:
           python scripts/desktop_glib_link_tests.py
           python scripts/desktop_glib_probes_tests.py
           python scripts/desktop_glib_build_evidence_tests.py
+          python scripts/desktop_glib_installed_tests.py
+          python scripts/desktop_glib_installed_consumer_tests.py
           python scripts/verify_glib_backport_tests.py --archive "$RC_CONSUMER_TEST_GLIB_ARCHIVE"
           python -m unittest discover -s scripts -p 'release_dependency*tests.py' -v
           python scripts/rc_packages_tests.py
@@ -142,7 +144,12 @@ jobs:
           test "$PRODUCER_RUN" = "$GITHUB_RUN_ID"
           test "$PRODUCER_ATTEMPT" = "$GITHUB_RUN_ATTEMPT"
           test "$PRODUCER_WORKFLOW" = "$GITHUB_WORKFLOW_REF"
+          # Controlled-root unpack only (no maintainer scripts, not a dpkg install, not a real machine).
+          INSTALLED="$RUNNER_TEMP/desktop-glib-installed"
+          mkdir "$INSTALLED"
+          dpkg-deb -x "$RUNNER_TEMP/desktop-glib-evidence/desktop.deb" "$INSTALLED"
           python scripts/desktop_glib_build_evidence.py verify \
+            --installed-root "$INSTALLED" \
             --root "$GITHUB_WORKSPACE" --source "$GITHUB_SHA" \
             --directory "$RUNNER_TEMP/desktop-glib-evidence" \
             --expected-envelope-sha256 "$EXPECTED_ENVELOPE" \

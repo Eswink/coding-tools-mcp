@@ -33,6 +33,7 @@ SOURCE_INPUTS = (
     'scripts/desktop_glib_deb.py', 'scripts/desktop_glib_link.py',
     'scripts/desktop_glib_probes.py',
     'scripts/desktop_glib_file_census.py',
+    'scripts/desktop_glib_installed.py',
     '.github/workflows/' + WORKFLOW)
 
 FILES = {'upstream.crate', 'advisory-clone.stdout', 'advisory-clone.stderr',
@@ -389,7 +390,7 @@ def verify_runner_receipts(directory, e, events, root_record, glib_record, profi
          'contradictory_source_audit_command')
 
 
-def verify(root, directory, sha, expected_producer, trusted_digest):
+def verify(root, directory, sha, expected_producer, trusted_digest, installed_root=None):
     from desktop_glib_deb import verify_deb
     from desktop_glib_link import verify_link_trace
     source = source_identity(root, sha)
@@ -443,11 +444,21 @@ def verify(root, directory, sha, expected_producer, trusted_digest):
          type(acquisition.get('finished_ns')) is int and 0 < acquisition['started_ns'] <= acquisition['finished_ns'],
          'wrong_advisory_acquisition')
     paired, lineage, package = verify_compiler_payload(root, directory, sha, source, e)
-    return dict(**source, **FLAGS, producer=expected_producer, envelope_sha256=trusted_digest,
+    result = dict(**source, **FLAGS, producer=expected_producer, envelope_sha256=trusted_digest,
         desktop_compiler_input_to_deb_binding_verified=True, compiler_input_provenance=lineage,
         deb=package, paired_source=paired,
         limitations=['native linker consumption and retained GLib code unproven',
                      'installed/native/system-library/security/release acceptance unproven'])
+    if installed_root is not None:
+        # FLAGS stay False; only desktop_glib_installed.installed_gate may yield True.
+        import desktop_glib_installed as installed
+        deb_bytes = read_regular(directory / 'desktop.deb', MAX_BINARY)
+        if not os.listdir(installed_root):
+            installed.unpack_controlled_root(deb_bytes, source['version'], installed_root)
+        result.update(installed.verify_installed_root(installed_root, deb_bytes, source['version'], package))
+        result['limitations'] = ['native linker consumption and retained GLib code unproven',
+            'native/system-library/security/release acceptance unproven', *installed.LIMITATIONS]
+    return result
 
 
 def verify_compiler_payload(root, directory, sha, source, e, profile=None):

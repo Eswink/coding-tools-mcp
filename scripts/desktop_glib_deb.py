@@ -146,6 +146,12 @@ def control_identity(data, version):
 
 
 def deb_payload(package, version):
+    files, _, identity = deb_data(package, version)
+    return files[BINARY], identity
+
+
+def deb_data(package, version):
+    """Return every reviewed data.tar file/directory; used by the installed-root gate."""
     need(type(version) is str and re.fullmatch(r"[0-9][0-9A-Za-z.+:~\-]{0,127}", version), "invalid_expected_version")
     members = ar_members(package)
     control_tar = gunzip(members["control.tar.gz"], MAX_TAR)
@@ -165,7 +171,7 @@ def deb_payload(package, version):
         sums[path] = match[1]
     need(set(sums) == {name.encode() for name in files}, "wrong_md5_inventory")
     need(all(sums[name.encode()] == hashlib.md5(body, usedforsecurity=False).hexdigest().encode() for name, body in files.items()), "wrong_md5_digest")
-    return files[BINARY], identity
+    return files, dirs, identity
 
 
 def checked_range(start, size, limit, code):

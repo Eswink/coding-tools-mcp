@@ -1,5 +1,5 @@
 {
- "entries": 2017,
+ "entries": 2020,
  "excludes_self": "scripts/rc_native_probe_source_manifest.json",
  "rows": [
   {
@@ -332,11 +332,11 @@
    "sha256": "4eeb34bb40dabdfee0500f6341257cee42fe3c8cc72bdc1be4320805c95f7c9c"
   },
   {
-   "blob": "c4a1105646c25d6190f63fe1b5f610de460fac57",
-   "bytes": 8579,
+   "blob": "428e664576349f260df60264cc1f8e6feec5cb94",
+   "bytes": 9022,
    "mode": "100644",
    "path": ".github/workflows/issue85-desktop-glib-deb.yml",
-   "sha256": "71b867b94974e2aa730eaa1382d026aeba42dcac550fa88db0a6282180e71357"
+   "sha256": "d2174e66fefc231f7552ae85617f6692238e9fb540f535d15cc79030f5479446"
   },
   {
    "blob": "00eca9574da0be160ccdde457d0c2a15db0fb442",
@@ -1424,11 +1424,11 @@
    "sha256": "8680f0ac4539bccdfda70ffb2a628642c0033569c2f00bede774ad820767e2f9"
   },
   {
-   "blob": "fcf7939fb8de8c516a7ddc3209065da062e72d56",
-   "bytes": 6528,
+   "blob": "07e5d39b1c517b36bb4573297a57020bdea765e5",
+   "bytes": 7330,
    "mode": "100644",
    "path": "docs/releases/glib-variant-backport.md",
-   "sha256": "dcbf1c54da62d1b894a89a81ab1ec8bbe3e57745d9dceb785246b2585b067852"
+   "sha256": "f1ccaa2cb0bbf579a4ae51bd7609ca87dbc3f1cf9a3a4f95706d8736c8dc0d9c"
   },
   {
    "blob": "2da0d96d74aeb032144cd85aaea471dbccda940f",
@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "5f3c954cc8af771e07083626911889f35cc0c72d",
-   "bytes": 63476,
+   "blob": "bb61080b432f975df34692161af0674c6b54c0d1",
+   "bytes": 64613,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "8a65109a51475e9bfa02dae406735b16b04b976d2a2b9cffd1094739e1b1c6ee"
+   "sha256": "d9546205cc379c0c3eb4a7910c0e38496a9916b893ea22528bf6ef1ea83009f3"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "71b551ac7d643da1065f547b059d1177d2917e42",
-   "bytes": 445487,
+   "blob": "459c0c972b6feb096e73e5502034ba5246c6ff24",
+   "bytes": 445486,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "7be9a90767607110f924fad7feba6cdcb486485df64f39fdbf6f30bd1f54649c"
+   "sha256": "5b7176723a34fdb1ab7561799b772ab947433ce842e39d625b4e2c135b051752"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6282,32 +6282,32 @@
    "sha256": "b194db240144b25291c99ab2df68234d93ba6b0f561204d9d7f7171945f2a489"
   },
   {
-   "blob": "3a0d5c34424f344dfb622b74bc750cc3becd6c9d",
-   "bytes": 27740,
+   "blob": "21e67e66dcff8103e8613b2f21b0dbef5172113b",
+   "bytes": 28503,
    "mode": "100644",
    "path": "scripts/desktop_glib_build_contract.py",
-   "sha256": "6597e7302058ca15e4198fde9bbfae1132c493fb73d5ac881140438efa54bbf4"
+   "sha256": "1ff547892d04502e92175aad217bc9d82d1fe4e7027c6167ea4e10ccb097b2b6"
   },
   {
-   "blob": "46638243c98fbd2c7ba6fd1fc90439fd70c2bd21",
-   "bytes": 17886,
+   "blob": "247b56a05cba6f915d91229bb0fe204cb3791bc7",
+   "bytes": 18147,
    "mode": "100755",
    "path": "scripts/desktop_glib_build_evidence.py",
-   "sha256": "52526fe848208e7a9307a036939f326ed92b2a3b5a09d9029cddd8eb6e2aa5f7"
+   "sha256": "3910c9f40c3a40ae91a780bbfcd2b5976da869d5f14ac1ae6e53987b56120bb6"
   },
   {
-   "blob": "229e46713df40af2f8d68c85192aa19e5200e816",
-   "bytes": 26644,
+   "blob": "ea0920895083c258f337282e200e26c67bd64c57",
+   "bytes": 28414,
    "mode": "100644",
    "path": "scripts/desktop_glib_build_evidence_tests.py",
-   "sha256": "4ceab8c2d5fc68c0923ad42d6c0e4cdbdecd93eece002c1dec86ed46e261cb97"
+   "sha256": "7fc8bf35ba6d41e3534295504bb5b973884563bb434b4832979dfaeaf0899921"
   },
   {
-   "blob": "b2c522d74eae61c64a09c55028dfffbdf23de059",
-   "bytes": 13973,
+   "blob": "015f25b985eea21cab950ac9a2c9b2a64faa252e",
+   "bytes": 14182,
    "mode": "100644",
    "path": "scripts/desktop_glib_deb.py",
-   "sha256": "db20ebcbf85cd32910872a173a0ac807f39eb97f54909c11de91c1f88c7d6962"
+   "sha256": "a0510c9eadf649cf24d82332e3364271c374a7897a2c964545099d60395e9580"
   },
   {
    "blob": "c45ce2a085df5f2dc61e8bb451e35a6573ab292d",
@@ -6329,6 +6329,27 @@
    "mode": "100644",
    "path": "scripts/desktop_glib_file_census_cases.py",
    "sha256": "54b350ff34ac1f2d22834d5fc60fa87db05d2ae9f614ccab90d1a5ac4d6ea66f"
+  },
+  {
+   "blob": "5f4d66d89e23964944a51be4e8e2a60446794556",
+   "bytes": 9489,
+   "mode": "100644",
+   "path": "scripts/desktop_glib_installed.py",
+   "sha256": "510f99789f4cbb95c6ba12de0623b08bf8d3df153a7c339724f7a3db060d9809"
+  },
+  {
+   "blob": "2b895814bf9aacea792b96b4dad1d2eaa4d55419",
+   "bytes": 7064,
+   "mode": "100644",
+   "path": "scripts/desktop_glib_installed_consumer_tests.py",
+   "sha256": "622be96b69fcbdcc08ed192bc104c47fb23d9248e8c5e75319241883a3df91ee"
+  },
+  {
+   "blob": "4ee6c558ca6e5f38cfe5efed059e5c53dc99dd58",
+   "bytes": 10472,
+   "mode": "100644",
+   "path": "scripts/desktop_glib_installed_tests.py",
+   "sha256": "2fd480f64962c51f053653b367af31c99b472278b54c624a3cc8da303954b66e"
   },
   {
    "blob": "aa5d8289966eabf16781996cf39eb3e786559ed6",
@@ -6772,11 +6793,11 @@
    "sha256": "3133f08f28b5bfc12221dbc146039c09437ed784532c7099424b474ad1c41825"
   },
   {
-   "blob": "99955a06ad5edae85b097c7b64aabccac276d31f",
-   "bytes": 8099,
+   "blob": "d0ee23a2d15aaabe42ff033111d830717ac43ead",
+   "bytes": 8705,
    "mode": "100644",
    "path": "scripts/rc_consumer_noncloud.py",
-   "sha256": "14858e275d2ab28938b3da22dc39a4bbea77b9650147737c79c969c9b885d210"
+   "sha256": "1a0080109872218d6e66e463e8c74bb0a9df74bf1a50daea57a9b65924ce152a"
   },
   {
    "blob": "879b0e60167458590f9a1c6abf55cf44399e2834",
