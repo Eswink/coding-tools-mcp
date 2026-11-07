@@ -73,6 +73,7 @@ jobs:
           # Single knob only: kernel.apparmor_restrict_unprivileged_userns
           # Closed-set logs (token values only). No paths/URLs/raw sysctl dumps.
           # Keep chromium_sandbox=True; never pass --no-sandbox.
+          # CI runner only: opening userns AppArmor here is NOT a product default.
           KEY=kernel.apparmor_restrict_unprivileged_userns
           mkdir -p evidence
           raw_before="$(sysctl -n "$KEY" 2>/dev/null || true)"
@@ -107,8 +108,14 @@ jobs:
           echo "ci_env key=apparmor_restrict_unprivileged_userns after=$after"
           echo "ci_env key=apparmor_restrict_unprivileged_userns apply=$apply"
           printf 'before=%s\nafter=%s\napply=%s\n' "$before" "$after" "$apply" > evidence/b5-userns-apparmor.env
+          # Honesty: apply=ok|already_open still aborts if after!=0 (sysctl lied/stuck).
+          # CI-runner AppArmor open ≠ product default ≠ QUALIFIED/FINAL.
           if [[ "$apply" == "denied" || "$apply" == "absent" ]]; then
             echo "ci_env probe=abort reason=sysctl_${apply}"
+            exit 1
+          fi
+          if [[ "$after" != "0" ]]; then
+            echo "ci_env probe=abort reason=after_not_open"
             exit 1
           fi
       - name: Independent disposable process and browser gates
