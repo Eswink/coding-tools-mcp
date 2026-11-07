@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C25 B5 soft nits (after≠0 abort + CI-runner AppArmor ledger boundary) — LOCAL tip pending push",
+  "review_reference": "A1 C26 #178 engineering evidence-close (ledger only) — LOCAL tip pending push",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "3ef421ab80fb9170eaadbaeba0b51d32a37ac3e8",
-        "sha256": "c31210ccf85a9e964138c7c812349c7c2ea918de5953b0561947adb21c8f8cb6"
+        "blob_sha": "7c61a7f941cd56589c52296ce8be3783ae5ac844",
+        "sha256": "8a28bd8ea50f909a3aff5488a6bac78f6c38851e7506ae66d7e424a5ed6ae934"
       }
     },
     {
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "db781cda1b9a74380f573045f04199004f959b5f",
-        "sha256": "50b0e5e240b11c0cbfd5346e36d06712bd6102e4eb0d90de2ab86abc64f89bec"
+        "blob_sha": "f9fcd7ee8c4c756ddb7c06a96239bb71048c5769",
+        "sha256": "f26d82db3cb96aa7aca2a5a501c85c7873b9a8fb9c56cd3cc58d4bc171b6a034"
       }
     },
     {
