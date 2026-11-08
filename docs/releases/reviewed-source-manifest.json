@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
-  "version": "0.7.0",
-  "review_reference": "A1 C31 desktop yoke-derive 0.8.2→0.8.4 B+ NARROW tip — LOCAL ONLY not pushed",
+  "version": "0.8.0-rc.1",
+  "review_reference": "A1 C32 product version 0.7.0→0.8.0-rc.1 FINAL S1 NARROW tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "0c2cb353c28b60b7b234f5441cb41f5de3fb159d",
-        "sha256": "c89ed3ea0b13565bf35e6e52a2714158c6a7921d553d774ce18c7e5cb898fd0e"
+        "blob_sha": "7811f0844ac30014113b0ba7461d86862ccb442f",
+        "sha256": "5b3d4656cf4314021c56fb120d7887418c761952e7e35f12d307129663e2cbd1"
       }
     },
     {
@@ -3342,8 +3342,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "98ef1dfb50f8a436be4f05382b14b12b551598e9",
-        "sha256": "f9d05fd87b1576e21daa2b7e50cfe20d20bee3a1a00f139e9cf77a10af413c11"
+        "blob_sha": "fd8db3126ed956069964a3d2ad6da7b621efefd7",
+        "sha256": "e77a173e7c280257db66647f1446ecc64438cfdc4fcb64e788737087d04b1d75"
       }
     },
     {
@@ -3356,8 +3356,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "43ce1ff972cd0cfdd060105109e822bff29e3e05",
-        "sha256": "0931c90258dfbe78a8187b8fc7f8a3eac6b90e40575e761108e17880e27560f0"
+        "blob_sha": "80df85414d8323d3615e8e6a75eacf8f8e22b388",
+        "sha256": "443dbaeae49896bb789d4f3c7851f4cce04fb0fcbef08b6db27ed565a807232e"
       }
     },
     {
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a41ec9a57d19afa4a5ed4592247d3b01efdb145f",
-        "sha256": "4374c4e73befee697b5c5358d03f24e6474b193dcd244ea55b684d60acceb9c3"
+        "blob_sha": "cccc772c76a1d022d062ab67e17afc30361b256a",
+        "sha256": "267316a9258872589d42b76e7b7d363fa886cfca3071375ffc522d6a11c957dd"
       }
     },
     {
@@ -6280,8 +6280,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "dd36a68a6174f60189ecf0f466c0b5e1f4de6f20",
-        "sha256": "b53b7e82c9dfc66d4fd9d18201ad8a4a4c1e6843770e396b38efea4baff3c4ee"
+        "blob_sha": "076e927e50e22fbbd5d10a12d2638e334bd45415",
+        "sha256": "dac5b633183ce6b795617ec74d67224961c374d95616bca4daef6318b97ec9ac"
       }
     },
     {
@@ -6290,8 +6290,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b1d758c12a0a397630f16f39aea6e2a3eac39310",
-        "sha256": "da5a72648413c6bb5428a137d414753e7901d63977031fc058d589acbb4f8f8d"
+        "blob_sha": "f8357406088e0c32274103ef80cfa19219e61be4",
+        "sha256": "acb0f427b549e76ffad46b3db35a480f2cf6d0b02b76cc570e9d84359837ffab"
       }
     },
     {
@@ -6700,8 +6700,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "12001d3d4e3d3f345e517510c97ab2e4749cdb37",
-        "sha256": "c280a3c9dc93906e0e5f8e2400accfa4a3f581e380dee73edc8417d554b87cc8"
+        "blob_sha": "832ba7d2a2bf38970551dd6ceacb3d186c2c9599",
+        "sha256": "f18712cce3fb2e8054ce8a1a0cc70cda8592d38e4afc2db11bd7c43b764f5bc4"
       }
     },
     {
@@ -6710,8 +6710,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "917bc7ca9aa18c4682cadf998d30c8511979f93a",
-        "sha256": "998f6d83ce88019bcc513c62a62f5eeb2737fce20693dfcef6018f889df69435"
+        "blob_sha": "fb4c6b8dc2a3ab2fd19b213fbf91eb0bfb69ab3f",
+        "sha256": "9e8e14d2d4d117914a37a72d92dba7b700a0dad39b3ccd0ff2c33d0a767b3d24"
       }
     },
     {
@@ -7860,8 +7860,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b492aaf15b28d230ba1e1af48cb71eb2a5708a0e",
-        "sha256": "68790d536f754a5af0a164ca787db226c87159b94ade504901ea6d42ec5219b3"
+        "blob_sha": "9387fde80d4a1cb374f6b95275747b074bbd12e1",
+        "sha256": "3a164792c4544518b0ff77edfb3ed1b5dc0844954d5efff3a0f241544f10dfd7"
       }
     },
     {
@@ -7870,8 +7870,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "137b8b96ad906ddd48bdf28eba4ead06568e6747",
-        "sha256": "9fced7edfc7712cbe60c189b18e92ee4886f7189c8e9fc72dc211ade4c7ca9e0"
+        "blob_sha": "fc553df5251e9df7aa484655f2f96cffe2c25dab",
+        "sha256": "b42d1438c6f126349c2be5d62a54be26df81d029ac1403edf93b11172bd18c38"
       }
     },
     {
@@ -8464,8 +8464,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "01d8ec999a9ce15a7a9bc8323d9ab3ebc561e3c4",
-        "sha256": "c9b01e337a13426b747d9bd7024376a969e198dd6c3373c875ec531561f8277e"
+        "blob_sha": "dbcb8810283b8b1f0f1d7444c5d7008d79f0691a",
+        "sha256": "51582af9b1af723918a2f181318e0f9ac000367da74468ed2d5aa9ac253f703d"
       }
     },
     {
@@ -8478,8 +8478,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "f3945abd3ad8c6b396a1bacd7cd7175d9795a918",
-        "sha256": "57cd11eedafc0c620d801a14c20d945c1a49e5c818913008f5aac279a718e8fd"
+        "blob_sha": "90d1203e7c3b784185f548c35f339ceb809aa943",
+        "sha256": "fb210339f40466e4de94f214913038026f497cb6cc5659f8b6b7c16b748c2572"
       }
     },
     {
@@ -11464,8 +11464,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "8efc190d640ec43135487a904cb96b188241cc90",
-        "sha256": "b61ded6d4ae4d77b03e564ab7babd4eb716cbb0063c9168cb9cb5b7248a49bd0"
+        "blob_sha": "8b621de6019f312da6f583dd196ee7677f258399",
+        "sha256": "3d48c080fa9b12e9b2855b279b4da8e2715731073e12034c9f02adf9194878db"
       }
     },
     {
