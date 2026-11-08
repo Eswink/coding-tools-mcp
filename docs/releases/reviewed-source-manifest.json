@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.7.0",
-  "review_reference": "A1 C29 DEPTH_LIMIT 256→512 tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C31 desktop yoke-derive 0.8.2→0.8.4 B+ NARROW tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1108,8 +1108,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a00910f6f9a04652228bf88ee8f4fe861e52a7c9",
-        "sha256": "c8733108c96db8d0e4feff8224dd1ad993677b3e6e7467cf22c36139ca4092b6"
+        "blob_sha": "0c2cb353c28b60b7b234f5441cb41f5de3fb159d",
+        "sha256": "c89ed3ea0b13565bf35e6e52a2714158c6a7921d553d774ce18c7e5cb898fd0e"
       }
     },
     {
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "02360534c990a08bed8990b5b0cb67033ca63fc2",
-        "sha256": "ca242b02bd630c5a2fff4efaf9fe543f79a1d2f9adce335b98d13d6fca895806"
+        "blob_sha": "a41ec9a57d19afa4a5ed4592247d3b01efdb145f",
+        "sha256": "4374c4e73befee697b5c5358d03f24e6474b193dcd244ea55b684d60acceb9c3"
       }
     },
     {
@@ -8464,8 +8464,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "8a0499edadb5999f0d4a82d082134e1c2d79af2e",
-        "sha256": "ffd7d05abcd1fc97220272826783e4a07e8bbe540e22cdae706d516ed7e09da1"
+        "blob_sha": "01d8ec999a9ce15a7a9bc8323d9ab3ebc561e3c4",
+        "sha256": "c9b01e337a13426b747d9bd7024376a969e198dd6c3373c875ec531561f8277e"
       }
     },
     {
