@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "0c2cb353c28b60b7b234f5441cb41f5de3fb159d",
-   "bytes": 71759,
+   "blob": "7811f0844ac30014113b0ba7461d86862ccb442f",
+   "bytes": 72679,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "c89ed3ea0b13565bf35e6e52a2714158c6a7921d553d774ce18c7e5cb898fd0e"
+   "sha256": "5b3d4656cf4314021c56fb120d7887418c761952e7e35f12d307129663e2cbd1"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "401510e81cb73fef6eb945b7b879a88556d3cd1d",
-   "bytes": 446425,
+   "blob": "b3e2380de8e91a1b1c2ca544a90c82289edcab46",
+   "bytes": 446447,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "847e78c797e88f8cccb114af473bec5f35773d1ccf6acfe4436601c5d5e91740"
+   "sha256": "54954f55d6b4113f82ca0cd38ea62688dc22a663e8ded79a6fcb41264c2db8d3"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -5715,18 +5715,18 @@
    "sha256": "5bf3f2fc0cad8bd278839d9b85e02dfc3ae0ff9637da4c1090e2dff0e0c703c2"
   },
   {
-   "blob": "98ef1dfb50f8a436be4f05382b14b12b551598e9",
-   "bytes": 72285,
+   "blob": "fd8db3126ed956069964a3d2ad6da7b621efefd7",
+   "bytes": 72295,
    "mode": "100644",
    "path": "package-lock.json",
-   "sha256": "f9d05fd87b1576e21daa2b7e50cfe20d20bee3a1a00f139e9cf77a10af413c11"
+   "sha256": "e77a173e7c280257db66647f1446ecc64438cfdc4fcb64e788737087d04b1d75"
   },
   {
-   "blob": "43ce1ff972cd0cfdd060105109e822bff29e3e05",
-   "bytes": 1028,
+   "blob": "80df85414d8323d3615e8e6a75eacf8f8e22b388",
+   "bytes": 1033,
    "mode": "100644",
    "path": "package.json",
-   "sha256": "0931c90258dfbe78a8187b8fc7f8a3eac6b90e40575e761108e17880e27560f0"
+   "sha256": "443dbaeae49896bb789d4f3c7851f4cce04fb0fcbef08b6db27ed565a807232e"
   },
   {
    "blob": "96c7b0bb80ec4418648615426675418cb9e87c00",
@@ -8319,18 +8319,18 @@
    "sha256": "264cedb17fb381fde896b7cded794dd7f3ff9a6ab867ef35e28ebd5fd633a54f"
   },
   {
-   "blob": "dd36a68a6174f60189ecf0f466c0b5e1f4de6f20",
-   "bytes": 28500,
+   "blob": "076e927e50e22fbbd5d10a12d2638e334bd45415",
+   "bytes": 28505,
    "mode": "100644",
    "path": "services/cloud-agent/Cargo.lock",
-   "sha256": "b53b7e82c9dfc66d4fd9d18201ad8a4a4c1e6843770e396b38efea4baff3c4ee"
+   "sha256": "dac5b633183ce6b795617ec74d67224961c374d95616bca4daef6318b97ec9ac"
   },
   {
-   "blob": "b1d758c12a0a397630f16f39aea6e2a3eac39310",
-   "bytes": 932,
+   "blob": "f8357406088e0c32274103ef80cfa19219e61be4",
+   "bytes": 937,
    "mode": "100644",
    "path": "services/cloud-agent/Cargo.toml",
-   "sha256": "da5a72648413c6bb5428a137d414753e7901d63977031fc058d589acbb4f8f8d"
+   "sha256": "acb0f427b549e76ffad46b3db35a480f2cf6d0b02b76cc570e9d84359837ffab"
   },
   {
    "blob": "af453c89a9934a397bc894fb2621b69b0b3c2158",
@@ -8613,18 +8613,18 @@
    "sha256": "0a4280e5ee8f75c7bee390b97e95b2d6ea55ab42e2701f013563db9aeded4b65"
   },
   {
-   "blob": "12001d3d4e3d3f345e517510c97ab2e4749cdb37",
-   "bytes": 48391,
+   "blob": "832ba7d2a2bf38970551dd6ceacb3d186c2c9599",
+   "bytes": 48401,
    "mode": "100644",
    "path": "services/cloud-gateway/Cargo.lock",
-   "sha256": "c280a3c9dc93906e0e5f8e2400accfa4a3f581e380dee73edc8417d554b87cc8"
+   "sha256": "f18712cce3fb2e8054ce8a1a0cc70cda8592d38e4afc2db11bd7c43b764f5bc4"
   },
   {
-   "blob": "917bc7ca9aa18c4682cadf998d30c8511979f93a",
-   "bytes": 1897,
+   "blob": "fb4c6b8dc2a3ab2fd19b213fbf91eb0bfb69ab3f",
+   "bytes": 1902,
    "mode": "100644",
    "path": "services/cloud-gateway/Cargo.toml",
-   "sha256": "998f6d83ce88019bcc513c62a62f5eeb2737fce20693dfcef6018f889df69435"
+   "sha256": "9e8e14d2d4d117914a37a72d92dba7b700a0dad39b3ccd0ff2c33d0a767b3d24"
   },
   {
    "blob": "0d5264553d659329dbf09cd867c40c3183ccf181",
@@ -9425,18 +9425,18 @@
    "sha256": "2611296d1b977b1efdf0351f15773370cfd5ea79826761b15c340d42d537e636"
   },
   {
-   "blob": "b492aaf15b28d230ba1e1af48cb71eb2a5708a0e",
-   "bytes": 10373,
+   "blob": "9387fde80d4a1cb374f6b95275747b074bbd12e1",
+   "bytes": 10378,
    "mode": "100644",
    "path": "services/local-agent/Cargo.lock",
-   "sha256": "68790d536f754a5af0a164ca787db226c87159b94ade504901ea6d42ec5219b3"
+   "sha256": "3a164792c4544518b0ff77edfb3ed1b5dc0844954d5efff3a0f241544f10dfd7"
   },
   {
-   "blob": "137b8b96ad906ddd48bdf28eba4ead06568e6747",
-   "bytes": 642,
+   "blob": "fc553df5251e9df7aa484655f2f96cffe2c25dab",
+   "bytes": 647,
    "mode": "100644",
    "path": "services/local-agent/Cargo.toml",
-   "sha256": "9fced7edfc7712cbe60c189b18e92ee4886f7189c8e9fc72dc211ade4c7ca9e0"
+   "sha256": "b42d1438c6f126349c2be5d62a54be26df81d029ac1403edf93b11172bd18c38"
   },
   {
    "blob": "69b3872e9d8f4c650bfa64dc26f2f8a2d2b3e156",
@@ -9852,18 +9852,18 @@
    "sha256": "3b838470e7b5b5895e09f2fa2a20b44a230838a6bafbfdf61c6f4c74ccdb0c34"
   },
   {
-   "blob": "01d8ec999a9ce15a7a9bc8323d9ab3ebc561e3c4",
-   "bytes": 158259,
+   "blob": "dbcb8810283b8b1f0f1d7444c5d7008d79f0691a",
+   "bytes": 158274,
    "mode": "100644",
    "path": "src-tauri/Cargo.lock",
-   "sha256": "c9b01e337a13426b747d9bd7024376a969e198dd6c3373c875ec531561f8277e"
+   "sha256": "51582af9b1af723918a2f181318e0f9ac000367da74468ed2d5aa9ac253f703d"
   },
   {
-   "blob": "f3945abd3ad8c6b396a1bacd7cd7175d9795a918",
-   "bytes": 2919,
+   "blob": "90d1203e7c3b784185f548c35f339ceb809aa943",
+   "bytes": 2924,
    "mode": "100644",
    "path": "src-tauri/Cargo.toml",
-   "sha256": "57cd11eedafc0c620d801a14c20d945c1a49e5c818913008f5aac279a718e8fd"
+   "sha256": "fb210339f40466e4de94f214913038026f497cb6cc5659f8b6b7c16b748c2572"
   },
   {
    "blob": "53c0571af35156b252043fed58f07e0c8fcd664a",
@@ -11875,11 +11875,11 @@
    "sha256": "20f050de934e6e92fa1bd78541df0aacf3fbd93802c0b2e7a71eb32c51e2fcaa"
   },
   {
-   "blob": "8efc190d640ec43135487a904cb96b188241cc90",
-   "bytes": 807,
+   "blob": "8b621de6019f312da6f583dd196ee7677f258399",
+   "bytes": 812,
    "mode": "100644",
    "path": "src-tauri/tauri.conf.json",
-   "sha256": "b61ded6d4ae4d77b03e564ab7babd4eb716cbb0063c9168cb9cb5b7248a49bd0"
+   "sha256": "3d48c080fa9b12e9b2855b279b4da8e2715731073e12034c9f02adf9194878db"
   },
   {
    "blob": "a4d5ca8b929185305ff1a2c51f55f4df90a58645",
