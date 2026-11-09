@@ -282,3 +282,9 @@ All package source/version/architecture/installed payload checks remain separate
 - **Gap**: tip `49cf2a82` desktop `src-tauri/Cargo.lock` still had `yoke-derive` **0.8.2** while cloud-gateway/cloud-agent already **0.8.4** (historical cloud yank repair left desktop unchanged by design). Informational hygiene; not a tip RustSec hit. User 全部拍板; Grok C31 S0 NARROW(B) then **B+** (minimal transitive).
 - **Fix (B+ NARROW)**: only `src-tauri/Cargo.lock` — `yoke-derive` → **0.8.4** checksum `ec8ebde2db3681e8c9980cc27822030e68752690ddfa9473e739aeb4dbde6d71`; add `synstructure` **0.14.0** checksum `901704edd0dfe137f1987838ee4f259e4e063c31371bdb423f7ae38ec6f77f02`; `zerofrom-derive` 0.1.7 dep pin `synstructure 0.13.2`; derive deps use `syn 3.0.5` (already on desktop tip). Dual manifest cascade.
 - **Boundaries**: eng ≠ QUALIFIED ≠ FINAL; ≠ tag/release/main; does **not** close [#85](https://github.com/Eswink/coding-tools-mcp/issues/85); no ICU/zerovec bump; cloud/local locks untouched; no `--ignore`.
+
+## A1 C32 — product version coherence → 0.8.0-rc.1 (FINAL gate S1) — 2026-11-08 Asia/Shanghai
+
+- **Gap**: `develop/0.8.0` tip `ee165ebc` still carried product version **`0.7.0`** in desktop/package/tauri and service Cargo manifests/locks while the engineering line and user-approved FINAL target are 0.8. No `v0.8*` tag exists; Latest remains `v0.7.0`.
+- **Fix (NARROW)**: bump coherent product version fields **`0.7.0` → `0.8.0-rc.1`** (RC channel; `rc_version_gate` / six desktop fields + service Cargo.toml/lock project packages). Dual manifest cascade. Target tag (later GO): `v0.8.0-rc.1` prerelease, not Latest.
+- **Boundaries**: eng ≠ QUALIFIED ≠ FINAL; **no tag / no release / no main** in this batch; does **not** close [#85](https://github.com/Eswink/coding-tools-mcp/issues/85); ≠ Windows PASS/QUALIFIED; ≠ stable `0.8.0` / Latest. Integration/packaging/pretag remain subsequent FINAL steps.
