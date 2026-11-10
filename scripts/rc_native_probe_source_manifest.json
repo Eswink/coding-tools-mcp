@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "47161d4505ef1d75a188e38b4127608a1ca30276",
-   "bytes": 446459,
+   "blob": "041c0433984bc0140cb6487055ff1d3097c735d5",
+   "bytes": 446467,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "ef1407efce95f339fe4d37c434a3cbfeebd26b5f662dd4cd74bc79d52583b424"
+   "sha256": "08c7fa846ee965e9c0c6856505521fa1eea3d53909362e2bfa0c8e37e5ab507c"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -10328,11 +10328,11 @@
    "sha256": "3467e857038ce34583faefaf27fa84949e2d4e8926679cff7c15dc70aacb121c"
   },
   {
-   "blob": "3fc8ee46559c23cb174f2fd7102cff03de48001f",
-   "bytes": 6449,
+   "blob": "195adffba219e1f1dd1f60d58b52662914db81e5",
+   "bytes": 6473,
    "mode": "100644",
    "path": "src-tauri/src/commands/legacy_cleanup.rs",
-   "sha256": "abb9856a0d76cbb23414cdb55150e2d1837a895eedc3b2018372c174ea1128b8"
+   "sha256": "73d050533431a1284c9be0076ee1f8888ab3acd0907686004191184dc7bd4e68"
   },
   {
    "blob": "58ca7cd57053f6088911fa5f6855b790fb1c8ba5",
@@ -10685,11 +10685,11 @@
    "sha256": "3e43cdda16cdfd443277ff6ee5cb3c8f67485384a3139dec099218ead8f714d2"
   },
   {
-   "blob": "285d133c61dc06096f179b52cc4467e35baed305",
-   "bytes": 34703,
+   "blob": "2ed8ea595bac822738d460898359634ad8cbb67f",
+   "bytes": 34724,
    "mode": "100644",
    "path": "src-tauri/src/harness/worktree_legacy_tests.rs",
-   "sha256": "62b2a9ce6fc444bb837df049ecb9cdca20099353452fd9a2540b3e67691959a7"
+   "sha256": "f3950326b74fd5f7950fc70ff77f2848c4e1c5ab24780d75d609cd111151078c"
   },
   {
    "blob": "32f0f0d2f8d30cdb296ee3f2b15a48ae765c485b",
@@ -11287,11 +11287,11 @@
    "sha256": "7dc9d3a0ac6960a072181b5d06490e2d9f10d30b94d26c9fdbabbb94b06ce2d2"
   },
   {
-   "blob": "2c0a3b33179d5ada7adc8a088e948e47364beb47",
+   "blob": "4ac8baacb35f6c427b31139a7845a4e59dda4aae",
    "bytes": 1573,
    "mode": "100644",
    "path": "src-tauri/src/tools/mod.rs",
-   "sha256": "005363cd0c59a2905fc3ecc0118d267afa64d60d32beb3ca205845eda7d780fe"
+   "sha256": "06f8f551e9d642db5161ca0515b2ca9d5702b8dd28e86fd608eed71c02232576"
   },
   {
    "blob": "c283f1f9d261fd74fd570dbff86e42aa14d2e6d0",
@@ -11567,18 +11567,18 @@
    "sha256": "8a1317e81335af6301842d0d614f33dfd5c8f20a505cab81dd5d4c04f70acdc2"
   },
   {
-   "blob": "875eddf0c425178d5403ded994ce7d25f8cb0f34",
-   "bytes": 11666,
+   "blob": "141c34ec6ddcba5be1b2ca779943d13cfc164e02",
+   "bytes": 11615,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/subagent.rs",
-   "sha256": "71ee68e8dea545628cffabcb0c99a5b75d18040ef21972e5910cd0f2434e9764"
+   "sha256": "0bd0d7f725bb01bd436e0f7c183e31206fd023ad239ba8faa9a24cc07ba3a7ed"
   },
   {
-   "blob": "db6098cbf3b89b8ec3f146037b385350b906a34f",
-   "bytes": 123436,
+   "blob": "aa2fdd37ac9fd6ec1ebe305df015e68266431661",
+   "bytes": 123434,
    "mode": "100644",
    "path": "src-tauri/src/tools/workers/tests.rs",
-   "sha256": "a6bfdab461d6535d1ad8fd35d08641d26a04eaec2685a80e4f197817bee18bc2"
+   "sha256": "8ea46853e5fb046f5df430a7dce6849c3e8d671f9db4c8550b712b2f746d1d1c"
   },
   {
    "blob": "30cc54840539e5930ce6a407814738bb6640cc22",

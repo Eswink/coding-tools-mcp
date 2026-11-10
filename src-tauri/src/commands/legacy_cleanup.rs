@@ -102,8 +102,10 @@ fn summary(
         .iter()
         .filter(|c| ids.contains(&c.id))
         // C13d: hint is summary-only (display). list_digest / approval_digest ignore it.
-        .map(|c| json!({"id":c.id,"head":c.head_short,"clean":c.clean,"interrupted":c.interrupted,
-            "hint":c.hint,"path":c.path}))
+        .map(|c| {
+            json!({"id":c.id,"head":c.head_short,"clean":c.clean,"interrupted":c.interrupted,
+            "hint":c.hint,"path":c.path})
+        })
         .collect();
     json!({"operation":"legacy_worktree_cleanup","canonical_root":root,
         "selected":selected,"digest":digest,"approval_digest":approved,

@@ -140,10 +140,7 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             // (e.g. corrupt) does not hide the workers; only each integration's
             // `rollback` carries the error.
             let windows = super::integration::rollback_views(ctx, &records);
-            let mut workers: Vec<Value> = rows
-                .iter()
-                .map(|(r, snap)| view(r, *snap))
-                .collect();
+            let mut workers: Vec<Value> = rows.iter().map(|(r, snap)| view(r, *snap)).collect();
             for worker in &mut workers {
                 let integration = &mut worker["integration"];
                 if integration.is_null() {

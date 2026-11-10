@@ -2965,7 +2965,6 @@ fn c12b_cleanup_probe_is_registry_only_and_precedes_remove() {
     assert!(!wrapper.contains("for_worker"));
 }
 
-
 /// A1 C18: MCP `subagent_*` fills `changed_files` via the same
 /// `resolve_changed_files` as the local card (snapshot integer|null, not live).
 #[test]
@@ -3120,7 +3119,6 @@ fn c18_mcp_cancel_uses_same_resolve_as_card() {
     // Cancelled is in the resolve allow-list; snap still valid → number.
     assert_eq!(out["worker"]["changed_files"], json!(5), "{out}");
 }
-
 
 #[test]
 fn c18_subagent_status_path_uses_status_with_changed_not_diff() {
