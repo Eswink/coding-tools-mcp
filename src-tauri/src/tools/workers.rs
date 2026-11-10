@@ -839,10 +839,15 @@ impl WorkerStore {
     pub(crate) fn registered_for_test(host: &HostRoots) -> bool {
         registry().unwrap().contains_key(&namespace(host))
     }
-    /// Test hook: drop the process singleton (simulates a restart).
+    /// Test hook: drop the process singleton (simulates a restart). Returns
+    /// whether the registry held the last reference, i.e. the store (and the
+    /// `auth.lock` handle its AuthDocument keeps open) was actually dropped.
     #[cfg(test)]
-    pub(crate) fn evict_for_test(host: &HostRoots) {
-        registry().unwrap().remove(&namespace(host));
+    pub(crate) fn evict_for_test(host: &HostRoots) -> bool {
+        registry()
+            .unwrap()
+            .remove(&namespace(host))
+            .is_some_and(|store| Arc::into_inner(store).is_some())
     }
     /// Test hook: persist an arbitrary record (e.g. as if the process died mid-spawn).
     #[cfg(test)]

@@ -1217,7 +1217,12 @@ fn only_ready_workers_route_and_nested_worker_ids_are_rejected() {
 fn worker_context_is_a_field_carried_through_background_snapshots() {
     let f = Fixture::new();
     let worker = spawn_ok(&f.ctx, "req", "w");
-    let tree = worker_tree(&f.ctx, &worker);
+    // `worker_tree` joins the raw harness store root; the binding carries the
+    // manager's canonical root (`snapshot_target`), and `Workspace::new`
+    // canonicalizes too. Compare canonical identities: on Windows runners the
+    // raw form is the 8.3 `%TEMP%` alias (`C:\Users\RUNNER~1\…`) while the
+    // canonical one is `\\?\C:\Users\runneradmin\…` — same directory.
+    let tree = worker_tree(&f.ctx, &worker).canonicalize().unwrap();
     let id = worker.worker_id.as_str().to_owned();
     assert!(f.ctx.worker.is_none());
     assert!(f.ctx.background_snapshot().worker.is_none());
@@ -1810,8 +1815,15 @@ fn c10a_exec_task_entry_points_fail_closed_when_the_store_is_missing() {
     let job = json!({"job_id": start_tagged(&f.ctx, id, "c10a-4-missing")});
     let dir = namespace(&f.ctx.host);
     let aside = dir.with_extension("aside");
+    // Evict first (as after a restart): the cached store holds `auth.lock`
+    // (AuthDocument's ConfigFileLock) open inside `dir`, and Windows refuses to
+    // rename a directory with an open handle beneath it (os error 5). The
+    // eviction must drop the last reference so that handle is really closed.
+    assert!(
+        WorkerStore::evict_for_test(&f.ctx.host),
+        "the evicted store was still referenced; its auth.lock stays open"
+    );
     fs::rename(&dir, &aside).unwrap();
-    WorkerStore::evict_for_test(&f.ctx.host);
     for (name, out) in entry_point_answers(&f.ctx, &job) {
         assert_not_owned_like(&format!("missing store: {name}"), &out, &reference);
         assert!(!out.to_string().contains(id), "{name} leaked: {out}");
@@ -2677,13 +2689,29 @@ fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
     assert!(local.get("projection").is_none(), "{local}");
 
     // No live session attached: answered at once, never a 3 s stall.
+    //
+    // G1-RE2: the end-to-end bound used to be a hand-picked 2 s, but it times a
+    // whole `subagent_spawn` (worktree checkout, encrypted store writes) as well
+    // as the projection wait; windows-2025 under the parallel suite needed
+    // 2.087 s for that spawn work alone. A stall is a full `PROJECTION_WAIT`
+    // (3 s) on top of the spawn, so the end-to-end call must stay strictly below
+    // `PROJECTION_WAIT`, and the wait itself is pinned separately, without the
+    // spawn work, to return at once.
     let t = std::time::Instant::now();
     let out = spawn_via(&chat, "r1");
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["projection"], "pending", "{out}");
+    assert!(t.elapsed() < subagent::PROJECTION_WAIT, "{:?}", t.elapsed());
+    let pending = out["worker"]["worker_id"].as_str().unwrap();
+    let t = std::time::Instant::now();
+    assert!(!projection_bus::wait_applied(
+        &chat.host,
+        pending,
+        subagent::PROJECTION_WAIT
+    ));
     assert!(
-        t.elapsed() < std::time::Duration::from_secs(2),
-        "{:?}",
+        t.elapsed() < std::time::Duration::from_millis(500),
+        "detached wait must not block: {:?}",
         t.elapsed()
     );
 

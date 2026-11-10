@@ -12,7 +12,7 @@ use crate::tools::{
 use serde_json::{json, Map, Value};
 
 /// A1 C7-3: the bounded wait for an acknowledged projection naming a new worker.
-const PROJECTION_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+pub(super) const PROJECTION_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
 
 fn invalid(message: &'static str) -> WorkerError {
     super::invalid(message)
