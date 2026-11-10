@@ -8,6 +8,11 @@ const WS: &str = "0123456789abcdef0123456789abcdef";
 
 fn git(dir: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
+        // Git >= 2.47 detaches auto maintenance after `commit`; newer Git (2.55+)
+        // can still hold objects/maintenance.lock after the command returns, and
+        // the production boundary scan of .git/objects then fails closed
+        // (BOUNDARY_VIOLATION). Same fixture rule as worktree_tests.rs.
+        .args(["-c", "maintenance.auto=false"])
         .current_dir(dir)
         .args(args)
         .output()
@@ -35,6 +40,11 @@ impl Fixture {
         git(repo.path(), &["add", "README.md"]);
         git(repo.path(), &["commit", "-q", "-m", "initial"]);
         let main = WorktreeManager::new(repo.path(), harness.path(), WS).unwrap();
+        // The manager owns the canonical repository root; production passes only
+        // that to the ref/registration helpers. `repo.path()` itself may be a
+        // non-canonical alias (Windows runners: `%TEMP%` = `C:\Users\RUNNER~1\…`,
+        // canonical form `\\?\C:\Users\runneradmin\…`).
+        assert_eq!(main.repository_root, repo.path().canonicalize().unwrap());
         Self {
             repo,
             harness,
@@ -49,6 +59,11 @@ impl Fixture {
         let id = manager.create_detached().unwrap().id;
         let path = root.join("worktrees-v1").join(WS).join(&id);
         (id, path)
+    }
+    /// The authority production hands to `head_reachable_from_refs` /
+    /// `prune_missing_registration` (`WorktreeManager::repository_root`).
+    fn authority(&self) -> &Path {
+        &self.main.repository_root
     }
     fn registration(&self, id: &str) -> PathBuf {
         self.repo.path().join(".git").join("worktrees").join(id)
@@ -192,7 +207,7 @@ fn an_unreachable_legacy_head_is_skipped_and_other_worktrees_are_unaffected() {
     git(f.repo.path(), &["tag", "-a", "keep", "-m", "keep", &lost]);
     git(f.repo.path(), &["pack-refs", "--all"]);
     assert!(!f.repo.path().join(".git/refs/tags/keep").exists());
-    let reachable = head_reachable_from_refs(f.repo.path(), &lost).map_err(|e| e.code());
+    let reachable = head_reachable_from_refs(f.authority(), &lost).map_err(|e| e.code());
     assert_eq!(reachable, Ok(true));
 }
 
@@ -323,8 +338,12 @@ fn recovery_never_prunes_a_locked_registration() {
     );
     assert!(f.registration(&locked).join("locked").is_file());
     assert!(!f.registration(&plain).exists());
-    let direct = prune_missing_registration(f.repo.path(), locked_path.parent().unwrap(), &locked)
-        .map_err(|e| e.code());
+    let direct = prune_missing_registration(
+        f.authority(),
+        &locked_path.parent().unwrap().canonicalize().unwrap(),
+        &locked,
+    )
+    .map_err(|e| e.code());
     assert_eq!(direct, Err("LOCKED"));
 }
 
@@ -340,7 +359,7 @@ fn too_many_loose_refs_fail_with_refs_limit_not_unreachable() {
     for n in 0..=crate::harness::worktree_git::REF_SCAN_LIMIT {
         fs::write(tags.join(format!("t{n}")), format!("{head}\n")).unwrap();
     }
-    let reachable = head_reachable_from_refs(f.repo.path(), &head).map_err(|e| e.code());
+    let reachable = head_reachable_from_refs(f.authority(), &head).map_err(|e| e.code());
     assert_eq!(reachable, Err("REFS_LIMIT"));
     let (_, digest) = f.preview();
     let out = f
@@ -365,7 +384,7 @@ fn an_oversized_packed_refs_fails_with_refs_limit_not_unreachable() {
         packed.push_str(&format!("{head} refs/tags/pad{}\n", packed.len()));
     }
     fs::write(f.repo.path().join(".git/packed-refs"), packed).unwrap();
-    let reachable = head_reachable_from_refs(f.repo.path(), &head).map_err(|e| e.code());
+    let reachable = head_reachable_from_refs(f.authority(), &head).map_err(|e| e.code());
     assert_eq!(reachable, Err("REFS_LIMIT"));
     // At the bound exactly it is still scanned.
     let mut exact = format!("{head} refs/tags/keep\n");
@@ -373,7 +392,7 @@ fn an_oversized_packed_refs_fails_with_refs_limit_not_unreachable() {
     exact.push('\n');
     assert_eq!(exact.len(), limit);
     fs::write(f.repo.path().join(".git/packed-refs"), exact).unwrap();
-    let reachable = head_reachable_from_refs(f.repo.path(), &head).map_err(|e| e.code());
+    let reachable = head_reachable_from_refs(f.authority(), &head).map_err(|e| e.code());
     assert_eq!(reachable, Ok(true));
 }
 
@@ -901,4 +920,56 @@ fn c14_forged_journal_at_live_managed_tree_without_gitdir_is_refused() {
     assert_eq!(out.unwrap_err().code(), "INVALID_ARGUMENT");
     assert_eq!(c14_snapshot(&f, &live.id, &live_path), before);
     assert!(meta.is_dir() && live_path.join("keep.txt").is_file());
+}
+
+/// G1-RE2 (ubuntu-22.04 `Fixture::new` BOUNDARY_VIOLATION): the legacy fixture's
+/// Git commands must not leave a detached `git maintenance` writing
+/// `.git/objects/maintenance.lock` while `WorktreeManager::new` scans it.
+#[test]
+fn legacy_fixture_git_commands_do_not_start_background_maintenance() {
+    const CHILD: &str = "LEGACY_FIXTURE_MAINTENANCE_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let f = Fixture::new();
+        // Even an ambient repository preference must not re-enable it.
+        git(f.repo.path(), &["config", "maintenance.auto", "true"]);
+        fs::write(f.repo.path().join("README.md"), "second\n").unwrap();
+        git(f.repo.path(), &["commit", "-qam", "second"]);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let trace = root.path().join("git-events.jsonl");
+    let module = module_path!().split_once("::").unwrap().1;
+    let output = Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            &format!("{module}::legacy_fixture_git_commands_do_not_start_background_maintenance"),
+            "--nocapture",
+        ])
+        .env(CHILD, "1")
+        .env("GIT_TRACE2_EVENT", &trace)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+    let events: Vec<serde_json::Value> = fs::read_to_string(trace)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(events
+        .iter()
+        .any(|event| event["event"] == "cmd_name" && event["name"] == "commit"));
+    assert!(
+        !events.iter().any(|event| {
+            event["event"] == "child_start"
+                && event["argv"]
+                    .as_array()
+                    .is_some_and(|args| args.iter().any(|arg| arg == "maintenance"))
+        }),
+        "legacy fixture Git spawned maintenance after writing repository metadata"
+    );
 }

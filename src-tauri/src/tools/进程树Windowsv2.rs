@@ -82,6 +82,9 @@ impl Drop for ProcessTree {
     }
 }
 
+/// Not used by production (`spawn_under` is the only entry point); kept for
+/// tests only so the production `--lib -D warnings` gate stays clean.
+#[cfg(test)]
 pub(super) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTree)> {
     spawn_under(command, None).await
 }

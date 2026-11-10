@@ -29,6 +29,7 @@ impl Fixture {
             &["config", "user.email", "fixture@example.invalid"],
         ] {
             assert!(Command::new("git")
+                .args(["-c", "maintenance.auto=false"]) // see worktree_tests.rs fixture rule
                 .current_dir(root.path())
                 .args(args)
                 .output()
@@ -39,6 +40,7 @@ impl Fixture {
         fs::write(root.path().join("fixture.txt"), "original\n").unwrap();
         for args in [&["add", "."][..], &["commit", "-qm", "fixture"]] {
             assert!(Command::new("git")
+                .args(["-c", "maintenance.auto=false"]) // see worktree_tests.rs fixture rule
                 .current_dir(root.path())
                 .args(args)
                 .output()
