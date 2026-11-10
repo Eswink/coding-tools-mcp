@@ -2654,24 +2654,46 @@ mod integrate_tests;
 // ---------------------------------------------------------------------------
 /// Stands in for the live runner: on each dirty mark, "projects" the owner's
 /// workers exactly as NativeLiveHost::current does and acknowledges them.
+///
+/// G1-RE4: the runner lives until the test tells it to stop (or the test's
+/// `stop` sender is dropped while unwinding), never for a wall-clock budget. A
+/// 5 s lifetime used to cover the whole attached spawn and the discard,
+/// admission included; on windows-2025 that work outlasted it and the
+/// discard's mark (still sent) landed after the runner had gone. Marks are
+/// counted by the watch version, so two marks observed together still count
+/// as two, and a final check after the stop signal picks up a mark that was
+/// sent synchronously before it. Returns `(marks, observations)`.
 fn c7_fake_runner(
     host: std::sync::Arc<HostRoots>,
     owner: WorkerOwner,
     mut rx: tokio::sync::watch::Receiver<u64>,
-    marks: usize,
-) -> std::thread::JoinHandle<usize> {
+    stop: std::sync::mpsc::Receiver<()>,
+) -> std::thread::JoinHandle<(u64, usize)> {
     std::thread::spawn(move || {
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        let mut seen = 0;
-        while seen < marks && std::time::Instant::now() < deadline {
+        let mut last = *rx.borrow();
+        let mut marks = 0u64;
+        let mut observations = 0usize;
+        let mut observe = |rx: &mut tokio::sync::watch::Receiver<u64>| {
             if rx.has_changed().unwrap_or(false) {
-                rx.borrow_and_update();
-                seen += 1;
+                let version = *rx.borrow_and_update();
+                marks += version.wrapping_sub(last);
+                last = version;
+                observations += 1;
                 projection_bus::applied(&host, projected_workers(&host, &owner, 8));
             }
-            std::thread::sleep(std::time::Duration::from_millis(10));
+        };
+        loop {
+            observe(&mut rx);
+            match stop.recv_timeout(std::time::Duration::from_millis(10)) {
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                // Stop signal or sender dropped: one final check, then exit.
+                Ok(()) | Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    observe(&mut rx);
+                    break;
+                }
+            }
         }
-        seen
+        (marks, observations)
     })
 }
 
@@ -2731,7 +2753,8 @@ fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
     // Attached: the spawn's own dirty mark drives a projection naming it.
     let owner = WorkerOwner::from_context(&chat).unwrap();
     let rx = projection_bus::subscribe(&f.ctx.host);
-    let runner = c7_fake_runner(f.ctx.host.clone(), owner.clone(), rx, 2);
+    let (stop, stop_rx) = std::sync::mpsc::channel();
+    let runner = c7_fake_runner(f.ctx.host.clone(), owner.clone(), rx, stop_rx);
     let t = std::time::Instant::now();
     let out = spawn_via(&chat, "r2");
     let e2e = t.elapsed();
@@ -2759,11 +2782,15 @@ fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
         subagent::call(c, "subagent_discard", &json!({ "worker_id": id }))
     });
     assert_eq!(gone["ok"], true, "{gone}");
-    assert_eq!(
-        runner.join().unwrap(),
-        2,
-        "spawn and discard each mark dirty"
-    );
+    assert_eq!(gone["worker"]["state"], "discarded", "{gone}");
+    // Both marks were sent synchronously before `subagent_discard` returned;
+    // the runner's final check after the stop signal must see them.
+    stop.send(()).unwrap();
+    let (marks, observations) = runner.join().unwrap();
+    assert_eq!(marks, 2, "spawn and discard each mark dirty");
+    // The spawn's mark is observed alone (r2 only gets `applied` after the
+    // runner acknowledged it), so the discard's mark is a second observation.
+    assert_eq!(observations, 2, "spawn and discard are observed separately");
     assert!(!projected_workers(&f.ctx.host, &owner, 8).contains(&id));
 }
 

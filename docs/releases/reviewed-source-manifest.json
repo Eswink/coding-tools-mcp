@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "A1 C35 G1-RE3 fix tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C36 G1-RE4 fix tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "23cce62729e0ca9f06cf8d7d00ed62a9c9614b5d",
-        "sha256": "73dc176c5f7844f32f11dce77766adeb69437b45425e65c39792022aa463466d"
+        "blob_sha": "26064367031986d97419bfcc3b5d56dcce5620e2",
+        "sha256": "d4a426129bfb89f3d22b07e84b517941d054964198b10474ef75b7f93c31cf47"
       }
     },
     {
@@ -10954,8 +10954,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "19b4a5f23a1f32713d4d2ce3b0d04071abda65ba",
-        "sha256": "e16713eadd880f7c2bbc634f71f0cd76042cc45fe2dc8495f9275120902cd513"
+        "blob_sha": "e753957f23010704da9906a483655fa72546e377",
+        "sha256": "e41192786d4c10eeaa8cb11bcb442265947fd9e99e88966fc8c1edd7634ca27a"
       }
     },
     {
