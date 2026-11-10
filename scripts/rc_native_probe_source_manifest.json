@@ -941,11 +941,11 @@
    "sha256": "16030f718cdc2617c0ff7452791a21407c660f09c5895b555cbbc1f36b14b113"
   },
   {
-   "blob": "b44258e8b2e87bb9c5fa756b2cba99578246d757",
+   "blob": "dfec2121764cd0fc0ea156373b77c017bbd117f1",
    "bytes": 8145,
    "mode": "100644",
    "path": "deploy/cloud-gateway/current_nginx_include.py",
-   "sha256": "9e60b0a778fd3b9da08313679bda6dd497f6c4394c6043762864c38bfcfbb68e"
+   "sha256": "6e89ffd4161d7c06d20b0d26ef82cf744e732d1a690f3d06bc1b3ce0fe7b55be"
   },
   {
    "blob": "900c52ec3e88a1706d1f92e92f7df781f0e91928",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "6979ba15991b486476f476dc3f831b8249eeaa9a",
+   "blob": "a986ff7e77b11459cc6f31af6b9df18e0b0f39a5",
    "bytes": 446419,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "27a772b014ff48bedf3bf892315d2f1fc888d6e701d87c82042d260eb09f2896"
+   "sha256": "55d9acca48bf267f8d33f57b76c92aabea57eeaf575fe3168c7117a0969fe999"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -8025,11 +8025,11 @@
    "sha256": "331d9c8623586895d35e0de532ddfad209a58cb19d2fe9bbb30d02aeddf72749"
   },
   {
-   "blob": "77583add1639f1e00797630532cabf0939b61f8b",
-   "bytes": 13250,
+   "blob": "adb954ad6e0c3b932b2a8a9a9803989a518ab741",
+   "bytes": 13434,
    "mode": "100644",
    "path": "scripts/windows_standard_v23/\u6807\u51c6\u7528\u6237\u6e90\u6e05\u5355v23.json",
-   "sha256": "f519c4a2c35b84b17e33c2612b464788887edfed103ff6b5d62912dd3f5cc2f9"
+   "sha256": "09b5c8a962b2e5a8c299d3bd0d4bb1b54e94292250c404e77e53539ed912268c"
   },
   {
    "blob": "21f7233834f6223b6027b62ee437e57974c5d15d",
@@ -9852,11 +9852,11 @@
    "sha256": "3b838470e7b5b5895e09f2fa2a20b44a230838a6bafbfdf61c6f4c74ccdb0c34"
   },
   {
-   "blob": "dbcb8810283b8b1f0f1d7444c5d7008d79f0691a",
+   "blob": "cc0cca7f7959036de6be2da67713f426f82b6a7d",
    "bytes": 158274,
    "mode": "100644",
    "path": "src-tauri/Cargo.lock",
-   "sha256": "51582af9b1af723918a2f181318e0f9ac000367da74468ed2d5aa9ac253f703d"
+   "sha256": "6039ecbb6038a13f86471e6b4e7ebe167d53084c1364f593dcd661e85dd94ce4"
   },
   {
    "blob": "90d1203e7c3b784185f548c35f339ceb809aa943",
@@ -12722,11 +12722,11 @@
    "sha256": "2773273b313e4092cb19ad539cfc991cae01f5e9a159489eddd63f0419ce254a"
   },
   {
-   "blob": "6262b80c984bce4ff05f751b46295ea54bbe1110",
+   "blob": "4437c8951b319b10300b763e4105d11242d438c5",
    "bytes": 23220,
    "mode": "100644",
    "path": "tests/cloud-gateway-deployment/test_current_nginx_include.py",
-   "sha256": "96b069c7186b76a92ee6b466f43fcfb9995489e5319ddcdcbfd58c4874124b8e"
+   "sha256": "dc47fe164cd8c95dce39036e005e3b564bdea8491c388e4b90c16f331f89f16d"
   },
   {
    "blob": "77ed877e93f2859f3cadad9f4e757fb9137b5f7e",

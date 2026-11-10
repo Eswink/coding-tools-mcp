@@ -1,7 +1,7 @@
 {
  "schema": "coding-tools-windows-standard-source-manifest-v23",
- "count": 305,
- "names_sha256": "fd629789263cb283e26a1f07f45d7c7ef582b4558e23154c722a719b49838c57",
+ "count": 309,
+ "names_sha256": "d5561b5b06ef560ee87c5792e1bb09c926c015300bb31e5d7a69fb8afac14628",
  "entries": [
   "package.json",
   "scripts/AppImage入口回归v3.py",
@@ -49,6 +49,9 @@
   "scripts/desktop_glib_deb_tests.py",
   "scripts/desktop_glib_file_census.py",
   "scripts/desktop_glib_file_census_cases.py",
+  "scripts/desktop_glib_installed.py",
+  "scripts/desktop_glib_installed_consumer_tests.py",
+  "scripts/desktop_glib_installed_tests.py",
   "scripts/desktop_glib_link.py",
   "scripts/desktop_glib_link_tests.py",
   "scripts/desktop_glib_probes.py",
@@ -67,6 +70,7 @@
   "scripts/exclusive_release_tests.py",
   "scripts/final_rc_evidence.py",
   "scripts/final_rc_evidence_tests.py",
+  "scripts/gateway_rsa_absent_lock_tests.py",
   "scripts/glib_backport_regression.py",
   "scripts/linux_package_binding_tests.py",
   "scripts/linux_package_provenance.py",
