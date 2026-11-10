@@ -709,7 +709,10 @@ fn c13d_hint_does_not_change_legacy_or_approval_digest() {
         c.hint = None;
     }
     let without = legacy_digest(&candidates);
-    assert_eq!(without, with_hint, "clearing hint must not change list_digest");
+    assert_eq!(
+        without, with_hint,
+        "clearing hint must not change list_digest"
+    );
     for c in &mut candidates {
         c.hint = Some("LOCKED");
     }
@@ -724,7 +727,6 @@ fn c13d_hint_does_not_change_legacy_or_approval_digest() {
     let b = crate::commands::legacy_cleanup::approval_digest(&without, &ids);
     assert_eq!(a, b);
 }
-
 
 #[test]
 fn c14_stale_digest_and_unselected_candidates() {
