@@ -153,25 +153,34 @@ impl RootWorkTracker {
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => false,
             Err(_) => return Err(RootWorkError),
         };
-        private_dir(&namespace)?;
-        #[cfg(unix)]
-        {
-            std::fs::File::open(&store)
-                .and_then(|f| f.sync_all())
-                .map_err(|_| RootWorkError)?;
-            std::fs::File::open(&parent)
-                .and_then(|f| f.sync_all())
-                .map_err(|_| RootWorkError)?;
-        }
-        if !initialize {
-            regular(&namespace.join("auth.json"))?;
-            regular(&namespace.join("auth.lock"))?;
-        }
-        let mut disk = AuthDocument::open(&namespace).map_err(|_| RootWorkError)?;
-        let document = if initialize {
+        // A1 C38 (G1-RE6): a namespace this call just created holds no Document
+        // until auth.json is durably written, so no work was ever admitted under
+        // it. Every failure in that window (private_dir, fsync, open, save)
+        // reclaims it while REGISTRY and its auth.lock are still held, then still
+        // fails closed. A namespace that already existed is never touched.
+        let mut staged: Option<AuthDocument> = None;
+        let prepared = (|| -> Result<Option<Document>, RootWorkError> {
+            private_dir(&namespace)?;
+            #[cfg(unix)]
+            {
+                std::fs::File::open(&store)
+                    .and_then(|f| f.sync_all())
+                    .map_err(|_| RootWorkError)?;
+                std::fs::File::open(&parent)
+                    .and_then(|f| f.sync_all())
+                    .map_err(|_| RootWorkError)?;
+            }
+            if !initialize {
+                regular(&namespace.join("auth.json"))?;
+                regular(&namespace.join("auth.lock"))?;
+            }
+            let disk = staged.insert(AuthDocument::open(&namespace).map_err(|_| RootWorkError)?);
+            if !initialize {
+                return Ok(None);
+            }
             let d = Document {
                 version: 1,
-                binding,
+                binding: binding.clone(),
                 root: root.clone(),
                 identity: anchor.key,
                 ancestors: anchor.ancestors.clone(),
@@ -180,24 +189,71 @@ impl RootWorkTracker {
                 managed_reads: initialize_managed,
             };
             disk.save(&d).map_err(|_| RootWorkError)?;
-            d
-        } else {
-            let d: Document = disk
-                .load()
-                .map_err(|_| RootWorkError)?
-                .ok_or(RootWorkError)?;
-            if d.version != 1
-                || d.binding != binding
-                || d.root != root
-                || d.identity != anchor.key
-                || d.ancestors != anchor.ancestors
-                || d.epoch == 0
-                || d.phase != Phase::Clean
-                || (protected && !initialize_managed && !d.managed_reads)
-            {
-                return Err(RootWorkError);
+            Ok(Some(d))
+        })();
+        let prepared = match prepared {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                if initialize {
+                    // A failed reclaim is reported too; it is never swallowed.
+                    reclaim_uncommitted(&namespace, &parent, staged.take())?;
+                }
+                return Err(error);
             }
-            d
+        };
+        fn reclaim_uncommitted(
+            namespace: &Path,
+            parent: &Path,
+            staged: Option<AuthDocument>,
+        ) -> Result<(), RootWorkError> {
+            let lock = match staged {
+                Some(disk) => disk,
+                None => AuthDocument::open(namespace).map_err(|_| RootWorkError)?,
+            };
+            // Only the bare lock this call created may be present: anything else,
+            // above all an auth.json, means the namespace is not ours to remove.
+            match std::fs::symlink_metadata(namespace.join("auth.json")) {
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                _ => return Err(RootWorkError),
+            }
+            for entry in std::fs::read_dir(namespace).map_err(|_| RootWorkError)? {
+                if entry.map_err(|_| RootWorkError)?.file_name() != "auth.lock" {
+                    return Err(RootWorkError);
+                }
+            }
+            regular(&namespace.join("auth.lock"))?;
+            std::fs::remove_file(namespace.join("auth.lock")).map_err(|_| RootWorkError)?;
+            drop(lock);
+            std::fs::remove_dir(namespace).map_err(|_| RootWorkError)?;
+            #[cfg(unix)]
+            std::fs::File::open(parent)
+                .and_then(|f| f.sync_all())
+                .map_err(|_| RootWorkError)?;
+            #[cfg(not(unix))]
+            let _ = parent;
+            Ok(())
+        }
+        let disk = staged.ok_or(RootWorkError)?;
+        let document = match prepared {
+            Some(d) => d,
+            None => {
+                let d: Document = disk
+                    .load()
+                    .map_err(|_| RootWorkError)?
+                    .ok_or(RootWorkError)?;
+                if d.version != 1
+                    || d.binding != binding
+                    || d.root != root
+                    || d.identity != anchor.key
+                    || d.ancestors != anchor.ancestors
+                    || d.epoch == 0
+                    || d.phase != Phase::Clean
+                    || (protected && !initialize_managed && !d.managed_reads)
+                {
+                    return Err(RootWorkError);
+                }
+                d
+            }
         };
         let owner = Arc::new(Self {
             anchor,
