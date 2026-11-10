@@ -302,6 +302,11 @@ impl Drop for ProcessTree {
     }
 }
 
+/// Test-only convenience wrapper (`spawn_under(command, None)`). Production
+/// always goes through `spawn_under`; the only callers are the unix drain tests
+/// (`session_drain_tests.rs`, `native_drain/tests.rs`), so it is compiled only
+/// there and the production `--lib -D warnings` gate never sees it.
+#[cfg(all(test, unix))]
 pub(crate) async fn spawn(command: &mut Command) -> io::Result<(Child, ProcessTree)> {
     spawn_under(command, None).await
 }

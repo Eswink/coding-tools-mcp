@@ -14,11 +14,13 @@ pub(crate) const JOB_MEMORY_LIMIT_BYTES: usize = 4 * 1024 * 1024 * 1024;
 
 /// Parent Job `LimitFlags` bits (platform-neutral for digests / Linux-host tests).
 /// `KILL_ON_JOB_CLOSE (0x2000) | ACTIVE_PROCESS (0x8) | JOB_MEMORY (0x200)`.
+#[cfg(test)]
 pub(crate) fn parent_limit_flags_bits() -> u32 {
     0x2000 | 0x8 | 0x200
 }
 
 /// Nesting assign order required by SPEC §4.1 (Win8+ nested Jobs).
+#[cfg(test)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum NestAssignStep {
     ParentJob,
@@ -26,6 +28,7 @@ pub(crate) enum NestAssignStep {
 }
 
 /// Canonical sequence: suspended child → assign **parent** → assign **command Job** → resume.
+#[cfg(test)]
 pub(crate) fn nest_assign_sequence() -> [NestAssignStep; 2] {
     [NestAssignStep::ParentJob, NestAssignStep::CommandJob]
 }
@@ -35,7 +38,7 @@ pub(crate) fn nest_assign_sequence() -> [NestAssignStep; 2] {
 mod platform;
 
 #[cfg(windows)]
-pub(crate) use platform::{for_worker, release_worker_job, terminate_worker_job, WorkerParentJob};
+pub(crate) use platform::{for_worker, release_worker_job, terminate_worker_job};
 
 #[cfg(not(windows))]
 pub(crate) fn terminate_worker_job(_worker_id: &str) -> std::io::Result<bool> {
