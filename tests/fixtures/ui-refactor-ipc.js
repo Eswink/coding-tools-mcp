@@ -105,6 +105,12 @@
       }
       return {records:[],exclusive:true,oauth_ready:true,available_scopes:['files.read','files.write','exec.run'],lease_state:'free',policy:clone(policy),recovery:{required:false,generation:0}};
     }
+    if(command==='list_pending_integrations')return {recovery:{state:'none',journal:'none'},pending:[]};
+    if(command==='preview_legacy_cleanup')return {candidates:[],digest:'',warnings:[],native_dialog_required:false};
+    if(command==='list_subagent_workers')return {workers:[],windows:false};
+    if(command==='apply_legacy_cleanup')return {outcomes:[]};
+    if(command==='cancel_subagent_worker')return {worker:null,killed_tasks:0};
+    if(command==='discard_subagent_worker')return {worker:null};
     state.unknown.push(command);throw Error(`UNIMPLEMENTED SYNTHETIC IPC: ${command}`);
   }
   Reflect.set(window,'__TAURI_INTERNALS__',{invoke,metadata:{currentWindow:{label:'main'},currentWebview:{label:'main'}},

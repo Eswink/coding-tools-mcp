@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "A1 C32 product version 0.7.0→0.8.0-rc.1 FINAL S1 NARROW tip — LOCAL ONLY not pushed",
+  "review_reference": "A1 C32 G1-FIX cascade tip (probe write after APP_VERSION/IPC fixture) — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4810,8 +4810,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cccc772c76a1d022d062ab67e17afc30361b256a",
-        "sha256": "267316a9258872589d42b76e7b7d363fa886cfca3071375ffc522d6a11c957dd"
+        "blob_sha": "4a1491c66d37e3d2a4987a1577cf029334555056",
+        "sha256": "255972c3878eb00efe8e0981722634058ba984b1f08015d8e84723c0e6dd6265"
       }
     },
     {
@@ -11794,8 +11794,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "b9eb26c16beee2c1787454539de848570c95bcd3",
-        "sha256": "9d8d9b0cd673217538d79e8de0b1e817e275688b884c5af55137c27eadb78c2d"
+        "blob_sha": "144af289496c1a3af99b718ae892d68807180589",
+        "sha256": "8b42e1c6759314297c6a7237b6179efcef803117058c00bd11d4fc58d74d3cb6"
       }
     },
     {
@@ -12186,8 +12186,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "32465a11a7838f9e55c58ba0283581e148691d4c",
-        "sha256": "111aa3e78201411e56c551745a11ec52e2c6d29d236d4e00d82a6e426737e1d5"
+        "blob_sha": "f729c53cde47b659729b36b4a32a428fee4ae573",
+        "sha256": "3d607db8439c56a6c57995345bc87a68be2785e9646e924f4b0ba618fe751c4d"
       }
     },
     {

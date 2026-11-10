@@ -38,5 +38,5 @@ test('APP_VERSION equals package.json version at runtime', async () => {
   );
   assert.equal(typeof APP_VERSION, 'string');
   assert.equal(APP_VERSION, packageJson.version);
-  assert.equal(APP_VERSION, '0.7.0');
+  assert.equal(APP_VERSION, '0.8.0-rc.1');
 });

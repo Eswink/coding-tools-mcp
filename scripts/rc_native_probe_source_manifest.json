@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "b3e2380de8e91a1b1c2ca544a90c82289edcab46",
-   "bytes": 446447,
+   "blob": "47161d4505ef1d75a188e38b4127608a1ca30276",
+   "bytes": 446459,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "54954f55d6b4113f82ca0cd38ea62688dc22a663e8ded79a6fcb41264c2db8d3"
+   "sha256": "ef1407efce95f339fe4d37c434a3cbfeebd26b5f662dd4cd74bc79d52583b424"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -12617,11 +12617,11 @@
    "sha256": "bd976b6c82b13852226f71e81ddc6bf0b86a09a3ab0ad00f577d3582cc597955"
   },
   {
-   "blob": "b9eb26c16beee2c1787454539de848570c95bcd3",
-   "bytes": 2045,
+   "blob": "144af289496c1a3af99b718ae892d68807180589",
+   "bytes": 2050,
    "mode": "100644",
    "path": "tests/app-version.test.mjs",
-   "sha256": "9d8d9b0cd673217538d79e8de0b1e817e275688b884c5af55137c27eadb78c2d"
+   "sha256": "8b42e1c6759314297c6a7237b6179efcef803117058c00bd11d4fc58d74d3cb6"
   },
   {
    "blob": "37ac53747b99c2835ad77e4ae3f2bcd490df996e",
@@ -12918,11 +12918,11 @@
    "sha256": "bb26574a316c1033c686c79a7feb08c71010f8fc7007d60015acf927d91032a1"
   },
   {
-   "blob": "32465a11a7838f9e55c58ba0283581e148691d4c",
-   "bytes": 11177,
+   "blob": "f729c53cde47b659729b36b4a32a428fee4ae573",
+   "bytes": 11681,
    "mode": "100644",
    "path": "tests/fixtures/ui-refactor-ipc.js",
-   "sha256": "111aa3e78201411e56c551745a11ec52e2c6d29d236d4e00d82a6e426737e1d5"
+   "sha256": "3d607db8439c56a6c57995345bc87a68be2785e9646e924f4b0ba618fe751c4d"
   },
   {
    "blob": "e287292a8926fdcf64be11ae4d90f355f8b7e48a",
