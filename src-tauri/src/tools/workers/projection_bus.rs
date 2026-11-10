@@ -55,22 +55,44 @@ pub(crate) fn applied(host: &HostRoots, workers: impl IntoIterator<Item = String
     entry(&mut entries(), host).applied = workers.into_iter().collect();
     bus().changed.notify_all();
 }
-/// Waits at most `budget` for an acknowledged projection naming `worker_id`.
-/// `false` at once when no live session is attached to this main root.
-pub(crate) fn wait_applied(host: &HostRoots, worker_id: &str, budget: Duration) -> bool {
-    let deadline = Instant::now() + budget;
+/// How a bounded projection wait ended (G1-RE3): observable so a caller (and
+/// its tests) can tell "no live session, answered at once" from "a session is
+/// attached but no acknowledged projection named the worker in time".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WaitOutcome {
+    /// An acknowledged projection names the worker.
+    Applied,
+    /// No live session is attached to this main root: returned without waiting.
+    Detached,
+    /// A session is attached, but the budget elapsed first.
+    TimedOut,
+}
+/// Waits at most `budget` for an acknowledged projection naming `worker_id`,
+/// and reports how the wait ended together with the time spent in it.
+/// `Detached` at once when no live session is attached to this main root.
+pub(crate) fn wait_outcome(
+    host: &HostRoots,
+    worker_id: &str,
+    budget: Duration,
+) -> (WaitOutcome, Duration) {
+    let start = Instant::now();
+    let deadline = start + budget;
     let key = namespace(host);
     let mut map = entries();
     loop {
         match map.get(&key) {
-            None => return false,
-            Some(e) if e.dirty.receiver_count() == 0 => return false,
-            Some(e) if e.applied.contains(worker_id) => return true,
+            None => return (WaitOutcome::Detached, start.elapsed()),
+            Some(e) if e.dirty.receiver_count() == 0 => {
+                return (WaitOutcome::Detached, start.elapsed())
+            }
+            Some(e) if e.applied.contains(worker_id) => {
+                return (WaitOutcome::Applied, start.elapsed())
+            }
             Some(_) => {}
         }
         let left = deadline.saturating_duration_since(Instant::now());
         if left.is_zero() {
-            return false;
+            return (WaitOutcome::TimedOut, start.elapsed());
         }
         map = bus()
             .changed
@@ -78,6 +100,11 @@ pub(crate) fn wait_applied(host: &HostRoots, worker_id: &str, budget: Duration) 
             .unwrap_or_else(|e| e.into_inner())
             .0;
     }
+}
+/// Waits at most `budget` for an acknowledged projection naming `worker_id`.
+/// `false` at once when no live session is attached to this main root.
+pub(crate) fn wait_applied(host: &HostRoots, worker_id: &str, budget: Duration) -> bool {
+    wait_outcome(host, worker_id, budget).0 == WaitOutcome::Applied
 }
 
 #[cfg(test)]
@@ -140,6 +167,43 @@ mod tests {
         assert!(!wait_applied(&host, ID, Duration::from_millis(300)));
         assert!(t.elapsed() >= Duration::from_millis(300));
         assert!(t.elapsed() < Duration::from_secs(2), "{:?}", t.elapsed());
+    }
+    #[test]
+    fn g1re3_wait_outcome_reports_detached_applied_and_timed_out() {
+        // Detached: no entry at all, then an entry without a live receiver.
+        let (_r, _s, host) = host();
+        let (outcome, waited) = wait_outcome(&host, ID, Duration::from_secs(3));
+        assert_eq!(outcome, WaitOutcome::Detached);
+        assert!(waited < Duration::from_millis(500), "{waited:?}");
+        mark_dirty(&host);
+        let (outcome, waited) = wait_outcome(&host, ID, Duration::from_secs(3));
+        assert_eq!(outcome, WaitOutcome::Detached);
+        assert!(waited < Duration::from_millis(500), "{waited:?}");
+        assert!(!wait_applied(&host, ID, Duration::from_secs(3)));
+
+        // TimedOut: attached, nothing names the worker; the full budget is spent.
+        let rx = subscribe(&host);
+        let (outcome, waited) = wait_outcome(&host, ID, Duration::from_millis(300));
+        assert_eq!(outcome, WaitOutcome::TimedOut);
+        assert!(waited >= Duration::from_millis(300), "{waited:?}");
+        assert!(!wait_applied(&host, ID, Duration::from_millis(50)));
+
+        // Applied: an acknowledgement naming the worker releases the waiter.
+        let other = host.clone();
+        let ack = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(100));
+            applied(&other, [ID.to_owned()]);
+        });
+        let (outcome, waited) = wait_outcome(&host, ID, Duration::from_secs(3));
+        ack.join().unwrap();
+        assert_eq!(outcome, WaitOutcome::Applied);
+        assert!(waited < Duration::from_secs(3), "{waited:?}");
+        assert!(wait_applied(&host, ID, Duration::from_millis(50)));
+
+        // Detached again once the session is gone, even with the id applied.
+        drop(rx);
+        let (outcome, _) = wait_outcome(&host, ID, Duration::from_secs(3));
+        assert_eq!(outcome, WaitOutcome::Detached);
     }
     #[test]
     fn c7_main_roots_do_not_share_a_bus() {
