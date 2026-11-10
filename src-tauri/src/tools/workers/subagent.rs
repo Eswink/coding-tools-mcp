@@ -14,6 +14,25 @@ use serde_json::{json, Map, Value};
 /// A1 C7-3: the bounded wait for an acknowledged projection naming a new worker.
 pub(super) const PROJECTION_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
 
+/// G1-RE3 test seam: the outcome and duration of this thread's most recent
+/// projection wait inside `subagent_spawn`, so a test can pin the wait itself
+/// rather than the whole call (spawn work and root-work admission included).
+#[cfg(test)]
+pub(super) mod last_projection_wait {
+    use super::super::projection_bus::WaitOutcome;
+    use std::{cell::Cell, time::Duration};
+    thread_local! {
+        static LAST: Cell<Option<(WaitOutcome, Duration)>> = const { Cell::new(None) };
+    }
+    pub(in super::super) fn record(outcome: WaitOutcome, waited: Duration) {
+        LAST.with(|last| last.set(Some((outcome, waited))));
+    }
+    /// Takes (and clears) the last recorded wait on this thread.
+    pub(in super::super) fn take() -> Option<(WaitOutcome, Duration)> {
+        LAST.with(Cell::take)
+    }
+}
+
 fn invalid(message: &'static str) -> WorkerError {
     super::invalid(message)
 }
@@ -120,11 +139,14 @@ fn run(ctx: &ToolContext, name: &str, args: &Value) -> Result<Value, WorkerError
             // already accepted a projection naming the worker (bounded 3 s wait;
             // immediately "pending" with no live session). Native UI: no field.
             if ctx.remote_request.is_some() {
-                let applied = super::projection_bus::wait_applied(
+                let (outcome, _waited) = super::projection_bus::wait_outcome(
                     &ctx.host,
                     record.worker_id.as_str(),
                     PROJECTION_WAIT,
                 );
+                #[cfg(test)]
+                last_projection_wait::record(outcome, _waited);
+                let applied = outcome == super::projection_bus::WaitOutcome::Applied;
                 out["projection"] = json!(if applied { "applied" } else { "pending" });
             }
             Ok(out)

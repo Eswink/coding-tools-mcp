@@ -2690,18 +2690,31 @@ fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
 
     // No live session attached: answered at once, never a 3 s stall.
     //
-    // G1-RE2: the end-to-end bound used to be a hand-picked 2 s, but it times a
-    // whole `subagent_spawn` (worktree checkout, encrypted store writes) as well
-    // as the projection wait; windows-2025 under the parallel suite needed
-    // 2.087 s for that spawn work alone. A stall is a full `PROJECTION_WAIT`
-    // (3 s) on top of the spawn, so the end-to-end call must stay strictly below
-    // `PROJECTION_WAIT`, and the wait itself is pinned separately, without the
-    // spawn work, to return at once.
+    // G1-RE3: the wall clock of a whole `subagent_spawn` is not the property
+    // under test. It also times worktree checkout, encrypted store writes and
+    // root-work admission (the process-wide ledger scan the parallel suite
+    // contends on); windows-2025 needed 2.087 s and then 3.268 s for that work
+    // while the projection wait itself returned at once. The wait is therefore
+    // pinned by its recorded outcome and its own duration: a real stall can only
+    // end as `TimedOut` after a full `PROJECTION_WAIT`, whatever the runner load.
+    use projection_bus::WaitOutcome;
+    use subagent::last_projection_wait;
+    let _ = last_projection_wait::take();
     let t = std::time::Instant::now();
     let out = spawn_via(&chat, "r1");
+    let e2e = t.elapsed();
+    let (outcome, waited) = last_projection_wait::take().expect("remote spawn waits once");
     assert_eq!(out["ok"], true, "{out}");
     assert_eq!(out["projection"], "pending", "{out}");
-    assert!(t.elapsed() < subagent::PROJECTION_WAIT, "{:?}", t.elapsed());
+    assert_eq!(
+        outcome,
+        WaitOutcome::Detached,
+        "detached spawn must not wait: (outcome {outcome:?}, wait {waited:?}, e2e {e2e:?})"
+    );
+    assert!(
+        waited < std::time::Duration::from_millis(500),
+        "detached wait must not block: (outcome {outcome:?}, wait {waited:?}, e2e {e2e:?})"
+    );
     let pending = out["worker"]["worker_id"].as_str().unwrap();
     let t = std::time::Instant::now();
     assert!(!projection_bus::wait_applied(
@@ -2721,11 +2734,17 @@ fn c7_remote_spawn_reports_projection_and_native_spawn_does_not() {
     let runner = c7_fake_runner(f.ctx.host.clone(), owner.clone(), rx, 2);
     let t = std::time::Instant::now();
     let out = spawn_via(&chat, "r2");
+    let e2e = t.elapsed();
+    let (outcome, waited) = last_projection_wait::take().expect("remote spawn waits once");
     assert_eq!(out["projection"], "applied", "{out}");
+    assert_eq!(
+        outcome,
+        WaitOutcome::Applied,
+        "(outcome {outcome:?}, wait {waited:?}, e2e {e2e:?})"
+    );
     assert!(
-        t.elapsed() < std::time::Duration::from_secs(3),
-        "{:?}",
-        t.elapsed()
+        waited < subagent::PROJECTION_WAIT,
+        "(outcome {outcome:?}, wait {waited:?}, e2e {e2e:?})"
     );
     let id = out["worker"]["worker_id"].as_str().unwrap().to_owned();
     assert_eq!(
