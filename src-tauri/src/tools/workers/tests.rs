@@ -20,6 +20,11 @@ struct Fixture {
 
 fn git(dir: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
+        // Git >= 2.47 detaches auto maintenance after `commit`; newer Git (2.55+)
+        // can still hold objects/maintenance.lock after the command returns, and
+        // the production boundary scan of .git/objects then fails closed
+        // (BOUNDARY_VIOLATION). Same fixture rule as worktree_tests.rs.
+        .args(["-c", "maintenance.auto=false"])
         .current_dir(dir)
         .args(args)
         .output()

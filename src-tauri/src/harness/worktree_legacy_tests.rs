@@ -8,6 +8,11 @@ const WS: &str = "0123456789abcdef0123456789abcdef";
 
 fn git(dir: &Path, args: &[&str]) -> String {
     let output = Command::new("git")
+        // Git >= 2.47 detaches auto maintenance after `commit`; newer Git (2.55+)
+        // can still hold objects/maintenance.lock after the command returns, and
+        // the production boundary scan of .git/objects then fails closed
+        // (BOUNDARY_VIOLATION). Same fixture rule as worktree_tests.rs.
+        .args(["-c", "maintenance.auto=false"])
         .current_dir(dir)
         .args(args)
         .output()
@@ -901,4 +906,56 @@ fn c14_forged_journal_at_live_managed_tree_without_gitdir_is_refused() {
     assert_eq!(out.unwrap_err().code(), "INVALID_ARGUMENT");
     assert_eq!(c14_snapshot(&f, &live.id, &live_path), before);
     assert!(meta.is_dir() && live_path.join("keep.txt").is_file());
+}
+
+/// G1-RE2 (ubuntu-22.04 `Fixture::new` BOUNDARY_VIOLATION): the legacy fixture's
+/// Git commands must not leave a detached `git maintenance` writing
+/// `.git/objects/maintenance.lock` while `WorktreeManager::new` scans it.
+#[test]
+fn legacy_fixture_git_commands_do_not_start_background_maintenance() {
+    const CHILD: &str = "LEGACY_FIXTURE_MAINTENANCE_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        let f = Fixture::new();
+        // Even an ambient repository preference must not re-enable it.
+        git(f.repo.path(), &["config", "maintenance.auto", "true"]);
+        fs::write(f.repo.path().join("README.md"), "second\n").unwrap();
+        git(f.repo.path(), &["commit", "-qam", "second"]);
+        return;
+    }
+    let root = tempfile::tempdir().unwrap();
+    let trace = root.path().join("git-events.jsonl");
+    let module = module_path!().split_once("::").unwrap().1;
+    let output = Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            &format!("{module}::legacy_fixture_git_commands_do_not_start_background_maintenance"),
+            "--nocapture",
+        ])
+        .env(CHILD, "1")
+        .env("GIT_TRACE2_EVENT", &trace)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"));
+    let events: Vec<serde_json::Value> = fs::read_to_string(trace)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(events
+        .iter()
+        .any(|event| event["event"] == "cmd_name" && event["name"] == "commit"));
+    assert!(
+        !events.iter().any(|event| {
+            event["event"] == "child_start"
+                && event["argv"]
+                    .as_array()
+                    .is_some_and(|args| args.iter().any(|arg| arg == "maintenance"))
+        }),
+        "legacy fixture Git spawned maintenance after writing repository metadata"
+    );
 }

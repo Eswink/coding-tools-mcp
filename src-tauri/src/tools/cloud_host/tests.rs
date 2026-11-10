@@ -566,6 +566,11 @@ fn windows_restricted_mode_environment_is_the_357518a5_refusal() {
 // ---------------------------------------------------------------------------
 fn worker_git(dir: &std::path::Path, args: &[&str]) {
     let out = std::process::Command::new("git")
+        // Git >= 2.47 detaches auto maintenance after `commit`; newer Git (2.55+)
+        // can still hold objects/maintenance.lock after the command returns, and
+        // the production boundary scan of .git/objects then fails closed
+        // (BOUNDARY_VIOLATION). Same fixture rule as worktree_tests.rs.
+        .args(["-c", "maintenance.auto=false"])
         .current_dir(dir)
         .args(args)
         .output()
