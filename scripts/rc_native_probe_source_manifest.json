@@ -115,11 +115,11 @@
    "sha256": "1c22d1a0b64c7278271e5a289a5f838be51842b3a2aeb56c29b45e7006f20467"
   },
   {
-   "blob": "2ea506e8a3ee0c34072a09b2d1c9e8bb782b39a3",
-   "bytes": 12240,
+   "blob": "81dab54315c887cffb6c4b7b6726a8e489467a6f",
+   "bytes": 13098,
    "mode": "100644",
    "path": ".github/workflows/cloud-execution-bridge.yml",
-   "sha256": "e8a0de0a9641f9aa0c79c0e0356bb9a6f02a6c642d2228a3be4da1081c78b8f3"
+   "sha256": "a33e401a0a15f183ec01fde50703b6cb2b36dd0a632a013222c6824d8f28dfc0"
   },
   {
    "blob": "154148eade05785eadd054356bff1a27b2b52489",
@@ -143,11 +143,11 @@
    "sha256": "448772dae5e8fc7f07ef8e0e84ddf1e243956aee638a1ff583ee6268fea7270e"
   },
   {
-   "blob": "6ab9fd8fd5ec66a7429aed5c629dde2eca711694",
-   "bytes": 6677,
+   "blob": "20bf6541cc7e18a49462d77de716486c50d9cbcb",
+   "bytes": 7545,
    "mode": "100644",
    "path": ".github/workflows/cloud-gateway-desktop-sandbox.yml",
-   "sha256": "1a323bef70e79b0046c14c51259e277e5bc91d0168ebafd14b0814d07c630724"
+   "sha256": "27d6eb90119f2dfb193e0c74b03643ca0dbe9c884a72f832e8e8fd5d36dc7c1b"
   },
   {
    "blob": "5bf0698a2dd2aa86fd6c8bd0e979ee5e6813e07a",
@@ -213,11 +213,11 @@
    "sha256": "cc470cea730f5cefd57b6af6bc2a6096b122c2ae2d590af51d2b7b82d58913fe"
   },
   {
-   "blob": "491152152e7611ea9f39f98e05c68e24d27a0f04",
+   "blob": "f61f5a1f9e7c6f2ea0de0bf60aed9c1c5fe2204f",
    "bytes": 4287,
    "mode": "100644",
    "path": ".github/workflows/cloud-gateway-ubuntu-sandbox.yml",
-   "sha256": "eba201b70f0664b5e2a14bfe02cb6ac4e4e25fffbe9f99a33d601b0764990be9"
+   "sha256": "e3c894338cfb45fcc7be5a551727cf03727445b19b3793db26f8f59c43f9aaa2"
   },
   {
    "blob": "e27c872cc5c180c8daaedbee64084edb742c4780",
@@ -381,11 +381,11 @@
    "sha256": "3e8a3147a73963b20e5d47f0b387df2184888b8c99bdc447c3143f5e144b3a82"
   },
   {
-   "blob": "c298f12a2eb11fa74865e9657f2ede033c7b3c11",
-   "bytes": 2603,
+   "blob": "0b24e948719bd4f29f63389811ed2396eedb5019",
+   "bytes": 3473,
    "mode": "100644",
    "path": ".github/workflows/local-authority-bridge.yml",
-   "sha256": "c2c73d6f5b19bda88b5fa3f8005e9125bd50f92787483274224484666138b95f"
+   "sha256": "ab0d4646553293dbf62f99f5cc6e298f74a48a6530d80667f535158352e99955"
   },
   {
    "blob": "7d9b36b3e309009736eccf1b2ba4d99e17cf7fae",
@@ -703,11 +703,11 @@
    "sha256": "379753e78f5b62952fb9e21b1a6c06ae6143614e19a4020baafc25d64211d555"
   },
   {
-   "blob": "19174386c9c3bff0b8378f6e5feb83a6b5b99a6a",
-   "bytes": 3846,
+   "blob": "69778bf0b57524aacf39716e092060b3d6c06bf3",
+   "bytes": 4739,
    "mode": "100644",
    "path": ".github/workflows/\u53d1\u5e03\u5019\u9009\u9a8c\u8bc1v4.yml",
-   "sha256": "1086df328167c45fc77f59df28cf4e8cf48db4d85c857cc14f5b1b97ea7b3331"
+   "sha256": "675f10af5719b9126b254e4c53e66208af5a83cd87213a6026ecfb955a82efe1"
   },
   {
    "blob": "2092b9aada641b7059d5f8b6e3bb156f6cfb1c15",
@@ -731,11 +731,11 @@
    "sha256": "1f18d5981ecbe049735dda295926e3c31bf37f496334e7c1e4216b7a74a718a4"
   },
   {
-   "blob": "6241d428b56dcb9fba99ab5defd2dacca5e3a6ee",
-   "bytes": 2068,
+   "blob": "d1655fc4ef6e0118b57e078509b520c0dfbf0b32",
+   "bytes": 2978,
    "mode": "100644",
    "path": ".github/workflows/\u56fa\u5b9a\u5165\u53e3\u6e90\u7801\u9a8c\u8bc1v1.yml",
-   "sha256": "2998e5e742a291f5cbb6f8027b36da28793248c899c97f8036c97ad9679edbc7"
+   "sha256": "0894244102128cb738e0b4989874071d4094999692e02d23c06d3d0d2d3bfd62"
   },
   {
    "blob": "eac44ab62501d7656dab09163af557282267c15a",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "03d9577b60a1d23823fec1021c02ae52b164aae6",
-   "bytes": 446419,
+   "blob": "a60dc5a6160aa3645807c202afaa414c62eb6af4",
+   "bytes": 446423,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "4ea8ebbf4399ac6bed1de66925d493f2677f97c80aee3afcfd453eb623eadf78"
+   "sha256": "31aabfe447d214e463341231e0229c169ce1989386143a23162d63a7f8da0909"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
