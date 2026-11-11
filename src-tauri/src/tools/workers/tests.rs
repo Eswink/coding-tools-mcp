@@ -3024,7 +3024,8 @@ fn c12b_cleanup_skips_remove_while_job_probe_busy_or_errs() {
 // sleep or blocking poll inside a helper they call is not detected here.
 #[test]
 fn c12b_cleanup_probe_is_registry_only_and_precedes_remove() {
-    let src = include_str!("../workers.rs");
+    // Normalize CRLF checkouts so the body delimiters still match.
+    let src = include_str!("../workers.rs").replace("\r\n", "\n");
     let start = src.find("fn cleanup(").expect("cleanup");
     let body = &src[start..start + src[start..].find("\n    }\n}").expect("end")];
     let probe = body.find("job_probe_empty(").expect("probe in cleanup");

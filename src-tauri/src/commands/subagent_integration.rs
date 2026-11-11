@@ -494,7 +494,8 @@ mod list_workers_tests {
     /// its body must stay a pure store/memory read (no diff, no git).
     #[test]
     fn status_with_changed_body_does_not_compute_diff_or_spawn_git() {
-        let src = include_str!("../tools/workers.rs");
+        // Normalize CRLF checkouts so the body delimiters still match.
+        let src = include_str!("../tools/workers.rs").replace("\r\n", "\n");
         let start = src
             .find("pub(crate) fn status_with_changed(")
             .expect("status_with_changed present in workers.rs");
