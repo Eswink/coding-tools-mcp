@@ -79,7 +79,7 @@ jobs:
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests -- --list | tee evidence/git-list.txt
           grep -q 'git_diff_does_not_execute_repository_external_diff' evidence/git-list.txt
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests 2>&1 | tee evidence/git-boundary.txt
-          grep -q '6 passed; 0 failed; 0 ignored' evidence/git-boundary.txt
+          grep -q '12 passed; 0 failed; 0 ignored' evidence/git-boundary.txt
       - name: Complete shared runtime, kernel and dispatcher regression
         id: runtime
         if: success() || failure()
