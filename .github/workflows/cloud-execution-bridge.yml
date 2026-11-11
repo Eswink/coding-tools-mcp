@@ -220,7 +220,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
           # The sandbox grants system runtime reads, not /opt hosted caches.
           echo /usr/bin >> "$GITHUB_PATH"
       - uses: Swatinem/rust-cache@v2
@@ -234,7 +234,19 @@ jobs:
           git rev-parse HEAD > evidence/source-commit.txt
           git rev-parse 'HEAD^{tree}' > evidence/source-tree.txt
           cargo check --locked --manifest-path src-tauri/Cargo.toml --all-targets 2>&1 | tee evidence/desktop-check.txt
-          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+            '
+          else
+            cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop-full.txt
+          fi
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::native_drain::tests 2>&1 | tee evidence/native-drain.txt
           cargo rustc --locked --manifest-path src-tauri/Cargo.toml --lib -- -D warnings 2>&1 | tee evidence/desktop-production.txt
           git diff --exit-code HEAD --
