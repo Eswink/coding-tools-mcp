@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "S256 S2/S3/S5/S6 CI workflow tip — LOCAL ONLY not pushed",
+  "review_reference": "C39 #217 ledger reclaim tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4838,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d1ce4828c1599b06a3ec57b891b4ae8da57c05e5",
-        "sha256": "f48abbe90f92568704581e638f54d00f82bbddb5deffc07f24459e92d1912426"
+        "blob_sha": "60efd0efd1292a6b36e10c05be57601f78e6b860",
+        "sha256": "b8bf0e80de276888b98bd5083e5395c56a90203336830ed87b948af7304e284e"
       }
     },
     {
@@ -10758,8 +10758,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "73d446229ff2971a4a4f333a05ed732b01d7e30e",
-        "sha256": "072f335a0cda7fa661f38484a3a4b800a0b3be7465087882ddac49af232b6fae"
+        "blob_sha": "028f386ff51ebae40e78221d445004943b71030d",
+        "sha256": "0b0d63b6251fc420e0687e7423b0cfcd945bcda92a5847c6e0905a8c1d745ede"
       }
     },
     {
@@ -10768,8 +10768,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a6cf7dfe2122ae1476af3120a23dc50aa76251b4",
-        "sha256": "45828df8d0d0de18230045da1473c94e6c02c59c0c36622ff9ff6916592d71e2"
+        "blob_sha": "ede94a5cba8ff6663359a9ec65abd16f3c883de0",
+        "sha256": "d2d884f454acaac032fdea1633d6c10450549df022799cd2d1a50482eebc3234"
       }
     },
     {
