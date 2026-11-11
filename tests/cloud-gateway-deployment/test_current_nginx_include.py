@@ -32,6 +32,7 @@ PINS = {
     'services/cloud-gateway/src/mcp/protocol.rs': '2a2e2d01d4fc50e505ab2c17050f1085f381fafd0cff8f10bed2d8ffd59a374c',
 }
 
+_POSIX_ONLY = unittest.skipUnless(os.name == 'posix', 'Linux-only deploy-script contract (POSIX APIs or LF-only source bytes); skipped on Windows')
 
 class CurrentIncludeTests(unittest.TestCase):
     def setUp(self):
@@ -121,6 +122,7 @@ class CurrentIncludeTests(unittest.TestCase):
         for line in lines:
             self.assertEqual(value.count(line), 4, line)
 
+    @_POSIX_ONLY
     def test_reviewed_source_pins_are_exact_and_returned_copy(self):
         self.assertEqual(current.SOURCE_HASHES, PINS)
         self.assertEqual(current.source_contract(), PINS)
@@ -128,6 +130,7 @@ class CurrentIncludeTests(unittest.TestCase):
         result.clear()
         self.assertEqual(current.source_contract(), PINS)
 
+    @_POSIX_ONLY
     def test_byte_drift_and_missing_source_fail_for_every_pin(self):
         root = self.copied_source()
         for relative in PINS:
@@ -143,6 +146,7 @@ class CurrentIncludeTests(unittest.TestCase):
                         current.source_contract(root)
                     path.write_bytes(original)
 
+    @_POSIX_ONLY
     def test_source_symlink_directory_fifo_empty_and_oversize_fail(self):
         root = self.copied_source()
         relative = next(iter(PINS))
@@ -164,6 +168,7 @@ class CurrentIncludeTests(unittest.TestCase):
                 path.rmdir() if kind == 'directory' else path.unlink()
                 path.write_bytes(original)
 
+    @_POSIX_ONLY
     def test_each_exact_shape_count_guard_rejects_zero_or_duplicate(self):
         root = self.copied_source()
         fragments = [
@@ -187,6 +192,7 @@ class CurrentIncludeTests(unittest.TestCase):
                             current.source_contract(root)
                     path.write_text(original)
 
+    @_POSIX_ONLY
     def test_render_private_three_file_manifest_and_false_acceptance_flags(self):
         old_umask = os.umask(0)
         try:
@@ -209,6 +215,7 @@ class CurrentIncludeTests(unittest.TestCase):
             self.assertIs(result[key], False)
         self.assertIn('unsupported', (self.output / 'REVIEW_ONLY.txt').read_text())
 
+    @_POSIX_ONLY
     def test_existing_output_directory_file_and_symlinks_never_overwritten(self):
         target = self.root / 'sentinel'
         target.write_text('keep')
@@ -227,6 +234,7 @@ class CurrentIncludeTests(unittest.TestCase):
                     self.assertEqual(self.output.read_text(), 'keep')
                 self.output.rmdir() if kind == 'directory' else self.output.unlink()
 
+    @_POSIX_ONLY
     def test_file_creation_is_exclusive_even_after_directory_creation(self):
         real_open = os.open
         sentinel = self.root / 'sentinel'
@@ -249,6 +257,7 @@ class CurrentIncludeTests(unittest.TestCase):
             current.render(self.output, DOMAIN, CONNECTOR, 443)
         self.assertFalse(self.output.exists())
 
+    @_POSIX_ONLY
     def test_partial_output_failure_is_retained_and_never_retried_as_success(self):
         real_open = os.open
         def fail_manifest(path, flags, mode=0o777):
@@ -263,6 +272,7 @@ class CurrentIncludeTests(unittest.TestCase):
             current.render(self.output, DOMAIN, CONNECTOR, PORT)
         self.assertEqual((self.output / current.INCLUDE).read_bytes(), before)
 
+    @_POSIX_ONLY
     def test_offline_render_invokes_no_process_or_network(self):
         with patch.object(subprocess, 'run') as run, patch.object(subprocess, 'Popen') as popen, \
              patch.object(socket, 'socket') as connection:
@@ -271,6 +281,7 @@ class CurrentIncludeTests(unittest.TestCase):
         popen.assert_not_called()
         connection.assert_not_called()
 
+    @_POSIX_ONLY
     def test_historical_renderer_and_runtime_sources_stay_byte_unchanged(self):
         pins = {'deploy/cloud-gateway/render.py': 'acea9a34118a2ed8a68e5176f64be286aadbc4f018daa4c4fc3bb6b07288b199',
                 # G3 re-pin: rate_limits/trusted_real_ip stages appended; helpers shared with the include runners unchanged.
@@ -278,6 +289,7 @@ class CurrentIncludeTests(unittest.TestCase):
         for relative, expected in pins.items():
             self.assertEqual(hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(), expected, relative)
 
+    @_POSIX_ONLY
     def test_cli_explicit_output_success_and_repeat_refusal(self):
         command = [sys.executable, str(SCRIPT), '--domain', DOMAIN, '--connector-id', CONNECTOR, '--output', str(self.output)]
         result = subprocess.run(command, capture_output=True, text=True, timeout=10)
@@ -288,6 +300,7 @@ class CurrentIncludeTests(unittest.TestCase):
         self.assertNotEqual(repeat.returncode, 0)
         self.assertEqual({p.name: p.read_bytes() for p in self.output.iterdir()}, before)
 
+    @_POSIX_ONLY
     def test_cli_drift_is_sanitized_and_writes_nothing(self):
         root = self.copied_source()
         script = root / 'deploy/cloud-gateway/current_nginx_include.py'
@@ -313,6 +326,7 @@ class CurrentIncludeTests(unittest.TestCase):
             with self.subTest(port=port), self.assertRaises(RuntimeError):
                 checks.private_config(self.root, port, PORT)
 
+    @_POSIX_ONLY
     def test_private_config_includes_emitted_file_and_existing_site_sentinels(self):
         value = checks.private_config(self.root, 18080, PORT, self.output / current.INCLUDE)
         self.assertIn(f'include {self.output / current.INCLUDE};', value)

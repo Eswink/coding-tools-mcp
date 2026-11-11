@@ -194,13 +194,17 @@ fn an_unreachable_legacy_head_is_skipped_and_other_worktrees_are_unaffected() {
     );
     assert!(orphan_path.join("README.md").is_file() && f.registration(&orphan).is_dir());
     assert_eq!(
-        fs::read_to_string(orphan_path.join("README.md")).unwrap(),
+        fs::read_to_string(orphan_path.join("README.md"))
+            .unwrap()
+            .replace("\r\n", "\n"),
         "second\n"
     );
     assert!(!kept_path.exists() && !f.registration(&kept).exists());
     assert_eq!(f.main.list().unwrap(), vec![main_tree]);
     assert_eq!(
-        fs::read_to_string(f.repo.path().join("README.md")).unwrap(),
+        fs::read_to_string(f.repo.path().join("README.md"))
+            .unwrap()
+            .replace("\r\n", "\n"),
         "baseline\n"
     );
     // An annotated tag (peeled), then packed into packed-refs, makes it reachable.
