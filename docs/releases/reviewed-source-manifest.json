@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "S14 S1/S4 CI test-env tip — LOCAL ONLY not pushed",
+  "review_reference": "S256 S2/S3/S5/S6 CI workflow tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -44,8 +44,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "2ea506e8a3ee0c34072a09b2d1c9e8bb782b39a3",
-        "sha256": "e8a0de0a9641f9aa0c79c0e0356bb9a6f02a6c642d2228a3be4da1081c78b8f3"
+        "blob_sha": "81dab54315c887cffb6c4b7b6726a8e489467a6f",
+        "sha256": "a33e401a0a15f183ec01fde50703b6cb2b36dd0a632a013222c6824d8f28dfc0"
       }
     },
     {
@@ -84,8 +84,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6ab9fd8fd5ec66a7429aed5c629dde2eca711694",
-        "sha256": "1a323bef70e79b0046c14c51259e277e5bc91d0168ebafd14b0814d07c630724"
+        "blob_sha": "20bf6541cc7e18a49462d77de716486c50d9cbcb",
+        "sha256": "27d6eb90119f2dfb193e0c74b03643ca0dbe9c884a72f832e8e8fd5d36dc7c1b"
       }
     },
     {
@@ -184,8 +184,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "491152152e7611ea9f39f98e05c68e24d27a0f04",
-        "sha256": "eba201b70f0664b5e2a14bfe02cb6ac4e4e25fffbe9f99a33d601b0764990be9"
+        "blob_sha": "f61f5a1f9e7c6f2ea0de0bf60aed9c1c5fe2204f",
+        "sha256": "e3c894338cfb45fcc7be5a551727cf03727445b19b3793db26f8f59c43f9aaa2"
       }
     },
     {
@@ -342,8 +342,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "c298f12a2eb11fa74865e9657f2ede033c7b3c11",
-        "sha256": "c2c73d6f5b19bda88b5fa3f8005e9125bd50f92787483274224484666138b95f"
+        "blob_sha": "0b24e948719bd4f29f63389811ed2396eedb5019",
+        "sha256": "ab0d4646553293dbf62f99f5cc6e298f74a48a6530d80667f535158352e99955"
       }
     },
     {
@@ -499,6 +499,20 @@
       }
     },
     {
+      "path": ".github/workflows/发布候选验证v4.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "19174386c9c3bff0b8378f6e5feb83a6b5b99a6a",
+        "sha256": "1086df328167c45fc77f59df28cf4e8cf48db4d85c857cc14f5b1b97ea7b3331"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "69778bf0b57524aacf39716e092060b3d6c06bf3",
+        "sha256": "675f10af5719b9126b254e4c53e66208af5a83cd87213a6026ecfb955a82efe1"
+      }
+    },
+    {
       "path": ".github/workflows/发布来源验证v4.yml",
       "status": "M",
       "before": {
@@ -510,6 +524,20 @@
         "mode": "100644",
         "blob_sha": "2092b9aada641b7059d5f8b6e3bb156f6cfb1c15",
         "sha256": "8de0451b877c6cfdf01dd72b072d3dfb43623003a7c9d04687dff82ee026de2a"
+      }
+    },
+    {
+      "path": ".github/workflows/固定入口源码验证v1.yml",
+      "status": "M",
+      "before": {
+        "mode": "100644",
+        "blob_sha": "6241d428b56dcb9fba99ab5defd2dacca5e3a6ee",
+        "sha256": "2998e5e742a291f5cbb6f8027b36da28793248c899c97f8036c97ad9679edbc7"
+      },
+      "after": {
+        "mode": "100644",
+        "blob_sha": "d1655fc4ef6e0118b57e078509b520c0dfbf0b32",
+        "sha256": "0894244102128cb738e0b4989874071d4094999692e02d23c06d3d0d2d3bfd62"
       }
     },
     {
@@ -4810,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f61c8d3c78f863e346399f0fbb8b3ef4fb8b3c55",
-        "sha256": "40d34e301739c5d0a14cf1d509ed65d6b3d1edee6f9d9a23f0e51c659d01c827"
+        "blob_sha": "d1ce4828c1599b06a3ec57b891b4ae8da57c05e5",
+        "sha256": "f48abbe90f92568704581e638f54d00f82bbddb5deffc07f24459e92d1912426"
       }
     },
     {
