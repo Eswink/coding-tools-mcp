@@ -38,7 +38,7 @@ jobs:
           out="$RUNNER_TEMP/固定入口测试"
           mkdir -p "$out"
           printf '{"type":"commonjs"}\n' > "$out/package.json"
-          ./node_modules/.bin/tsc src/lib/固定入口.ts src/lib/types.ts --strict --target ES2020 --module commonjs --outDir "$out"
+          ./node_modules/.bin/tsc --ignoreConfig src/lib/固定入口.ts src/lib/types.ts --strict --target ES2020 --module commonjs --outDir "$out"
           ENTRY_TEST_BUILD="$out" node --test tests/固定入口v1.test.cjs
 
   rust:
