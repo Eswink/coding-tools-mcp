@@ -364,3 +364,56 @@ fn a_clean_entry_with_a_replaced_root_identity_is_reclaimed_when_not_live() {
     assert!(admitted.register().is_ok());
     assert!(namespace.join("auth.json").is_file());
 }
+
+fn plant_kept_clean_ledger_entry(parent: &Path) -> tempfile::TempDir {
+    // Plant a well-formed Clean leftover into an isolated ledger parent, not
+    // the process-shared test host store. The workspace root is kept alive so
+    // the entry is not reclaimable and counts toward the remaining cap.
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let root = workspace.canonicalize().unwrap();
+    let identity = RootIdentity::open(&root).unwrap();
+    let binding = format!("{:x}", Sha256::digest(root.to_string_lossy().as_bytes()));
+    let namespace = parent.join(&binding);
+    let mut disk = crate::data::AuthDocument::open(&namespace).unwrap();
+    disk.save(&Document {
+        version: 1,
+        binding,
+        root,
+        identity: identity.key,
+        ancestors: identity.ancestors.clone(),
+        epoch: 1,
+        phase: Phase::Clean,
+        managed_reads: false,
+    })
+    .unwrap();
+    drop(disk);
+    temp
+}
+
+#[test]
+fn remaining_cap_allows_512_kept_entries_and_fail_closes_on_the_513th() {
+    let parent = tempfile::tempdir().unwrap();
+    let mut kept_roots = Vec::with_capacity(513);
+    for _ in 0..512 {
+        kept_roots.push(plant_kept_clean_ledger_entry(parent.path()));
+    }
+    let fresh = tempfile::tempdir().unwrap();
+    let workspace = fresh.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let root = workspace.canonicalize().unwrap();
+    let anchor = RootIdentity::open(&root).unwrap();
+    let registry = HashMap::new();
+    assert!(
+        persisted_conflict(parent.path(), &root, &anchor, &registry).is_ok(),
+        "512 remaining non-reclaimable entries must still admit a new root"
+    );
+
+    kept_roots.push(plant_kept_clean_ledger_entry(parent.path()));
+    assert!(
+        persisted_conflict(parent.path(), &root, &anchor, &registry).is_err(),
+        "the 513th remaining entry must fail-close"
+    );
+    assert_eq!(kept_roots.len(), 513);
+}

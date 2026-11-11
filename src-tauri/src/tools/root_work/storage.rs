@@ -90,7 +90,11 @@ pub(super) fn persisted_conflict(
     let reader = crate::data::AuthDocumentReader::default();
     // Collect first so reclaim can unlink entries without perturbing the walk.
     // The 512 cap applies to entries that remain after eligible Clean leftovers
-    // are reclaimed, not to the raw pre-reclaim directory count.
+    // are reclaimed, not to the raw pre-reclaim directory count. After each
+    // increment, reject with remaining > 512 so 512 remaining entries are
+    // still admitted and the 513th fail-closes (same as the historical
+    // 0-based `index >= 512` check). Comparing with greater-or-equal after
+    // the increment was an off-by-one that only allowed 511.
     let entries = std::fs::read_dir(parent)
         .map_err(|_| RootWorkError)?
         .collect::<Result<Vec<_>, _>>()
@@ -103,7 +107,7 @@ pub(super) fn persisted_conflict(
         }
         if known.contains(&name) {
             remaining = remaining.checked_add(1).ok_or(RootWorkError)?;
-            if remaining >= 512 {
+            if remaining > 512 {
                 return Err(RootWorkError);
             }
             continue;
@@ -149,7 +153,7 @@ pub(super) fn persisted_conflict(
             return Err(RootWorkError);
         }
         remaining = remaining.checked_add(1).ok_or(RootWorkError)?;
-        if remaining >= 512 {
+        if remaining > 512 {
             return Err(RootWorkError);
         }
     }
