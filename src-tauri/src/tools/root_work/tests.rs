@@ -258,3 +258,109 @@ fn uncertain_fixture_identity_survives_cleanup_without_blocking_unrelated_roots(
         assert!(RootWorkTracker::for_workspace(&path).is_err());
     }
 }
+
+fn native_namespace(root: &Path) -> PathBuf {
+    // The native store itself may not exist yet; its process tempdir does.
+    let native = crate::harness::Harness::default_root().unwrap();
+    let store = native
+        .parent()
+        .unwrap()
+        .canonicalize()
+        .unwrap()
+        .join(native.file_name().unwrap());
+    let root = root.canonicalize().unwrap();
+    store.join("native-root-work-v1").join(format!(
+        "{:x}",
+        Sha256::digest(root.to_string_lossy().as_bytes())
+    ))
+}
+
+#[test]
+fn clean_deleted_roots_are_reclaimed_and_a_new_root_is_still_admitted_after_513() {
+    let mut leftovers = Vec::with_capacity(513);
+    for _ in 0..513 {
+        let temp = tempfile::tempdir().unwrap();
+        let workspace = temp.path().join("workspace");
+        std::fs::create_dir(&workspace).unwrap();
+        let tracker = RootWorkTracker::for_workspace(&workspace)
+            .expect("planting a Clean leftover must succeed");
+        let namespace = native_namespace(&workspace);
+        assert!(
+            namespace.join("auth.json").is_file(),
+            "planted leftover must have a durable Clean document"
+        );
+        drop(tracker);
+        leftovers.push(namespace);
+        drop(temp);
+    }
+    assert_eq!(leftovers.len(), 513);
+
+    let fresh = tempfile::tempdir().unwrap();
+    let workspace = fresh.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let tracker = RootWorkTracker::for_workspace(&workspace)
+        .expect("a new root must still be admitted after 513 deleted Clean leftovers");
+    assert!(
+        tracker.register().is_ok(),
+        "the new root must be usable, not NATIVE_ROOT_UNAVAILABLE"
+    );
+    for namespace in &leftovers {
+        assert!(
+            std::fs::symlink_metadata(namespace).is_err(),
+            "deleted Clean leftovers must be reclaimed"
+        );
+    }
+}
+
+#[test]
+fn a_non_clean_entry_whose_root_was_deleted_is_not_reclaimed() {
+    let busy = tempfile::tempdir().unwrap();
+    let busy_workspace = busy.path().join("workspace");
+    std::fs::create_dir(&busy_workspace).unwrap();
+    let tracker = RootWorkTracker::for_workspace(&busy_workspace).unwrap();
+    let namespace = native_namespace(&busy_workspace);
+    let mut work = tracker.register().unwrap();
+    work.begin().unwrap();
+    drop(work);
+    drop(tracker);
+    assert!(namespace.join("auth.json").is_file());
+
+    // Create the new root while the Busy workspace still exists so the new
+    // directory cannot inherit the retired inode and trip the physical fence.
+    let fresh = tempfile::tempdir().unwrap();
+    let workspace = fresh.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let fresh_root = workspace.canonicalize().unwrap();
+    drop(busy);
+
+    let admitted = RootWorkTracker::for_workspace(&fresh_root)
+        .expect("an unrelated new root must still be admitted");
+    assert!(admitted.register().is_ok());
+    assert!(
+        namespace.join("auth.json").is_file(),
+        "a non-Clean leftover must remain in the ledger after its root is deleted"
+    );
+}
+
+#[test]
+fn a_clean_entry_with_a_replaced_root_identity_is_reclaimed_when_not_live() {
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let path = workspace.canonicalize().unwrap();
+    let tracker = RootWorkTracker::for_workspace(&path).unwrap();
+    let namespace = native_namespace(&path);
+    let original = RootIdentity::open(&path).unwrap().key;
+    drop(tracker);
+    assert!(namespace.join("auth.json").is_file());
+
+    std::fs::rename(&path, temp.path().join("retained-original")).unwrap();
+    std::fs::create_dir(&path).unwrap();
+    let replacement = RootIdentity::open(&path).unwrap().key;
+    assert_ne!(original, replacement);
+
+    let admitted = RootWorkTracker::for_workspace(&path)
+        .expect("a Clean leftover whose identity no longer matches must be reclaimed");
+    assert!(admitted.register().is_ok());
+    assert!(namespace.join("auth.json").is_file());
+}
