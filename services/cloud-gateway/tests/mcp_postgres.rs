@@ -10,7 +10,7 @@ use axum::{
 use coding_tools_cloud_gateway::{
     mcp::{routes, routes_with_observability, MODERN},
     observability::GatewayObservability,
-    projection::ProjectionDecision,
+    projection::{LocalLease, ProjectionDecision, WorkerClaim},
 };
 use common::identity;
 use http_body_util::BodyExt;
@@ -33,6 +33,138 @@ fn message(id: i64, method: &str, session: Option<&str>, extra: Value) -> Value 
     let mut params = extra.as_object().cloned().unwrap_or_default();
     params.insert("_meta".into(), meta(session));
     json!({"jsonrpc":"2.0","id":id,"method":method,"params":params})
+}
+/// A1 C8-0: the complete tools/list name set, sorted, written out on purpose. The old
+/// check was the literal length 49, which went stale when C2b (eac57872) added the
+/// seven `subagent_*` tools; a set check fails both on a dropped and on an added tool.
+const EXPECTED_TOOL_NAMES: [&str; 56] = [
+    "apply_patch",
+    "auth_status",
+    "cancel_exec_task",
+    "change_summary",
+    "check_exec_environment",
+    "exec_command",
+    "exec_health_check",
+    "finish_task",
+    "get_default_cwd",
+    "get_exec_task",
+    "git_blame",
+    "git_diff",
+    "git_log",
+    "git_show",
+    "git_status",
+    "grep",
+    "grep_text",
+    "harness_status",
+    "history_session_bootstrap",
+    "history_session_checkpoint",
+    "history_session_read",
+    "history_session_search",
+    "history_session_validate",
+    "kill_session",
+    "list_dir",
+    "list_exec_tasks",
+    "list_files",
+    "list_task_events",
+    "operation_log",
+    "patch_check",
+    "pause_task",
+    "project_state",
+    "read_file",
+    "read_output",
+    "request_chat_authorization",
+    "resume_task",
+    "search_text",
+    "server_info",
+    "set_default_cwd",
+    "start_exec_task",
+    "start_task",
+    "subagent_cancel",
+    "subagent_collect",
+    "subagent_discard",
+    "subagent_integrate",
+    "subagent_rollback",
+    "subagent_spawn",
+    "subagent_status",
+    "task_context",
+    "update_task",
+    "view_image",
+    "workspace_probe",
+    "worktree_create",
+    "worktree_list",
+    "worktree_remove",
+    "write_stdin",
+];
+fn assert_tools_list_is_full_catalog(tools: &Value) {
+    let mut names: Vec<&str> = tools
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["name"].as_str().unwrap())
+        .collect();
+    names.sort_unstable();
+    assert_eq!(names, EXPECTED_TOOL_NAMES);
+}
+/// A1 C8-0: a schema-valid value for a required argument, so a foreign call reaches
+/// the scope check instead of stopping at argument validation. A1 C9-1 (C8 nit 5):
+/// anything this cannot satisfy (a non-string type, an unknown keyword or pattern,
+/// a length bound) panics with the field name instead of returning a placeholder.
+fn valid_fixture(field: &str, property: &Value) -> Value {
+    let kind = &property["type"];
+    if kind != "string" {
+        panic!("no fixture for required argument `{field}` of type {kind}");
+    }
+    for keyword in property.as_object().into_iter().flat_map(|o| o.keys()) {
+        if !["type", "description", "minLength", "maxLength", "pattern"].contains(&keyword.as_str())
+        {
+            panic!("no fixture for required argument `{field}` with keyword {keyword}");
+        }
+    }
+    let value = match property["pattern"].as_str() {
+        None => "placeholder".to_owned(),
+        Some(pattern) => {
+            let width = pattern
+                .strip_prefix("^[0-9a-f]{")
+                .and_then(|rest| rest.strip_suffix("}$"))
+                .and_then(|n| n.parse::<usize>().ok())
+                .unwrap_or_else(|| panic!("no fixture for `{field}` with pattern {pattern}"));
+            "a".repeat(width)
+        }
+    };
+    let length = value.chars().count() as u64;
+    let min = property["minLength"].as_u64().unwrap_or(0);
+    let max = property["maxLength"].as_u64().unwrap_or(u64::MAX);
+    if !(min..=max).contains(&length) {
+        panic!("no fixture for `{field}`: length {length} outside {min}..={max}");
+    }
+    json!(value)
+}
+#[test]
+fn c9_valid_fixture_panics_with_the_field_name_on_an_unknown_type() {
+    for (field, property) in [
+        ("count", json!({"type":"integer"})),
+        ("paths", json!({"type":"array","items":{"type":"string"}})),
+        ("untyped", json!({})),
+    ] {
+        let schema = property.clone();
+        let outcome = std::panic::catch_unwind(move || valid_fixture(field, &schema));
+        let message = match &outcome {
+            Ok(value) => format!("returned {value}"),
+            Err(payload) => payload
+                .downcast_ref::<String>()
+                .cloned()
+                .unwrap_or_default(),
+        };
+        assert!(outcome.is_err(), "{field} {property}: {message}");
+        assert!(
+            message.contains(&format!("`{field}`")),
+            "{field}: {message}"
+        );
+    }
+    let hex = json!({"type":"string","pattern":"^[0-9a-f]{32}$"});
+    assert_eq!(valid_fixture("job_id", &hex), json!("a".repeat(32)));
+    let text = json!({"type":"string","minLength":1,"maxLength":4096});
+    assert_eq!(valid_fixture("path", &text), json!("placeholder"));
 }
 fn request(token: &str, body: &Value) -> Request<Body> {
     let mut b = Request::builder()
@@ -93,7 +225,7 @@ async fn discovery_and_catalog_are_stable_without_agent_presence() {
     c.disconnect(&session).await.unwrap();
     let after = json_body(app.oneshot(request(token, &list)).await.unwrap()).await;
     assert_eq!(before["result"]["tools"], after["result"]["tools"]);
-    assert_eq!(after["result"]["tools"].as_array().unwrap().len(), 49);
+    assert_tools_list_is_full_catalog(&after["result"]["tools"]);
 }
 
 #[tokio::test]
@@ -320,6 +452,69 @@ async fn online_call_enters_ledger_once_then_stops_before_local_side_effect() {
     );
 }
 
+/// A1 C8-1 (SPEC §3.3, business.rs worker checkpoint): a worker that is not in the
+/// conversation's projection is refused with WORKER_NOT_OWNED before any ledger row;
+/// a projected worker of the same conversation proceeds to the ledger like any call.
+#[tokio::test]
+async fn c8_worker_checkpoint_refuses_unowned_worker_before_ledger_and_admits_owned() {
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let app = routes(h.f.store.clone(), c.clone());
+    let session = channel_support::attach(&h, &c).await;
+    let owned = "b".repeat(32);
+    channel_support::project_workers(
+        &h,
+        &c,
+        &session,
+        1,
+        1,
+        LocalLease {
+            scopes: vec!["agents.manage".into(), "files.read".into()],
+            ..h.lease.clone()
+        },
+        vec![WorkerClaim {
+            id: owned.clone(),
+            conversation: h.lease.conversation.clone(),
+        }],
+    )
+    .await;
+    let ledger = || async {
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM ctm_request_ledger")
+            .fetch_one(&h.f.pool)
+            .await
+            .unwrap()
+    };
+    let call = |id: i64, worker: &str| {
+        message(
+            id,
+            "tools/call",
+            Some("host-session-A"),
+            json!({"name":"list_dir","arguments":{"worker_id":worker}}),
+        )
+    };
+    let refused = json_body(
+        app.clone()
+            .oneshot(request(token, &call(11, &"c".repeat(32))))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let data = &refused["result"]["structuredContent"];
+    assert_eq!(data["error"]["code"], "WORKER_NOT_OWNED", "{data}");
+    assert_eq!(data["error"]["retryable"], true, "{data}");
+    assert_eq!(ledger().await, 0);
+    let admitted = json_body(
+        app.oneshot(request(token, &call(12, &owned)))
+            .await
+            .unwrap(),
+    )
+    .await;
+    let data = &admitted["result"]["structuredContent"];
+    assert_eq!(data["error"]["code"], "EXECUTION_NOT_CONNECTED", "{data}");
+    assert_eq!(ledger().await, 1);
+}
+
 #[tokio::test]
 async fn legacy_initialize_list_and_tool_call_keep_same_auth_boundary() {
     let (h, c) = channel_support::setup().await;
@@ -340,7 +535,7 @@ async fn legacy_initialize_list_and_tool_call_keep_same_auth_boundary() {
         .insert("mcp-protocol-version", "2025-06-18".parse().unwrap());
     r.headers_mut().remove("mcp-method");
     let v = json_body(app.oneshot(r).await.unwrap()).await;
-    assert_eq!(v["result"]["tools"].as_array().unwrap().len(), 49);
+    assert_tools_list_is_full_catalog(&v["result"]["tools"]);
 }
 
 #[tokio::test]
@@ -431,6 +626,28 @@ async fn observability_separates_auth_permission_availability_and_ingress_withou
 }
 
 #[tokio::test]
+async fn c8_schema_invalid_call_reports_invalid_arguments_with_its_own_message() {
+    let (h, c) = channel_support::setup().await;
+    let pair = h.f.tokens(Uuid::from_u128(8)).await;
+    let token = pair.access_token.expose();
+    let app = routes(h.f.store.clone(), c.clone());
+    let body = message(
+        9500,
+        "tools/call",
+        Some("host-session-B"),
+        json!({"name":"subagent_integrate","arguments":{
+            "worker_id":"a".repeat(32),"diff_sha256":"not-a-sha","request_id":"r"}}),
+    );
+    let result = json_body(app.oneshot(request(token, &body)).await.unwrap()).await;
+    let data = &result["result"]["structuredContent"];
+    assert_eq!(data["error"]["code"], "INVALID_ARGUMENTS", "{data}");
+    assert_eq!(
+        data["error"]["message"], "Invalid tool arguments.",
+        "{data}"
+    );
+}
+
+#[tokio::test]
 async fn full_catalog_foreign_calls_never_disclose_offline_workspace_or_enter_ledger() {
     let (h, c) = channel_support::setup().await;
     let pair = h.f.tokens(Uuid::from_u128(8)).await;
@@ -446,11 +663,7 @@ async fn full_catalog_foreign_calls_never_disclose_offline_workspace_or_enter_le
         let mut arguments = json!({});
         if let Some(required) = spec.schema["required"].as_array() {
             for key in required.iter().filter_map(Value::as_str) {
-                arguments[key] = if spec.schema["properties"][key]["pattern"] == "^[0-9a-f]{32}$" {
-                    json!("a".repeat(32))
-                } else {
-                    json!("placeholder")
-                };
+                arguments[key] = valid_fixture(key, &spec.schema["properties"][key]);
             }
         }
         let body = message(

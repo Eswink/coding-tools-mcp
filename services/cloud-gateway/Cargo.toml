@@ -1,6 +1,6 @@
 [package]
 name = "coding-tools-cloud-gateway"
-version = "0.7.0"
+version = "0.8.0-rc.1"
 edition = "2021"
 [workspace]
 [dependencies]
@@ -42,3 +42,10 @@ path = "src/control_main.rs"
 [[bin]]
 name = "coding-tools-mcp-gateway"
 path = "src/mcp_main.rs"
+
+# C21 B1: path-patch sqlx / sqlx-macros-core so unused optional mysql/sqlite drivers
+# are not declared → regenerating Cargo.lock omits rsa / sqlx-mysql / sqlx-sqlite.
+# Provenance: patches/sqlx-0.8.6/ + patches/sqlx-macros-core-0.8.6/ (Cargo.toml-only edit; upstream src via binary archive + build.rs).
+[patch.crates-io]
+sqlx = { path = "../../patches/sqlx-0.8.6/crate" }
+sqlx-macros-core = { path = "../../patches/sqlx-macros-core-0.8.6/crate" }

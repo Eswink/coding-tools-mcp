@@ -67,6 +67,41 @@ pub(crate) fn annotate(ctx: &ToolContext, result: &mut Value, child_started: boo
     } else {
         "policy_only"
     });
+    if required {
+        worker_resources(ctx, result);
+    }
+}
+
+/// A1 C4-b (SPEC-A1 v5.3 §4.2): how a worker child's resources are limited:
+/// `resource_limit` (`cgroup_v2` | `rlimit_fallback`), `cgroup_error`,
+/// `cgroup_partial` when only some controllers were delegated, and (A1 C4-c D)
+/// `procs_limit` (`cgroup_pids_max` | `none`). A child that failed to join
+/// turns the report into `rlimit_fallback` with its errno (C4-c F). A1 C7:
+/// `group_cleanup` (`holder_killpg` | `cgroup_kill_on_cancel` | `skipped_unsafe`).
+pub(super) fn worker_resources(ctx: &ToolContext, result: &mut Value) {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    if ctx.worker.is_some() {
+        let sandbox = ctx.linux_sandbox.as_ref().as_ref().ok();
+        if let Some((sandbox, report)) =
+            sandbox.and_then(|sandbox| Some((sandbox, sandbox.resource_report()?)))
+        {
+            // A1 C7 (nit4): how the child's group is cleaned. Legacy tty=true
+            // is a bounded pipe session (process_group + holder), never a PTY,
+            // so every src-tauri worker child is a piped leader.
+            result["group_cleanup"] = json!(sandbox.group_cleanup(false));
+            result["resource_limit"] = json!(report.resource_limit);
+            // A1 C4-c D: `none` in the fallback (no RLIMIT_NPROC substitute).
+            result["procs_limit"] = json!(report.procs_limit);
+            if let Some(error) = report.cgroup_error {
+                result["cgroup_error"] = json!(error);
+            }
+            if !report.cgroup_partial.is_empty() {
+                result["cgroup_partial"] = json!(report.cgroup_partial);
+            }
+        }
+    }
+    #[cfg(not(all(target_os = "linux", target_arch = "x86_64")))]
+    let _ = (ctx, result);
 }
 
 pub(crate) fn environment(ctx: &ToolContext, result: Value) -> Value {
@@ -133,6 +168,7 @@ fn environment_for(linux: bool, windows: bool, ctx: &ToolContext, mut result: Va
             "Network and writes outside the approved workspace are denied.",
             "Legacy tty=true is a bounded pipe session, not a native PTY."
         ]);
+        worker_resources(ctx, &mut result);
     }
     result
 }

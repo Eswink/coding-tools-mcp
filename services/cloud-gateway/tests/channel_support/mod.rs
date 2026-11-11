@@ -50,13 +50,27 @@ pub async fn project(
     seq: i64,
     revision: i64,
 ) -> ProjectionClaims {
+    project_workers(h, c, s, seq, revision, h.lease.clone(), vec![]).await
+}
+/// A1 C8-1: like `project`, with an explicit grant; a non-empty worker list is sent as
+/// a version 2 projection signed under the v2 domain (an empty list stays version 1).
+pub async fn project_workers(
+    h: &Harness,
+    c: &ChannelController,
+    s: &ChannelSession,
+    seq: i64,
+    revision: i64,
+    grant: LocalLease,
+    workers: Vec<WorkerClaim>,
+) -> ProjectionClaims {
     let response = c
         .control(s, ControlMessage::ProjectionChallenge { seq })
         .await
         .unwrap();
     let at = clock(&h.f).await;
+    let version = if workers.is_empty() { 1 } else { 2 };
     let value = ProjectionClaims {
-        version: 1,
+        version,
         issuer: identity().issuer(),
         resource: identity().resource(),
         connector: identity().connector(),
@@ -70,10 +84,17 @@ pub async fn project(
         valid_until: response["snapshot_valid_until"].as_i64().unwrap(),
         phase: ProjectionPhase::Active,
         execution: ExecutionState::Online,
-        grant: Some(h.lease.clone()),
+        grant: Some(grant),
         drained_grant: None,
+        workers,
     };
-    let (p, sig) = h.signed(&value);
+    let (p, sig) = if version == 1 {
+        h.signed(&value)
+    } else {
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let sig = h.key.sign(&projection_message_v2(&bytes).unwrap());
+        (bytes, sig.as_ref().to_vec())
+    };
     c.control(
         s,
         ControlMessage::Projection {

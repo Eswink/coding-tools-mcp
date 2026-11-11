@@ -125,6 +125,94 @@ impl ExecTaskStore {
             .any(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
     }
 
+    /// A1 C3: an exec task tagged with this worker still holds capacity.
+    pub(crate) fn has_unfinished_worker_work(&self, worker_id: &str) -> bool {
+        let Ok(mut inner) = self.inner.lock() else {
+            return true;
+        };
+        if self.initialize(&mut inner).is_err() {
+            return true;
+        }
+        inner
+            .jobs
+            .values()
+            .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+            .any(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
+    }
+
+    /// A1 C2-a (SPEC-A1 v5 §5.2): tagged tasks of this worker that still hold
+    /// capacity. An unreadable store counts as one (fail closed).
+    pub(crate) fn unfinished_worker_count(&self, worker_id: &str) -> usize {
+        let Ok(mut inner) = self.inner.lock() else {
+            return 1;
+        };
+        if self.initialize(&mut inner).is_err() {
+            return 1;
+        }
+        inner
+            .jobs
+            .values()
+            .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+            .filter(|job| job.data.lock().map(|d| d.holds_capacity()).unwrap_or(true))
+            .count()
+    }
+
+    /// A1 C2-a: the exec sessions that back this worker's tasks, so a task and
+    /// the session it runs in count (and report) as one unit of work.
+    pub(crate) fn worker_session_ids(&self, worker_id: &str) -> Vec<String> {
+        let Ok(inner) = self.inner.lock() else {
+            return Vec::new();
+        };
+        inner
+            .jobs
+            .values()
+            .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+            .filter_map(|job| {
+                let data = job.data.lock().ok()?;
+                data.session.as_ref().map(|s| s.session_id.clone())
+            })
+            .collect()
+    }
+
+    /// A1 C2-a (v5 §5.2 cancel): request cancellation of every non-terminal task
+    /// tagged with this worker, exactly like `cancel_exec_task`. Returns the count.
+    pub(crate) fn cancel_worker(&self, worker_id: &str) -> usize {
+        let jobs: Vec<Arc<Job>> = {
+            let Ok(mut inner) = self.inner.lock() else {
+                return 0;
+            };
+            if self.initialize(&mut inner).is_err() {
+                return 0;
+            }
+            inner
+                .jobs
+                .values()
+                .filter(|job| job.worker_id.as_deref() == Some(worker_id))
+                .cloned()
+                .collect()
+        };
+        let mut cancelled = 0;
+        for job in jobs {
+            let changed = {
+                let Ok(mut data) = job.data.lock() else {
+                    continue;
+                };
+                if data.status.terminal() {
+                    false
+                } else {
+                    data.cancel_requested = true;
+                    data.status = super::state::Status::Cancelling;
+                    true
+                }
+            };
+            if changed {
+                let _ = self.checkpoint(&job);
+                cancelled += 1;
+            }
+        }
+        cancelled
+    }
+
     pub(crate) fn persistent(&self) -> bool {
         self.root.is_some()
     }
@@ -215,11 +303,33 @@ impl ExecTaskStore {
         self.reserve_checked(request_id, fingerprint, timeout_ms, || Ok(()))
     }
 
+    // Kept with its signature for 异步命令回归v1.rs (pinned); production uses reserve_tagged.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn reserve_checked(
         &self,
         request_id: &str,
         fingerprint: &str,
         timeout_ms: u64,
+        validate_submission: impl FnOnce() -> Result<(), WorkspaceError>,
+    ) -> Result<(Arc<Job>, bool), WorkspaceError> {
+        self.reserve_tagged(
+            request_id,
+            fingerprint,
+            timeout_ms,
+            None,
+            validate_submission,
+        )
+    }
+
+    /// A1 C2b: `reserve_checked` that durably tags the job with the submitting
+    /// worker. A request_id owned by a different tag is an IDEMPOTENCY_CONFLICT,
+    /// never a cross-worker (or worker/main) deduplicated hit.
+    pub(super) fn reserve_tagged(
+        &self,
+        request_id: &str,
+        fingerprint: &str,
+        timeout_ms: u64,
+        worker_id: Option<&str>,
         validate_submission: impl FnOnce() -> Result<(), WorkspaceError>,
     ) -> Result<(Arc<Job>, bool), WorkspaceError> {
         #[cfg(test)]
@@ -228,7 +338,7 @@ impl ExecTaskStore {
         self.initialize(&mut inner)?;
         self.prune(&mut inner);
         if let Some(job) = inner.jobs.values().find(|job| job.request_id == request_id) {
-            if job.fingerprint != fingerprint {
+            if job.fingerprint != fingerprint || job.worker_id.as_deref() != worker_id {
                 return Err(error(
                     "IDEMPOTENCY_CONFLICT",
                     "request_id already belongs to different command parameters",
@@ -255,12 +365,14 @@ impl ExecTaskStore {
         // Existing keys above are read-only reconciliation. A NEW acceptance
         // must still be live after all mutex, archive and pruning waits.
         validate_submission()?;
-        let job = Arc::new(Job::new(
+        let mut job = Job::new(
             request_id.into(),
             fingerprint.into(),
             timeout_ms,
             self.persistent(),
-        ));
+        );
+        job.worker_id = worker_id.map(str::to_owned);
+        let job = Arc::new(job);
         if let Some(archive) = &inner.archive {
             archive
                 .save(&job.id, || record::snapshot(&job))
@@ -291,7 +403,18 @@ impl ExecTaskStore {
             "Task unknown or expired in this workspace/service; do not automatically re-execute", false))
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn list(&self, request_id: Option<&str>) -> Result<Vec<Value>, WorkspaceError> {
+        self.list_filtered(request_id, None)
+    }
+
+    /// A1 C2b/C3: `worker = Some(id)` lists only that worker's tagged jobs and
+    /// `None` (the main session) only untagged ones (v4 §2.3).
+    pub(super) fn list_filtered(
+        &self,
+        request_id: Option<&str>,
+        worker: Option<&str>,
+    ) -> Result<Vec<Value>, WorkspaceError> {
         let mut inner = self.inner.lock().expect("job store");
         self.initialize(&mut inner)?;
         self.prune(&mut inner);
@@ -299,6 +422,8 @@ impl ExecTaskStore {
             .jobs
             .values()
             .filter(|j| request_id.is_none_or(|r| j.request_id == r))
+            // A1 C3: main (None) lists only untagged jobs; a worker only its own.
+            .filter(|j| j.worker_id.as_deref() == worker)
             .cloned()
             .collect::<Vec<_>>();
         selected.sort_by(|a, b| b.created_at.cmp(&a.created_at).then(a.id.cmp(&b.id)));

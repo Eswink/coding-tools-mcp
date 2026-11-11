@@ -2,7 +2,10 @@ use super::{wire::SnapshotChallenge, AgentConfig, AgentError, Result};
 use crate::{
     channel::{connect_message, ConnectChallenge, ConnectClaims, SignedPayload, AUTH_SECONDS},
     crypto::valid_digest,
-    projection::{projection_message, ExecutionState, ProjectionClaims, ProjectionPhase},
+    projection::{
+        projection_message, projection_message_v2, ExecutionState, ProjectionClaims,
+        ProjectionPhase,
+    },
 };
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use ring::signature::{Ed25519KeyPair, KeyPair};
@@ -115,6 +118,7 @@ impl RecoverySigner {
             execution: ExecutionState::Offline,
             grant: None,
             drained_grant: None,
+            workers: Vec::new(),
         };
         let payload = serde_json::to_vec(&claims).map_err(|_| AgentError::Protocol)?;
         let msg = projection_message(&payload).map_err(|_| AgentError::Protocol)?;
@@ -167,8 +171,11 @@ impl RecoverySigner {
         )?;
         host.validate_at(at)?;
         let id = self.cfg.identity()?;
+        // A1 C7: version 2 only when workers are projected, so a host without workers
+        // keeps the exact v1 bytes/domain an older gateway accepts.
+        let version = if host.workers.is_empty() { 1 } else { 2 };
         let claims = ProjectionClaims {
-            version: 1,
+            version,
             issuer: id.issuer(),
             resource: id.resource(),
             connector: id.connector(),
@@ -184,9 +191,15 @@ impl RecoverySigner {
             execution: host.execution,
             grant: host.grant.clone(),
             drained_grant: host.drained,
+            workers: host.workers.clone(),
         };
         let bytes = serde_json::to_vec(&claims).map_err(|_| AgentError::Protocol)?;
-        let msg = projection_message(&bytes).map_err(|_| AgentError::Protocol)?;
+        let msg = if version == 2 {
+            projection_message_v2(&bytes)
+        } else {
+            projection_message(&bytes)
+        }
+        .map_err(|_| AgentError::Protocol)?;
         Ok(self.proof(bytes, &msg))
     }
 

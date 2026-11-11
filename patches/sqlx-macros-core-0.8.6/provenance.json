@@ -1,0 +1,31 @@
+{
+  "advisory_context": "RUSTSEC-2023-0071 (rsa via unused optional sqlx-mysql); Cargo.toml-only edit removes unused optional mysql/sqlite so lock omits rsa closure",
+  "committed_crate_inventory_sha256": {
+    ".gitignore": "b0d2f2c51708ddae0cd46a154270155777844fa571a32f94052b4d53e9b47ce3",
+    "Cargo.toml": "f6b66f50ecd9914d2500439c6406552aa9082c73fbecd38e5ef8bacef2e8d277",
+    "LICENSE-APACHE": "9be39331309bc958aab10457c1a8459c038ae95662f26dfcf6c9088e2b3d653f",
+    "LICENSE-MIT": "44b1600a26039a75b28e1ce154a5dd163b16549f50e34fa577d9efe9c1bae179",
+    "build.rs": "d0f2ae5607a6917e4eebd6b767418ec0b3b488e9d15a1d733951009c213d475a",
+    "src/lib.rs": "d1d66fc1f2b8037eed2ee1a9408ac872a6fa7acb3116e8ac48c3020f750da24d",
+    "upstream-src.tar.gz": "a1f41ecea7c28e91dc91eb90d0dc9deea448f16d02851e065374315e27901934"
+  },
+  "committed_patch_dir_files_sha256": {
+    "README.md": "b9965ba4df946619f1afabbaef650e33224dbfbca6fbeaae35f2e494ca36020c",
+    "drop-optional-mysql-sqlite.patch": "b4abc1051f7f1a7bc53f97eeab464e991cf39c38ad458320b6d8ae7ad1f9120a",
+    "sqlx-macros-core-0.8.6.crate": "19a9c1841124ac5a61741f96e1d9e2ec77424bf323962dd894bdb93f37d5219b"
+  },
+  "crate": "sqlx-macros-core-0.8.6.crate",
+  "crate_name": "sqlx-macros-core",
+  "diff_intent": "Delete optional sqlx-mysql / sqlx-sqlite deps and feature forwards from Cargo.toml only. Upstream src (except committed src/lib.rs) shipped as binary upstream-src.tar.gz; build.rs extracts into gitignored src/**.",
+  "files_changed_vs_official": [
+    "Cargo.toml"
+  ],
+  "layout": "thin-path-patch-c21b",
+  "official_archive_sha256": "19a9c1841124ac5a61741f96e1d9e2ec77424bf323962dd894bdb93f37d5219b",
+  "official_archive_url": "https://static.crates.io/crates/sqlx-macros-core/sqlx-macros-core-0.8.6.crate",
+  "original_crate_source_commit": "bab1b022bd56a64f9a08b46b36b97c5cff19d77e",
+  "patch_file": "drop-optional-mysql-sqlite.patch",
+  "patch_sha256": "b4abc1051f7f1a7bc53f97eeab464e991cf39c38ad458320b6d8ae7ad1f9120a",
+  "upstream_src_archive_sha256": "a1f41ecea7c28e91dc91eb90d0dc9deea448f16d02851e065374315e27901934",
+  "version": "0.8.6"
+}

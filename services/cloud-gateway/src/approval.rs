@@ -169,6 +169,9 @@ impl ChannelController {
             grant: Option<LocalLease>,
             #[serde(default, rename = "last_drained_grant")]
             _drained: Option<Uuid>,
+            // A1 C7: the worker pre-filter list is never an approval input.
+            #[serde(default, rename = "workers")]
+            _workers: Vec<crate::projection::WorkerClaim>,
         }
         expected
             .validate()

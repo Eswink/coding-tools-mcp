@@ -12,6 +12,10 @@
   import { page } from "$app/state";
   import { type ActionsPolicyDraft } from "$lib/components/ActionsPolicyForm.svelte";
   import ChatAuthorizationPanel from "$lib/components/聊天授权面板v1.svelte";
+  import IntegrationAttention from "$lib/components/IntegrationAttention.svelte";
+  import SubagentWorkersPanel from "$lib/components/SubagentWorkersPanel.svelte";
+  import MergeConfirmPanel from "$lib/components/MergeConfirmPanel.svelte";
+  import LegacyCleanupPanel from "$lib/components/LegacyCleanupPanel.svelte";
   import { type RuntimePolicyDraft } from "$lib/components/RuntimePolicyForm.svelte";
   import ChatGptSessionPrompt from "$lib/components/ChatGptSessionPrompt.svelte";
   import { type TunnelFormConfig, type SaveTunnelOptions } from "$lib/components/TunnelConfigForm.svelte";
@@ -551,6 +555,10 @@
         onSave={bindWorkspace(profile.id, saveWorkspaceName)} onUpdatePath={bindWorkspace(profile.id, saveWorkspacePath)} />
       <div class="mt-5"><ChatGptSessionPrompt /></div>
       <ChatAuthorizationPanel workspaceId={profile.id} />
+      <IntegrationAttention workspaceId={profile.id} />
+      <MergeConfirmPanel workspaceId={profile.id} />
+      <LegacyCleanupPanel workspaceId={profile.id} />
+      <SubagentWorkersPanel workspaceId={profile.id} />
       <ServiceSwitcher value={activeService} mcpState={mcpStatus} actionsState={actionsStatus}
         disabled={switchingService || configurationBusy || mcpBusy || mcpExecutionBusy || actionsBusy} onchange={(next) => void changeService(next)} />
     </div>

@@ -35,6 +35,28 @@ impl Drop for Relay {
         let _ = self.0.wait();
     }
 }
+/// The native tests stop this fixture with SIGKILL, so `Relay::drop` never runs;
+/// the relay is bound to the fixture's lifetime by the kernel instead. `main`
+/// spawns it from the runtime's main thread, which lives as long as the process.
+#[cfg(target_os = "linux")]
+fn die_with_fixture(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    let fixture = std::process::id() as libc::pid_t;
+    // SAFETY: only async-signal-safe libc calls run between fork and exec.
+    unsafe {
+        command.pre_exec(move || {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) != 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if libc::getppid() != fixture {
+                libc::_exit(1);
+            }
+            Ok(())
+        });
+    }
+}
+#[cfg(not(target_os = "linux"))]
+fn die_with_fixture(_: &mut Command) {}
 #[derive(Clone)]
 struct Inspect {
     token: String,
@@ -180,20 +202,19 @@ async fn main() {
     let parsed = url::Url::parse(&dsn).unwrap();
     assert_eq!(parsed.path(), "/coding_tools_identity_test");
     assert!(matches!(parsed.host_str(), Some("localhost" | "127.0.0.1")));
-    let mut relay = Relay(
-        Command::new("python3")
-            .arg("-S")
-            .arg(format!(
-                "{}/tests/host_agent_support/relay.py",
-                env!("CARGO_MANIFEST_DIR")
-            ))
-            .arg(&root)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap(),
-    );
+    let mut relay = Command::new("python3");
+    relay
+        .arg("-S")
+        .arg(format!(
+            "{}/tests/host_agent_support/relay.py",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .arg(&root)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    die_with_fixture(&mut relay);
+    let mut relay = Relay(relay.spawn().unwrap());
     let mut line = String::new();
     BufReader::new(relay.0.stdout.take().unwrap())
         .read_line(&mut line)

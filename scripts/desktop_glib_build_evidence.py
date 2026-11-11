@@ -290,6 +290,7 @@ def main():
     parser.add_argument('--producer-run-id')
     parser.add_argument('--producer-run-attempt')
     parser.add_argument('--producer-workflow-ref')
+    parser.add_argument('--installed-root', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     root, directory = args.root.absolute(), args.directory.absolute()
@@ -303,7 +304,9 @@ def main():
     else:
         producer = c.producer_identity(args.source, args.producer_run_id,
                                       args.producer_run_attempt, args.producer_workflow_ref)
-        result = c.verify(root, directory, args.source, producer, args.expected_envelope_sha256)
+        installed = args.installed_root.absolute() if args.installed_root else None
+        c.need(installed is None or not installed.is_relative_to(directory), 'installed_root_inside_evidence')
+        result = c.verify(root, directory, args.source, producer, args.expected_envelope_sha256, installed)
     c.need(not args.output.absolute().is_relative_to(directory), 'result_must_be_outside_evidence')
     c.write_json(args.output.absolute(), result)
     print(__import__('json').dumps(result, sort_keys=True))

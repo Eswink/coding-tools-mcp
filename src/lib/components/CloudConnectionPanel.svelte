@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { confirm, open } from '@tauri-apps/plugin-dialog';
-  import { canStartCloud, cloudLinkErrorText, cloudLinkText, cloudPhaseLabels, createCloudConnectionController, type CloudView } from '$lib/cloud-connection';
+  import { canInitializeCloud, canStartCloud, cloudLinkErrorText, cloudLinkText, cloudPhaseLabels, createCloudConnectionController, type CloudView } from '$lib/cloud-connection';
   let { workspaceId }: { workspaceId: string } = $props();
   let view = $state<CloudView>({ status: null, busy: false, error: '', uncertain: false });
   let controller: ReturnType<typeof createCloudConnectionController> | undefined;
@@ -50,7 +50,7 @@
     {#if view.status?.configured === false}<button type="button" class="tx-btn-secondary" disabled={view.busy || view.uncertain} onclick={() => act('import')}>从本机文件导入连接</button>{/if}
     {#if view.status?.configured}
       <button type="button" class="tx-btn-primary" disabled={!canStartCloud(view)} onclick={() => act('start')}>启动云连接</button>
-      <button type="button" class="tx-btn-secondary" disabled={!canStartCloud(view)} onclick={() => act('initialize')}>首次初始化并连接</button>
+      <button type="button" class="tx-btn-secondary" disabled={!canInitializeCloud(view)} onclick={() => act('initialize')}>首次初始化并连接</button>
       <button type="button" class="tx-btn-secondary" disabled={view.busy || !view.status} onclick={() => act('stop')}>停止云连接</button>
     {/if}
   </div>

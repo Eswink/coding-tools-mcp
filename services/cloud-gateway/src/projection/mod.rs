@@ -7,8 +7,9 @@ mod claims;
 mod store;
 
 pub use claims::{
-    projection_message, verify_snapshot, ExecutionState, LocalLease, ProjectionClaims,
-    ProjectionPhase, VerifiedSnapshot, MAX_SNAPSHOT_SECONDS,
+    projection_message, projection_message_v2, valid_worker_id, verify_snapshot, ExecutionState,
+    LocalLease, ProjectionClaims, ProjectionPhase, VerifiedSnapshot, WorkerClaim,
+    MAX_PROJECTED_WORKERS, MAX_SNAPSHOT_SECONDS,
 };
 pub use store::{ApplyOutcome, ConversationBinding, ProjectionChallenge, ProjectionStore};
 

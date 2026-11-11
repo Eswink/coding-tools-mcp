@@ -14,6 +14,8 @@ pub const LOCAL_SCOPES: &[&str] = &[
     "history.read",
     "history.write",
     "harness.write",
+    // A1 C6 (SPEC v5.4 §3.1/§3.1.1): grantable; old grants without it stay valid.
+    "agents.manage",
 ];
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

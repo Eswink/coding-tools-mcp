@@ -1,0 +1,5 @@
+# Materialised by build.rs from upstream-src.tar.gz — do not commit.
+/src/*
+!/src/lib.rs
+/src/.c21-extracted
+/target/

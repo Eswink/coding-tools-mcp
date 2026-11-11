@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { goto } from "$app/navigation";
-  import { ApprovalPresentation, canApprove, chatScopeLabels, pendingChats, remainingSeconds, type ChatInbox, type PendingChat } from "$lib/chat-authorization";
+  import { ApprovalPresentation, canApprove, chatScopeLabels, defaultScopeSelection, pendingChats, remainingSeconds, scopeWarnings, type ChatInbox, type PendingChat } from "$lib/chat-authorization";
   let rows = $state<PendingChat[]>([]);
   let selectedId = $state("");
   let selectedScopes = $state<string[]>([]);
@@ -22,7 +22,7 @@
   const selected = $derived(rows.find(r => r.grant.id === selectedId) ?? null);
   function dismiss() { selectedId = ""; verified = false; if (dialog?.open) dialog.close(); }
   async function display(row: PendingChat) {
-    selectedId = row.grant.id; selectedScopes = [...row.grant.scopes]; verified = false;
+    selectedId = row.grant.id; selectedScopes = defaultScopeSelection(row.grant); verified = false;
     await tick(); if (disposed || selectedId !== row.grant.id || !dialog) return;
     if (!dialog.open) dialog.showModal();
     dialog.querySelector<HTMLButtonElement>("[data-close]")?.focus();
@@ -133,6 +133,7 @@
     <fieldset disabled={busy}><legend>批准权限（可缩减，不能扩大）</legend>
       {#each selected.grant.scopes as scope}<label><input type="checkbox" value={scope} bind:group={selectedScopes} />{chatScopeLabels[scope] ?? scope}</label>{/each}
     </fieldset>
+    {#each scopeWarnings(selectedScopes) as warning}<p role="alert">{warning}</p>{/each}
     <label class="verify"><input type="checkbox" bind:checked={verified} disabled={busy} />我已核对当前聊天返回的会话指纹和上述权限</label>
     {#if error}<p role="alert">{error}</p>{/if}
     <footer><button type="button" class="tx-btn-secondary" onclick={() => selected && void locate(selected)}>定位工作区</button><button type="button" class="tx-btn-secondary" disabled={busy} onclick={() => void decide(false)}>拒绝</button><button type="button" class="tx-btn-primary" disabled={busy || !canApprove(selected.grant, selectedScopes, verified, now)} onclick={() => void decide(true)}>{selected.exclusive ? "批准并独占" : "批准此聊天"}</button></footer>

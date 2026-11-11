@@ -268,9 +268,11 @@ async fn run_command(
 
     let mut native_work = super::native_drain::child(ctx)?;
     super::native_drain::begin(&mut native_work)?;
+    let worker_id = ctx.worker.as_ref().map(|w| w.worker_id.as_str());
     let spawned =
         if ctx.managed_task || super::execution_sandbox::required(ctx) || native_work.is_some() {
-            crate::tools::process_tree::spawn(&mut command)
+            // A1 C3-win: Windows nests under the per-worker parent Job when set.
+            crate::tools::process_tree::spawn_under(&mut command, worker_id)
                 .await
                 .map(|(child, tree)| (child, Some(tree)))
         } else {
@@ -300,10 +302,15 @@ async fn run_command(
     })?;
     let native_pid = child.id();
 
-    let session = ctx.sessions.insert(match tree {
-        Some(tree) => ExecSession::new_managed(child, tree).with_interactive_mode(tty),
-        None => ExecSession::new_with_mode(child, tty),
-    });
+    let session = ctx.sessions.insert(
+        match tree {
+            Some(tree) => ExecSession::new_managed(child, tree).with_interactive_mode(tty),
+            None => ExecSession::new_with_mode(child, tty),
+        }
+        .for_worker(ctx.worker.as_ref().map(|w| w.worker_id.as_str().to_owned())),
+    );
+    // A1 C2-a (SPEC-A1 v5 §5.2): a worker's live session counts toward the drain.
+    crate::tools::worktree_tools::workers::note_background(ctx);
     session.spawn_readers().await;
     #[cfg(target_os = "linux")]
     super::execution_sandbox::retain_admission(session.clone(), admission);

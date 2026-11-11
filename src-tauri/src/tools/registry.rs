@@ -320,9 +320,76 @@ pub const P0_TOOLS: &[(&str, &str, &str, bool, bool, bool)] = &[
         false,
         false,
     ),
+    (
+        "subagent_spawn",
+        "Spawn subagent worker",
+        "Create one managed worker worktree at HEAD for this conversation (SPEC-A1 C2b; synchronous). Reuse request_id on retry; the same request returns the same worker_id. Requires agents.manage.",
+        false,
+        false,
+        false,
+    ),
+    (
+        "subagent_status",
+        "Subagent worker status",
+        "List this conversation's workers, or one worker by worker_id. Bounded opaque summaries only. Requires agents.manage.",
+        true,
+        false,
+        false,
+    ),
+    (
+        "subagent_collect",
+        "Collect subagent changes",
+        "Read the worker's diff against its base_head in bounded chunks (UTF-8, or base64 for binary patches). Sensitive, ignored and symlinked paths are withheld and listed by path only. Pass next_cursor to continue; CURSOR_STALE means the worker changed, so collect again from the start.",
+        true,
+        false,
+        false,
+    ),
+    (
+        "subagent_cancel",
+        "Cancel subagent worker",
+        "Mark a worker cancelled so it accepts no further worker calls. Does not stop its running asynchronous commands or interactive sessions (use cancel_exec_task / kill_session) and does not delete its worktree.",
+        false,
+        true,
+        false,
+    ),
+    (
+        "subagent_integrate",
+        "Integrate subagent changes",
+        "Request that a collected worker diff (diff_sha256 from subagent_collect) be applied to the main workspace. Checks staleness and conflicts, then waits for the device owner's native confirmation; the files are written unstaged and never committed.",
+        false,
+        true,
+        false,
+    ),
+    (
+        "subagent_rollback",
+        "Roll back an integration",
+        "Request that the most recent integration (integration_id from subagent_integrate) be reversed. Only the latest committed integration while main HEAD and branch are unchanged can be rolled back; otherwise ROLLBACK_EXPIRED with a reason. Waits for the device owner's native confirmation; files are restored unstaged.",
+        false,
+        true,
+        false,
+    ),
+    (
+        "subagent_discard",
+        "Discard subagent worker",
+        "Remove a clean worker worktree and release its slot. A dirty worktree is refused (DIRTY) and a worker with running commands is refused (WORKER_BUSY); nothing is deleted.",
+        false,
+        true,
+        false,
+    ),
 ];
 
 /// old Python 版本默认提供的核心工具集。默认 MCP 只暴露这一组，保持 Agent 的工具面稳定。
+/// A1 C2b managed worker control surface (SPEC-A1 v4 §2.1).
+pub const SUBAGENT_TOOLS: &[&str] = &[
+    "subagent_spawn",
+    "subagent_status",
+    "subagent_collect",
+    "subagent_cancel",
+    "subagent_integrate",
+    "subagent_rollback",
+    "subagent_discard",
+];
+
 pub const CORE_TOOLS: &[&str] = &[
     "worktree_create",
     "worktree_list",
@@ -357,6 +424,13 @@ pub const CORE_TOOLS: &[&str] = &[
     "git_blame",
     "request_permissions",
     "view_image",
+    "subagent_spawn",
+    "subagent_status",
+    "subagent_collect",
+    "subagent_cancel",
+    "subagent_integrate",
+    "subagent_rollback",
+    "subagent_discard",
 ];
 
 pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
@@ -380,6 +454,8 @@ pub const CORE_READ_ONLY_TOOLS: &[&str] = &[
     "git_blame",
     "request_permissions",
     "view_image",
+    "subagent_status",
+    "subagent_collect",
 ];
 
 pub const ALLOWED_TOOLS: &[&str] = &[
@@ -430,6 +506,13 @@ pub const ALLOWED_TOOLS: &[&str] = &[
     "change_summary",
     "request_permissions",
     "view_image",
+    "subagent_spawn",
+    "subagent_status",
+    "subagent_collect",
+    "subagent_cancel",
+    "subagent_integrate",
+    "subagent_rollback",
+    "subagent_discard",
 ];
 
 pub const MUTATING_TOOLS: &[&str] = &[
@@ -450,6 +533,11 @@ pub const MUTATING_TOOLS: &[&str] = &[
     "pause_task",
     "resume_task",
     "finish_task",
+    "subagent_spawn",
+    "subagent_cancel",
+    "subagent_integrate",
+    "subagent_rollback",
+    "subagent_discard",
 ];
 
 pub const READ_ONLY_TOOLS: &[&str] = &[
@@ -483,6 +571,8 @@ pub const READ_ONLY_TOOLS: &[&str] = &[
     "task_context",
     "list_task_events",
     "change_summary",
+    "subagent_status",
+    "subagent_collect",
 ];
 
 pub fn is_allowed_tool(name: &str) -> bool {
@@ -551,11 +641,76 @@ pub fn list_tools_for_profile(tool_profile: &str) -> Vec<Value> {
         .collect()
 }
 
+/// The opaque worker routing key accepted by exactly the SPEC-A1 v4 §3.1 tools.
+pub(crate) fn worker_id_schema() -> Value {
+    json!({"type":"string","pattern":"^[0-9a-f]{32}$"})
+}
+
 pub fn input_schema(name: &str) -> Value {
+    let mut schema = base_input_schema(name);
+    if crate::tools::worktree_tools::workers::WORKER_TOOLS.contains(&name) {
+        if let Some(properties) = schema.get_mut("properties").and_then(Value::as_object_mut) {
+            properties.insert("worker_id".to_owned(), worker_id_schema());
+        }
+    }
+    schema
+}
+
+fn base_input_schema(name: &str) -> Value {
     if let Some(schema) = crate::tools::exec_tasks::input_schema(name) {
         return schema;
     }
     match name {
+        "subagent_spawn" => json!({
+            "type": "object",
+            "properties": {
+                "request_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "label": {"type": "string", "maxLength": 80},
+                "base": {"type": "string", "enum": ["HEAD"], "default": "HEAD"}
+            },
+            "required": ["request_id"],
+            "additionalProperties": false
+        }),
+        "subagent_status" => json!({
+            "type": "object",
+            "properties": {"worker_id": worker_id_schema()},
+            "additionalProperties": false
+        }),
+        "subagent_collect" => json!({
+            "type": "object",
+            "properties": {
+                "worker_id": worker_id_schema(),
+                "max_bytes": {"type": "integer", "minimum": 256, "maximum": 4096, "default": 4096},
+                "cursor": {"type": "string", "minLength": 1, "maxLength": 256}
+            },
+            "required": ["worker_id"],
+            "additionalProperties": false
+        }),
+        "subagent_cancel" | "subagent_discard" => json!({
+            "type": "object",
+            "properties": {"worker_id": worker_id_schema()},
+            "required": ["worker_id"],
+            "additionalProperties": false
+        }),
+        "subagent_integrate" => json!({
+            "type": "object",
+            "properties": {
+                "worker_id": worker_id_schema(),
+                "diff_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "request_id": {"type": "string", "minLength": 1, "maxLength": 128}
+            },
+            "required": ["worker_id", "diff_sha256", "request_id"],
+            "additionalProperties": false
+        }),
+        "subagent_rollback" => json!({
+            "type": "object",
+            "properties": {
+                "integration_id": worker_id_schema(),
+                "request_id": {"type": "string", "minLength": 1, "maxLength": 128}
+            },
+            "required": ["integration_id", "request_id"],
+            "additionalProperties": false
+        }),
         "worktree_create" | "worktree_list" => {
             json!({"type":"object","properties":{},"additionalProperties":false})
         }
@@ -966,6 +1121,87 @@ mod tests {
 
     use super::{input_schema, list_tools_for_profile};
 
+    const WORKER_ID_TOOLS: [&str; 22] = [
+        "git_status",
+        "git_diff",
+        "git_log",
+        "git_show",
+        "git_blame",
+        "check_exec_environment",
+        "get_default_cwd",
+        "set_default_cwd",
+        "change_summary",
+        "read_file",
+        "list_dir",
+        "list_files",
+        "search_text",
+        "grep_text",
+        "grep",
+        "view_image",
+        "patch_check",
+        "apply_patch",
+        "exec_command",
+        "exec_health_check",
+        "start_exec_task",
+        "list_exec_tasks",
+    ];
+
+    #[test]
+    fn worker_id_is_an_optional_opaque_property_on_exactly_the_22_spec_tools() {
+        let mut seen = HashSet::new();
+        for tool in list_tools_for_profile("advanced") {
+            let name = tool["name"].as_str().unwrap();
+            let schema = input_schema(name);
+            if name.starts_with("subagent_") {
+                continue;
+            }
+            if let Some(field) = schema["properties"].get("worker_id") {
+                assert_eq!(
+                    field,
+                    &serde_json::json!({"type":"string","pattern":"^[0-9a-f]{32}$"}),
+                    "{name}"
+                );
+                assert!(
+                    !schema["required"]
+                        .as_array()
+                        .is_some_and(|r| r.iter().any(|k| k == "worker_id")),
+                    "{name}"
+                );
+                seen.insert(name.to_owned());
+            }
+        }
+        // `grep` is an unlisted dispatch alias of search_text; its schema still
+        // carries the parameter.
+        assert!(input_schema("grep")["properties"]["worker_id"].is_object());
+        seen.insert("grep".to_owned());
+        let expected: HashSet<_> = WORKER_ID_TOOLS.iter().map(|s| s.to_string()).collect();
+        assert_eq!(seen, expected);
+        for name in WORKER_ID_TOOLS {
+            assert!(
+                crate::tools::worktree_tools::workers::WORKER_TOOLS.contains(&name),
+                "{name} schema accepts worker_id but dispatch does not route it"
+            );
+        }
+    }
+
+    #[test]
+    fn subagent_tools_are_registered_with_closed_schemas() {
+        let read_only = list_tools_for_profile("read-only");
+        let read_only: HashSet<_> = read_only
+            .iter()
+            .map(|t| t["name"].as_str().unwrap().to_owned())
+            .collect();
+        for name in super::SUBAGENT_TOOLS {
+            assert!(super::is_allowed_tool(name), "{name}");
+            let schema = input_schema(name);
+            assert_eq!(schema["type"], "object", "{name}");
+            assert_eq!(schema["additionalProperties"], false, "{name}");
+            let read = matches!(*name, "subagent_status" | "subagent_collect");
+            assert_eq!(read_only.contains(*name), read, "{name}");
+            assert_eq!(super::MUTATING_TOOLS.contains(name), !read, "{name}");
+        }
+    }
+
     #[test]
     fn core_catalog_exposes_26_chatgpt_compatible_tools() {
         let tools = list_tools_for_profile("core");
@@ -975,9 +1211,14 @@ mod tests {
             .collect();
         let unique: HashSet<_> = names.iter().copied().collect();
 
-        assert_eq!(tools.len(), 33); // 26 legacy, four asynchronous execution and three managed worktree tools.
+        // 26 legacy, four asynchronous execution, three managed worktree and
+        // seven A1 subagent tools (SPEC-A1 v4 §2.1, C2b).
+        assert_eq!(tools.len(), 40);
         for name in ["worktree_create", "worktree_list", "worktree_remove"] {
             assert!(names.contains(&name));
+        }
+        for name in super::SUBAGENT_TOOLS {
+            assert!(names.contains(name), "{name}");
         }
         assert_eq!(unique.len(), tools.len());
         assert!(names.contains(&"history_session_bootstrap"));

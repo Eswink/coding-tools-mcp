@@ -73,7 +73,9 @@ async fn run_owned(
             && outcome.exit_code == Some(0)
             && outcome.output_complete
             && !outcome.truncated;
-        Ok(json!({"ok":ok,"authorization_ended":ended,"outcome":outcome}))
+        Ok(
+            json!({"ok":ok,"authorization_ended":ended,"outcome":outcome,"group_cleanup":group_cleanup(core, true)}),
+        )
     } else {
         let spec = ExecSpec::new(args.argv, cwd)
             .and_then(|spec| spec.with_stdin(args.stdin.into_bytes()))
@@ -100,7 +102,20 @@ async fn run_owned(
             None => session.cancel().await,
         };
         Ok(
-            json!({"ok":!ended && outcome.command_ok(),"authorization_ended":ended,"outcome":outcome}),
+            json!({"ok":!ended && outcome.command_ok(),"authorization_ended":ended,"outcome":outcome,"group_cleanup":group_cleanup(core, false)}),
         )
     }
+}
+
+/// A1 C7 (nit4): the sandbox's group-cleanup report for this leader kind.
+/// A1 C8-1: this names the cleanup method that applies to the leader (holder
+/// `killpg`, `cgroup.kill` on cancel, or skipped); it is not a record of a
+/// cleanup that ran or of its result.
+#[cfg(target_arch = "x86_64")]
+fn group_cleanup(core: &Core, pty: bool) -> Value {
+    json!(core.sandbox.group_cleanup(pty))
+}
+#[cfg(not(target_arch = "x86_64"))]
+fn group_cleanup(_: &Core, _: bool) -> Value {
+    Value::Null
 }

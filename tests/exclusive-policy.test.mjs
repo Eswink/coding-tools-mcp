@@ -14,3 +14,22 @@ test('100 invalidations do not reopen a dismissed approval',()=>{const p=new App
 test('background snapshot does not steal focus; explicit tray action may open it',()=>{const p=new ApprovalPresentation();assert.equal(p.choose([row],false),null);assert.equal(p.choose([row],false,true),row);});
 test('snapshot resync removes old requests and presentation state',()=>{const p=new ApprovalPresentation();p.choose([row],true);assert.equal(p.choose([],true),null);assert.equal(p.choose([row],true),row);assert.deepEqual(pendingChats({revision:1,now:100,pending:[row]}),[]);assert.deepEqual(pendingChats({revision:2,now:99,pending:[row]}),[row]);});
 test('global host is mounted outside a workspace and authoritative actions stay IPC-only',()=>{const root=readFileSync(new URL('../src/routes/+layout.svelte',import.meta.url),'utf8');assert.match(root,/<ChatAuthorizationHost\s*\/>/);const host=readFileSync(new URL('../src/lib/components/ChatAuthorizationHost.svelte',import.meta.url),'utf8');assert.match(host,/chat_authorization_inbox/);assert.match(host,/chat-authorization-changed/);assert.match(host,/snapshot.revision < revision/);assert.doesNotMatch(host,/refresh_token|access_token|openai\/session/);});
+test('agents.manage has a single-source label, is pre-selected as a UI default only and warns while ticked (A1 C6; C7pre O13 decided 2026-10-31)',()=>{
+  const {chatScopeLabels,defaultScopeSelection,scopeWarnings,sensitiveScopeWarnings}=load('chat-authorization.ts');
+  assert.equal(chatScopeLabels['agents.manage'],'管理子代理（创建 worktree、在其中运行命令、请求合入）');
+  assert.equal(Object.keys(chatScopeLabels).length,10);
+  assert.deepEqual(defaultScopeSelection({scopes:['files.read','agents.manage','exec.run']}),['files.read','agents.manage','exec.run']);
+  assert.deepEqual(defaultScopeSelection({scopes:['agents.manage']}),['agents.manage']);
+  assert.deepEqual(defaultScopeSelection({scopes:['files.read']}),['files.read']);
+  const requested={scopes:['files.read','agents.manage']};const initial=defaultScopeSelection(requested);
+  initial.pop();assert.deepEqual(requested.scopes,['files.read','agents.manage'],'the default is a copy, not the grant');
+  assert.deepEqual(scopeWarnings(defaultScopeSelection(requested)),['Windows 无沙箱，子代理命令以你的权限运行']);
+  // UI default only: the explicit local fingerprint check is still required, and only a subset of the request.
+  assert.equal(canApprove({...grant,scopes:['agents.manage']},defaultScopeSelection({scopes:['agents.manage']}),false,11),false);
+  assert.equal(canApprove({...grant,scopes:['agents.manage']},defaultScopeSelection({scopes:['agents.manage']}),true,11),true);
+  assert.equal(canApprove(grant,['files.read','agents.manage'],true,11),false);
+  assert.equal(canApprove({...grant,scopes:['files.read','agents.manage']},['files.read','agents.manage'],true,11),true);
+  assert.deepEqual(scopeWarnings(['files.read']),[]);
+  assert.deepEqual(scopeWarnings(['files.read','agents.manage']),['Windows 无沙箱，子代理命令以你的权限运行']);
+  assert.deepEqual(Object.keys(sensitiveScopeWarnings),['agents.manage']);
+});

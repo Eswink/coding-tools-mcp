@@ -5,25 +5,12 @@ name: Pre-tag rc080 topology profile (no live evidence)
 # the rc080 package under scripts/rc_pretag_rc080/ gets its own least-privilege runner
 # instead of an edit to that frozen file.
 on:
+  # C13d: no paths filter on develop/** + main (and sibling branches / PRs).
+  # Future PRs that touch probe-tracked files must include the two-step cascade
+  # (rc_native_probe_manifest.py write → gen_reviewed_manifest.py) or topology goes red — intentionally.
   push:
     branches: ['main', 'develop/**', 'feat/rc-pretag-contract-*', 'release/dot-rc-reconciliation-*']
-    paths:
-      - 'scripts/rc_pretag_rc080/**'
-      - 'scripts/rc_pretag_rc070_topology_profile.py'
-      - 'scripts/rc_pretag_publication_profile.py'
-      - 'scripts/rc_native_probe_manifest.py'
-      - 'scripts/rc_native_probe_source_manifest.json'
-      - 'docs/releases/reviewed-source-manifest.json'
-      - '.github/workflows/rc080-pretag-topology-checks.yml'
   pull_request:
-    paths:
-      - 'scripts/rc_pretag_rc080/**'
-      - 'scripts/rc_pretag_rc070_topology_profile.py'
-      - 'scripts/rc_pretag_publication_profile.py'
-      - 'scripts/rc_native_probe_manifest.py'
-      - 'scripts/rc_native_probe_source_manifest.json'
-      - 'docs/releases/reviewed-source-manifest.json'
-      - '.github/workflows/rc080-pretag-topology-checks.yml'
 
 permissions:
   contents: read
@@ -36,7 +23,7 @@ jobs:
   topology:
     name: rc080 topology profile tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

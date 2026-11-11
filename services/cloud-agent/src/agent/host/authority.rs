@@ -4,7 +4,10 @@ use crate::{
     crypto::valid_digest,
     execution::{ExecutionRequest, PeerBinding},
     grant::LOCAL_SCOPES,
-    projection::{ExecutionState, LocalLease, ProjectionPhase},
+    projection::{
+        valid_worker_id, ExecutionState, LocalLease, ProjectionPhase, WorkerClaim,
+        MAX_PROJECTED_WORKERS,
+    },
 };
 use serde_json::Value;
 use std::{future::Future, pin::Pin};
@@ -36,6 +39,12 @@ pub trait LocalHost: Send + Sync + 'static {
     fn authorization(&self, _request: crate::approval::ApprovalRequest) -> HostFuture<Value> {
         Box::pin(async { Err(AgentError::LocalAuthority) })
     }
+    /// A1 C7-3 (SPEC v5.6 §3.3): a local change to the projected worker list. The
+    /// runner sends a projection challenge on its next tick when this changed,
+    /// skipping the periodic interval (still one challenge in flight).
+    fn projection_dirty(&self) -> Option<watch::Receiver<u64>> {
+        None
+    }
     fn required_scope(&self, tool: &str, arguments: &Value) -> Option<&'static str>;
     fn snapshot(&self) -> HostFuture<HostAuthoritySnapshot>;
     fn admit(
@@ -62,6 +71,8 @@ pub struct HostAuthoritySnapshot {
     pub(in crate::agent) execution: ExecutionState,
     pub(in crate::agent) grant: Option<LocalLease>,
     pub(in crate::agent) drained: Option<Uuid>,
+    /// A1 C7: gateway pre-filter data only. Never part of execution authority equality.
+    pub(in crate::agent) workers: Vec<WorkerClaim>,
 }
 impl std::fmt::Debug for HostAuthoritySnapshot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -108,9 +119,32 @@ impl HostAuthoritySnapshot {
             execution,
             grant,
             drained,
+            workers: Vec::new(),
         };
         value.validate_shape()?;
         Ok(value)
+    }
+    pub fn workers(&self) -> &[WorkerClaim] {
+        &self.workers
+    }
+    /// A1 C7 (SPEC §3.3): attach the grant conversation's live workers (≤8, 32-hex,
+    /// unique, all in the grant conversation). An empty list is always accepted.
+    pub fn with_workers(mut self, workers: Vec<WorkerClaim>) -> Result<Self, AgentError> {
+        self.workers = workers;
+        self.validate_shape()?;
+        Ok(self)
+    }
+    /// Execution authority equality: every field except the pre-filter worker list, so a
+    /// spawn/discard between projection and completion cannot invalidate a request.
+    /// Public so native admission (src-tauri live host) uses the same rule.
+    pub fn same_authority(&self, other: &Self) -> bool {
+        self.epoch == other.epoch
+            && self.revision == other.revision
+            && self.generation == other.generation
+            && self.phase == other.phase
+            && self.execution == other.execution
+            && self.grant == other.grant
+            && self.drained == other.drained
     }
     fn validate_shape(&self) -> Result<(), AgentError> {
         if self.epoch <= 0
@@ -148,6 +182,26 @@ impl HostAuthoritySnapshot {
                 return Err(AgentError::LocalAuthority);
             }
         }
+        if !self.workers.is_empty() {
+            let Some(g) = &self.grant else {
+                return Err(AgentError::LocalAuthority);
+            };
+            if self.workers.len() > MAX_PROJECTED_WORKERS
+                || self
+                    .workers
+                    .iter()
+                    .any(|w| !valid_worker_id(&w.id) || w.conversation != g.conversation)
+                || self
+                    .workers
+                    .iter()
+                    .map(|w| w.id.as_str())
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+                    != self.workers.len()
+            {
+                return Err(AgentError::LocalAuthority);
+            }
+        }
         Ok(())
     }
     pub(in crate::agent) fn validate_at(&self, now: i64) -> Result<(), AgentError> {
@@ -178,7 +232,7 @@ impl HostAuthoritySnapshot {
         let Some(grant) = self.grant.as_ref() else {
             return Err(AgentError::LocalAuthority);
         };
-        if self != &projected.snapshot
+        if !self.same_authority(&projected.snapshot)
             || projected.until <= now
             || self.phase != ProjectionPhase::Active
             || self.execution != ExecutionState::Online

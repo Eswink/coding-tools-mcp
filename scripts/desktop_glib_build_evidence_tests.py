@@ -370,7 +370,7 @@ class EnvelopeBoundaryTests(unittest.TestCase):
         for name, value in receipts.items(): (self.evidence/name).write_text(json.dumps(value))
         self.envelope['files'] = c.evidence_inventory(self.evidence)
 
-    def run_verifier(self, mutation=None):
+    def run_verifier(self, mutation=None, installed_root=None, installed=None):
         e = copy.deepcopy(self.envelope)
         if mutation: mutation(e)
         path = self.evidence/'envelope.json'
@@ -383,7 +383,10 @@ class EnvelopeBoundaryTests(unittest.TestCase):
                 ('desktop_glib_link.verify_link_trace', {'compiler_input_provenance_verified':True}),
                 ('desktop_glib_deb.verify_deb', {'marker_offset':100})):
                 stack.enter_context(mock.patch(target, return_value=value))
-            return c.verify(self.root, self.evidence, self.sha, self.identity, hashlib.sha256(path.read_bytes()).hexdigest())
+            if installed is not None:
+                stack.enter_context(mock.patch('desktop_glib_installed.verify_installed_root', side_effect=installed))
+            return c.verify(self.root, self.evidence, self.sha, self.identity,
+                            hashlib.sha256(path.read_bytes()).hexdigest(), installed_root)
 
     def test_contradictory_runner_receipts_reject(self):
         for name in ('runner-config.json', 'runner-start.json', 'cargo-exit.json', 'compiler-copies.json'):
@@ -405,6 +408,31 @@ class EnvelopeBoundaryTests(unittest.TestCase):
         result = self.run_verifier()
         self.assertTrue(result['desktop_compiler_input_to_deb_binding_verified'])
         for key, value in c.FLAGS.items(): self.assertIs(result[key], value)
+
+    def test_installed_root_true_only_from_gate_and_approvals_stay_false(self):
+        import desktop_glib_installed as inst
+        installed = Path(self.root) / 'installed-root'
+        installed.mkdir()
+        (installed / 'placeholder').write_bytes(b'')
+        seen = []
+        def gate(path, package, version, summary):
+            seen.append((path, package, summary))
+            return {'installed_desktop_bytes_verified': True, 'installed_desktop_bytes': {'carrier': inst.CARRIER}}
+        result = self.run_verifier(installed_root=installed, installed=gate)
+        self.assertEqual(seen, [(installed, (self.evidence / 'desktop.deb').read_bytes(), {'marker_offset': 100})])
+        self.assertIs(result['installed_desktop_bytes_verified'], True)
+        self.assertIs(c.FLAGS['installed_desktop_bytes_verified'], False)
+        for key in ('security_approved', 'release_approved', 'publish_approved', 'raw_zero_claim'):
+            self.assertIs(result[key], False)
+        self.assertIs(result['engineering_only'], True)
+        self.assertTrue(set(inst.LIMITATIONS) <= set(result['limitations']))
+        def failing(*_):
+            raise c.exact.EvidenceError('installed_bytes_mismatch')
+        with self.assertRaisesRegex(ValueError, 'installed_bytes_mismatch'):
+            self.run_verifier(installed_root=installed, installed=failing)
+        without = self.run_verifier()
+        self.assertIs(without['installed_desktop_bytes_verified'], False)
+        self.assertNotIn('installed_desktop_bytes', without)
 
     def test_source_producer_exit_tool_and_scope_mutations_reject(self):
         mutations = [lambda e:e.update(source_sha='f'*40), lambda e:e.update(source_tree='e'*40),

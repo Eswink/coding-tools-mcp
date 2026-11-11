@@ -558,3 +558,275 @@ fn windows_restricted_mode_environment_is_the_357518a5_refusal() {
         ])
     );
 }
+
+// ---------------------------------------------------------------------------
+// A1 C2 (SPEC-A1 v4 §3.5): a worker_id call is resolved before path checks:
+// build the request -> identity() -> open the main-root WorkerStore read-only
+// via store_root -> owner/state -> path checks against the worktree root.
+// ---------------------------------------------------------------------------
+fn worker_git(dir: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git")
+        // Git >= 2.47 detaches auto maintenance after `commit`; newer Git (2.55+)
+        // can still hold objects/maintenance.lock after the command returns, and
+        // the production boundary scan of .git/objects then fails closed
+        // (BOUNDARY_VIOLATION). Same fixture rule as worktree_tests.rs.
+        .args(["-c", "maintenance.auto=false"])
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {out:?}");
+}
+fn spawn_worker(f: &Fixture, conversation: &str) -> (String, std::path::PathBuf) {
+    if !f.root.path().join(".git").exists() {
+        worker_git(f.root.path(), &["init", "-q"]);
+        worker_git(f.root.path(), &["config", "user.name", "Fixture"]);
+        worker_git(
+            f.root.path(),
+            &["config", "user.email", "fixture@example.invalid"],
+        );
+        worker_git(f.root.path(), &["add", "."]);
+        worker_git(f.root.path(), &["commit", "-qm", "fixture"]);
+    }
+    let mut ctx = f.host.context.background_snapshot();
+    ctx.remote_request = Some(f.host.request(conversation).unwrap());
+    let mut out = None;
+    super::super::root_work::dispatch(&ctx, |c| {
+        let (record, _) = crate::tools::worktree_tools::workers::spawn(c, "req", "w").unwrap();
+        let ready =
+            crate::tools::worktree_tools::workers::complete_spawn(c, record.worker_id.as_str())
+                .unwrap();
+        out = Some(ready);
+        Value::Null
+    })
+    .unwrap();
+    let ready = out.unwrap();
+    let tree = crate::tools::worktree_tools::workers::worktree_path(
+        &f.host.context.host,
+        ready.worktree_id.as_deref().unwrap(),
+    );
+    (ready.worker_id.as_str().to_owned(), tree)
+}
+fn worker_read(
+    f: &Fixture,
+    a: &NativeAuthority,
+    id: &Value,
+    path: &str,
+) -> Result<PreparedCall, &'static str> {
+    f.host.prepare(
+        a,
+        "read_file",
+        &json!({"path":path,"worker_id":id}),
+        now().unwrap() + 30,
+    )
+}
+
+/// A1 C6-grant: widen the conversation's grant through the normal path
+/// (local revoke -> remote request_chat_authorization incl. agents.manage ->
+/// local approve). An active grant can never be widened in place.
+fn grant_agents_manage(f: &Fixture) -> NativeAuthority {
+    let snapshot = f.host.authorizer.snapshot(&f.profile);
+    let active: Vec<_> = snapshot["records"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["status"] == "active")
+        .collect();
+    assert_eq!(active.len(), 1, "{snapshot}");
+    let old = active[0]["id"].as_str().unwrap().to_owned();
+    let mut scopes: Vec<String> = active[0]["scopes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s.as_str().unwrap().to_owned())
+        .collect();
+    scopes.push("agents.manage".into());
+    f.host.authorizer.revoke(&f.profile, Some(&old));
+    let v = f
+        .host
+        .request_authorization(&f.conversation(), &json!({ "scopes": scopes }));
+    assert_eq!(v["ok"], true, "{v}");
+    assert_eq!(v["authorization"]["status"], "pending", "{v}");
+    let id = v["authorization"]["id"].as_str().unwrap();
+    assert_ne!(id, old);
+    f.host
+        .authorizer
+        .decide(&f.profile, id, true, &scopes)
+        .unwrap();
+    f.host.authority(&f.conversation()).unwrap()
+}
+
+#[test]
+fn cloud_worker_calls_without_a_store_fail_closed_and_create_nothing() {
+    let f = Fixture::new();
+    let a = f.approve(&["files.read"]);
+    let store = f.host.context.host.store_root.join("agents-v1");
+    assert!(!store.exists());
+    let unknown = json!("0123456789abcdef0123456789abcdef");
+    // C2-b: without agents.manage the coarse scope check rejects first.
+    for id in [unknown.clone(), json!("NOT-HEX")] {
+        assert_eq!(
+            worker_read(&f, &a, &id, "fixture.txt").err(),
+            Some("INSUFFICIENT_CHAT_SCOPE"),
+            "{id}"
+        );
+    }
+    let a = grant_agents_manage(&f);
+    assert_eq!(
+        worker_read(&f, &a, &unknown, "fixture.txt").err(),
+        Some("WORKER_NOT_OWNED")
+    );
+    // A1 C3 (C2b deviation 9): after the scope check a malformed id is the
+    // same INVALID_ARGUMENT code the native chat path returns.
+    for bad in [json!("NOT-HEX"), json!(1), json!(null)] {
+        assert_eq!(
+            worker_read(&f, &a, &bad, "fixture.txt").err(),
+            Some("INVALID_ARGUMENT"),
+            "{bad}"
+        );
+    }
+    // The read-only open never creates the store directory or its document.
+    assert!(!store.exists());
+}
+
+#[test]
+fn cloud_worker_calls_without_agents_manage_never_touch_the_worker_store() {
+    use crate::tools::worktree_tools::workers::WorkerStore;
+    let f = Fixture::new();
+    let a = f.approve(&["files.read"]);
+    let (id, _) = spawn_worker(&f, &f.conversation());
+    // Simulate a fresh process: the store exists on disk but is not registered.
+    WorkerStore::evict_for_test(&f.host.context.host);
+    for path in ["fixture.txt", "missing.txt"] {
+        assert_eq!(
+            worker_read(&f, &a, &json!(id), path).err(),
+            Some("INSUFFICIENT_CHAT_SCOPE"),
+            "{path}"
+        );
+    }
+    assert!(!WorkerStore::registered_for_test(&f.host.context.host));
+    // With the scope the same call resolves (and registers) the store.
+    let a = grant_agents_manage(&f);
+    assert!(worker_read(&f, &a, &json!(id), "fixture.txt").is_ok());
+    assert!(WorkerStore::registered_for_test(&f.host.context.host));
+}
+
+#[test]
+fn cloud_worker_paths_are_checked_against_the_worktree_and_then_fail_closed_on_scope() {
+    let f = Fixture::new();
+    let a = f.approve(&["files.read"]);
+    let (id, tree) = spawn_worker(&f, &f.conversation());
+    std::fs::write(tree.join("worker-only.txt"), "w").unwrap();
+    // C2-b: no agents.manage -> rejected before any worker resolution.
+    assert_eq!(
+        worker_read(&f, &a, &json!(id), "worker-only.txt").err(),
+        Some("INSUFFICIENT_CHAT_SCOPE")
+    );
+    let a = grant_agents_manage(&f);
+    // Exists only in the worker: passes the worktree path check.
+    assert!(worker_read(&f, &a, &json!(id), "worker-only.txt").is_ok());
+    #[cfg(unix)]
+    {
+        // An escaping symlink inside the worker is caught against the worktree
+        // root even though the same name does not exist in the main root.
+        std::os::unix::fs::symlink(f.root.path(), tree.join("escape")).unwrap();
+        assert_eq!(
+            worker_read(&f, &a, &json!(id), "escape/fixture.txt").err(),
+            Some("CLOUD_ARGUMENTS_REJECTED")
+        );
+        assert!(!f.root.path().join("escape").exists());
+    }
+    // A worker owned by another conversation is indistinguishable from unknown.
+    let other = URL_SAFE_NO_PAD.encode([8; 32]);
+    let (foreign, _) = spawn_worker(&f, &other);
+    assert_eq!(
+        worker_read(&f, &a, &json!(foreign), "fixture.txt").err(),
+        Some("WORKER_NOT_OWNED")
+    );
+    // Without worker_id the existing behaviour is unchanged.
+    assert!(f
+        .host
+        .prepare(
+            &a,
+            "read_file",
+            &json!({"path":"fixture.txt"}),
+            now().unwrap() + 30
+        )
+        .is_ok());
+}
+
+/// A1 C7-4 (SPEC §3.5 steps 3-4 and "not cached"): the prepare-time worker
+/// resolution only admits a `ready` worker, even when the record names a live
+/// worktree, and a resolution made by an earlier prepare is not reused.
+#[test]
+fn c7_cloud_prepare_admits_only_ready_workers_and_does_not_cache_the_resolution() {
+    use crate::tools::worktree_tools::workers::{
+        discard, WorkerId, WorkerOwner, WorkerState, WorkerStore,
+    };
+    let f = Fixture::new();
+    f.approve(&["files.read"]);
+    let (id, _) = spawn_worker(&f, &f.conversation());
+    let a = grant_agents_manage(&f);
+    let store = WorkerStore::open_existing(&f.host.context.host)
+        .unwrap()
+        .unwrap();
+    let owner = WorkerOwner::from_request(&f.host.request(&f.conversation()).unwrap()).unwrap();
+    let tree = store
+        .ready_worktree(&owner, &WorkerId::parse(&id).unwrap())
+        .unwrap();
+    for state in [
+        WorkerState::Creating,
+        WorkerState::Cancelled,
+        WorkerState::Failed,
+        WorkerState::PendingCleanup,
+        WorkerState::Discarded,
+        WorkerState::IntegratePending,
+        WorkerState::Integrated,
+    ] {
+        // Same owner, same live worktree: only the state differs.
+        let other = store
+            .inject_for_test(&owner, Some(&tree), state, now().unwrap())
+            .unwrap();
+        assert_eq!(
+            worker_read(&f, &a, &json!(other.as_str()), "fixture.txt").err(),
+            Some("WORKER_NOT_OWNED"),
+            "{state:?}"
+        );
+    }
+    // A1 C8-1: the worktree still exists and only the state is wrong, so only
+    // the `ready` check in `enter_record` can refuse the stale prepared call.
+    let live = store
+        .inject_for_test(&owner, Some(&tree), WorkerState::Ready, now().unwrap())
+        .unwrap();
+    let prepared = worker_read(&f, &a, &json!(live.as_str()), "fixture.txt").unwrap();
+    store
+        .set_state_for_test(&owner, &live, WorkerState::Cancelled)
+        .unwrap();
+    assert!(
+        super::super::worktree_tools::workers::worktree_path(&f.host.context.host, &tree).is_dir()
+    );
+    let out = f.host.execute(prepared).unwrap();
+    assert_eq!(out["ok"], false, "non-ready worker call ran: {out}");
+    assert_eq!(out["error"]["code"], "WORKER_STATE", "{out}");
+    let stale = worker_read(&f, &a, &json!(id), "fixture.txt").unwrap();
+    let mut ctx = f.host.context.background_snapshot();
+    ctx.remote_request = Some(f.host.request(&f.conversation()).unwrap());
+    let mut gone = None;
+    super::super::root_work::dispatch(&ctx, |c| {
+        gone = Some(discard(c, &id).unwrap().state);
+        Value::Null
+    })
+    .unwrap();
+    assert_eq!(gone, Some(WorkerState::Discarded));
+    assert_eq!(
+        worker_read(&f, &a, &json!(id), "fixture.txt").err(),
+        Some("WORKER_NOT_OWNED")
+    );
+    // The earlier prepare's resolution is not reused: dispatch re-resolves
+    // (SPEC §1.4.1 step 3). Here discard removed the worktree, so the call is
+    // already stopped by `snapshot_target` (WORKER_STATE) even without the
+    // dispatch-time state check; the C8-1 case above isolates that check.
+    let out = f.host.execute(stale).unwrap();
+    assert_eq!(out["ok"], false, "stale worker call ran: {out}");
+    assert_eq!(out["error"]["code"], "WORKER_STATE", "{out}");
+}

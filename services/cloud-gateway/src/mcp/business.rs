@@ -111,7 +111,7 @@ pub(super) async fn business_call(
             let mut offline = false;
             let mut recovery = false;
             for required in spec.scopes_for(&args) {
-                match state.control.assess(&binding, required).await {
+                match state.control.assess(&binding, &required).await {
                     Ok(ProjectionDecision::AuthorizationUnavailable) => {
                         return permission("CHAT_AUTHORIZATION_REQUIRED")
                     }
@@ -132,6 +132,18 @@ pub(super) async fn business_call(
             }
             if offline {
                 return availability("WORKSPACE_OFFLINE");
+            }
+            // A1 C7 (SPEC §3.3): worker ownership pre-filter, before request_uuid/admission,
+            // so a refused call leaves no ledger row.
+            if let Some(worker) = args.get("worker_id") {
+                match worker.as_str() {
+                    Some(worker) => match state.control.worker_owned(&binding, worker).await {
+                        Ok(true) => {}
+                        Ok(false) => return worker_not_owned(),
+                        Err(_) => return permission("CHAT_AUTHORIZATION_UNAVAILABLE"),
+                    },
+                    None => return permission("INVALID_ARGUMENTS"),
+                }
             }
             let Some(external_id) = message.id.as_ref() else {
                 return permission("INVALID_ARGUMENTS");

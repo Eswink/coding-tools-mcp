@@ -122,16 +122,20 @@ pub fn start(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         )
     );
     let mut native_work = super::native_drain::child(ctx)?;
-    let (job, created) =
-        ctx.exec_tasks
-            .reserve_checked(request_id, &fingerprint, timeout_ms, || {
-                validate_submission(ctx)
-            })?;
+    let (job, created) = ctx.exec_tasks.reserve_tagged(
+        request_id,
+        &fingerprint,
+        timeout_ms,
+        ctx.worker.as_ref().map(|w| w.worker_id.as_str()),
+        || validate_submission(ctx),
+    )?;
     if !created {
         let mut summary = job.summary();
         summary["deduplicated"] = json!(true);
         return Ok(tool_ok(summary));
     }
+    // A1 C2-a (SPEC-A1 v5 §5.2): a worker's accepted job counts toward the drain.
+    crate::tools::worktree_tools::workers::note_background(ctx);
     // reserve() durably writes the exact conversation-scoped command key under
     // one mutex. Only its creator may execute hooks or launch the primary.
     // Concurrent/new outer requests see queued or terminal state without replay.
@@ -364,9 +368,21 @@ fn run(ctx: &ToolContext, job: &Arc<Job>, args: &Value) {
     ctx.sessions.remove(&session.session_id);
 }
 
+/// A1 C9-1 (SPEC-A1 v5.8 §2.3): a job tagged with a worker is reachable by
+/// job_id only for that worker's owner; untagged jobs take no extra step.
+fn tagged_job_owner(ctx: &ToolContext, job: &Job) -> Result<(), WorkspaceError> {
+    match job.worker_id.as_deref() {
+        Some(worker_id) => {
+            crate::tools::worktree_tools::workers::check_tagged_job_owner(ctx, worker_id)
+        }
+        None => Ok(()),
+    }
+}
+
 pub fn get(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
     object(args, &["job_id", "stdout_cursor", "stderr_cursor", "limit"])?;
     let job = ctx.exec_tasks.get(text(args, "job_id")?)?;
+    tagged_job_owner(ctx, &job)?;
     let out = number(args, "stdout_cursor", 0, 0, u64::MAX)?;
     let err = number(args, "stderr_cursor", 0, 0, u64::MAX)?;
     let limit = number(args, "limit", 4096, 1, PAGE_BYTES)?;
@@ -384,7 +400,7 @@ pub fn list(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> {
         None
     };
     Ok(tool_ok(
-        json!({"jobs": ctx.exec_tasks.list(filter)?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
+        json!({"jobs": ctx.exec_tasks.list_filtered(filter, ctx.worker.as_ref().map(|w| w.worker_id.as_str()))?, "recovery_scope": if ctx.exec_tasks.persistent() { "workspace_service" } else { "service_instance" },
         "restart_recoverable": ctx.exec_tasks.persistent(), "execution_survives_app_restart": false, "max_active": 4, "max_retained": 32}),
     ))
 }
@@ -404,6 +420,7 @@ pub fn cancel(ctx: &ToolContext, args: &Value) -> Result<Value, WorkspaceError> 
             "Unknown process termination must be confirmed in the local desktop task panel, not by a remote tool"));
     }
     let job = ctx.exec_tasks.get(text(args, "job_id")?)?;
+    tagged_job_owner(ctx, &job)?;
     {
         let mut data = job.data.lock().expect("job state");
         if args.get("confirm_terminated") == Some(&Value::Bool(true)) {
@@ -445,6 +462,11 @@ mod transport_tests;
 #[cfg(test)]
 #[path = "持久任务回归v2.rs"]
 mod durable_tests;
+
+/// A1 C8: worker_id in the exec task summary (tagged only).
+#[cfg(test)]
+#[path = "c8_exec_summary_tests.rs"]
+mod c8_exec_summary_tests;
 
 #[cfg(test)]
 #[path = "任务恢复传输v2.rs"]

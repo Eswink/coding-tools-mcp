@@ -27,6 +27,19 @@ pub struct LocalLease {
     pub expires_at: i64,
     pub scopes: Vec<String>,
 }
+/// A1 C7 (SPEC §3.3): at most this many workers per signed projection revision.
+pub const MAX_PROJECTED_WORKERS: usize = 8;
+/// A1 C7: a live worker of the current grant's conversation (gateway pre-filter only).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct WorkerClaim {
+    pub id: String,
+    pub conversation: String,
+}
+/// 32 lowercase hex (the native WorkerStore id format).
+pub fn valid_worker_id(id: &str) -> bool {
+    id.len() == 32 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectionClaims {
@@ -46,12 +59,22 @@ pub struct ProjectionClaims {
     pub execution: ExecutionState,
     pub grant: Option<LocalLease>,
     pub drained_grant: Option<Uuid>,
+    /// Version 2 only; absent when empty so v1 payloads stay byte-identical.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub workers: Vec<WorkerClaim>,
 }
 pub fn projection_message(payload: &[u8]) -> Result<Vec<u8>> {
+    domain_message(b"coding-tools-authority-projection-v1\0", payload)
+}
+/// A1 C7: the version 2 domain (claims carry `version: 2` and may list workers).
+pub fn projection_message_v2(payload: &[u8]) -> Result<Vec<u8>> {
+    domain_message(b"coding-tools-authority-projection-v2\0", payload)
+}
+fn domain_message(domain: &[u8], payload: &[u8]) -> Result<Vec<u8>> {
     if payload.is_empty() || payload.len() > 8192 {
         return Err(IdentityError::InvalidProof);
     }
-    let mut message = b"coding-tools-authority-projection-v1\0".to_vec();
+    let mut message = domain.to_vec();
     message.extend_from_slice(payload);
     Ok(message)
 }

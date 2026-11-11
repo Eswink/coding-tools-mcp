@@ -52,7 +52,8 @@ pub(super) fn open_source(root: &Path) -> WorktreeResult<Source> {
     odb.add_disk_alternate(objects.to_str().ok_or_else(|| failure("PARSE_FAILED"))?)
         .map_err(|_| failure("GIT_FAILED"))?;
     let repo = Repository::from_odb(odb).map_err(|_| failure("GIT_FAILED"))?;
-    repo.set_config(&git2::Config::new().map_err(|_| failure("GIT_FAILED"))?)
+    // A1 C12: memory-only core.longpaths=true (fail-closed). Never empty config.
+    repo.set_config(&super::worktree_longpaths::longpaths_config()?)
         .map_err(|_| failure("GIT_FAILED"))?;
     Ok(Source {
         root: root.to_owned(),
@@ -295,4 +296,64 @@ pub(super) fn status(source: &Source, target: &Path, metadata: &Path) -> Worktre
         }
     }
     Ok(output)
+}
+
+/// A1 C12 M9: resume-safe clean check. Remaining workdir changes may only be
+/// `WT_DELETED` (partial delete). Any new/modified/ignored/typechange/index drift
+/// → not clean. Index must still match HEAD tree when the target still exists.
+pub(super) fn deletion_tolerant_clean(
+    source: &Source,
+    target: &Path,
+    metadata: &Path,
+) -> WorktreeResult<bool> {
+    if !target.exists() {
+        return Ok(true);
+    }
+    validate_tree(target, MAX_ENTRIES + 2, MAX_TREE_BYTES as u64)?;
+    checked_path(metadata, &metadata.join("HEAD"))?;
+    let head_raw = read_file(&metadata.join("HEAD"), 128)?;
+    // HEAD must still equal the origin snapshot. A1 C12b nit 5: an unreadable or
+    // missing origin snapshot fails closed (not clean). The remove order deletes
+    // metadata files only after the target, so it is present while target exists.
+    let Ok(origin) = read_file(&metadata.join("managed-origin-head"), 128) else {
+        return Ok(false);
+    };
+    if head_raw != origin {
+        return Ok(false);
+    }
+    let baseline = tree_entries(source, oid(&head_raw)?)?;
+    let index = configured_index(source, target, metadata)?;
+    let indexed: BTreeMap<_, _> = index
+        .iter()
+        .map(|entry| (entry.path, (entry.id, entry.mode)))
+        .collect();
+    // Index may have lost entries for deleted files; every remaining index entry
+    // must still match HEAD, and index must not gain extras.
+    for (path, meta) in &indexed {
+        match baseline.get(path) {
+            Some(base) if base == meta => {}
+            _ => return Ok(false),
+        }
+    }
+    let mut options = StatusOptions::new();
+    options
+        .show(StatusShow::Workdir)
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .include_ignored(true)
+        .recurse_ignored_dirs(true)
+        .include_unmodified(false)
+        .update_index(false);
+    let entries = source
+        .repo
+        .statuses(Some(&mut options))
+        .map_err(|_| failure("GIT_FAILED"))?;
+    for entry in entries.iter() {
+        let status = entry.status();
+        // Only pure WT_DELETED is tolerated.
+        if status != git2::Status::WT_DELETED {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }

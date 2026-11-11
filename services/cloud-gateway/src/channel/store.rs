@@ -322,13 +322,29 @@ impl ChannelController {
         }
         Ok(decision)
     }
+    /// A1 C7: pre-filter only, called after `assess` passed for every required scope.
+    pub async fn worker_owned(&self, binding: &ConversationBinding, worker: &str) -> Result<bool> {
+        let _guard = self.serial.lock().await;
+        self.projection.worker_owned(binding, worker).await
+    }
     async fn lock_device(
         &self,
         id: Uuid,
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<EnrolledDevice> {
-        let r=sqlx::query("SELECT id,connector,public_key,epoch FROM ctm_devices WHERE id=$1 AND connector=$2 AND NOT revoked FOR SHARE")
-            .bind(id).bind(self.identity.identity.connector()).fetch_optional(&mut **tx).await?.ok_or(IdentityError::InvalidProof)?;
+        // Confirm revoked explicitly: missing/wrong-connector rows stay InvalidProof;
+        // only a true `revoked` flag becomes DeviceRevoked (WSS close 4001).
+        let r = sqlx::query(
+            "SELECT id,connector,public_key,epoch,revoked FROM ctm_devices WHERE id=$1 AND connector=$2 FOR SHARE",
+        )
+        .bind(id)
+        .bind(self.identity.identity.connector())
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or(IdentityError::InvalidProof)?;
+        if r.get::<bool, _>("revoked") {
+            return Err(IdentityError::DeviceRevoked);
+        }
         Ok(EnrolledDevice {
             id: r.get("id"),
             connector: r.get("connector"),

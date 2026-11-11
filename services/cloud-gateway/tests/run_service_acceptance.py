@@ -14,6 +14,7 @@ import socket
 import time
 from urllib.parse import urlencode
 
+from service_diagnostics import browser_phase
 from service_test_support import disposable_fixture, private_json, require, tls_proxy
 
 
@@ -78,12 +79,16 @@ def main():
 
             from playwright.sync_api import sync_playwright
             with sync_playwright() as playwright:
-                browser = playwright.chromium.launch(executable_path=str(a.chromium.resolve(strict=True)),
-                                                     headless=True, chromium_sandbox=True)
-                context = browser.new_context(ignore_https_errors=True)
-                context.route("**/*", lambda route: route.continue_()
-                              if route.request.url.startswith((origin + "/", foreign + "/")) else route.abort())
-                page = context.new_page()
+                with browser_phase("browser_launch"):
+                    browser = playwright.chromium.launch(
+                        executable_path=str(a.chromium.resolve(strict=True)),
+                        headless=True, chromium_sandbox=True)
+                with browser_phase("browser_context"):
+                    context = browser.new_context(ignore_https_errors=True)
+                    context.route("**/*", lambda route: route.continue_()
+                                  if route.request.url.startswith((origin + "/", foreign + "/"))
+                                  else route.abort())
+                    page = context.new_page()
                 verifier = "a" * 43
                 challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
                 state = "isolated-browser-state"
@@ -93,7 +98,8 @@ def main():
                     "code_challenge_method": "S256", "state": state})
 
                 def begin():
-                    r = page.goto(auth_url)
+                    with browser_phase("browser_begin"):
+                        r = page.goto(auth_url)
                     require(r.status == 200, "browser_begin")
                     return r
 
@@ -244,6 +250,7 @@ def main():
             passed("slow_header_connection_deadline")
             f.stop()
             passed("bounded_graceful_shutdown")
+        # browser_os_sandbox_tested stays False: CI AppArmor userns open (B5/C25) ≠ OS sandbox proof.
         print(json.dumps({"suite": "service_process_and_chromium", "passed": len(cases), "cases": cases,
                           "agent_connected": False, "production_touched": False,
                           "browser_sandbox_enabled": True,

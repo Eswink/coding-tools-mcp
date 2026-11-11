@@ -48,6 +48,17 @@ def exempt():
     })
 
 
+REPO = SCRIPTS.parent
+CLI_REPO = ["--repo", str(REPO), "--npm-version", "10.9.9", "--node-version", "v22.0.0"]
+
+
+def mitigated():
+    """npm 10 shape: the vendored link reports both lock nodes on the deepmerge entry."""
+    value = exempt()
+    value["vulnerabilities"]["deepmerge"]["nodes"] = ["node_modules/deepmerge", "vendor-js/deepmerge"]
+    return value
+
+
 class RcNpmAuditGateTests(unittest.TestCase):
     def rejects(self, value, code=1, today=TODAY):
         with self.assertRaises(module.GateError):
@@ -114,34 +125,39 @@ class RcNpmAuditGateTests(unittest.TestCase):
             module.check_prod(report({}), 1)
 
     def test_cli(self):
+        # C13c: the live CLI verifies the vendored mitigation and needs tool versions (capture v2).
         with tempfile.TemporaryDirectory() as directory:
             full, prod = Path(directory, "full.json"), Path(directory, "prod.json")
             full.write_text(json.dumps(report({})))
             prod.write_text(json.dumps(report({})))
-            self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "0",
+            self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "0",
                                           "--prod", str(prod), "--prod-exit-code", "0"]), 0)
+            Path(directory, module.CAPTURE_NAME).unlink()
             prod.write_text(json.dumps(exempt()))
-            self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "0",
+            self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "0",
                                           "--prod", str(prod), "--prod-exit-code", "1"]), 1)
 
     def test_cli_writes_capture_record_next_to_full_report(self):
         with tempfile.TemporaryDirectory() as directory:
             full, prod = Path(directory, "npm-audit.json"), Path(directory, "prod.json")
-            full.write_text(json.dumps(exempt()))
+            full.write_text(json.dumps(mitigated()))
             prod.write_text(json.dumps(report({})))
             clock = datetime(2026, 10, 28, 7, 0, 1, tzinfo=timezone.utc)
             with patch.object(module, "utc_now", return_value=clock):
-                self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "1",
+                self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "1",
                                               "--prod", str(prod), "--prod-exit-code", "0"]), 0)
             capture = json.loads(Path(directory, module.CAPTURE_NAME).read_text())
+            self.assertEqual(capture["schema"], module.CAPTURE_SCHEMA_V2)
             self.assertEqual(capture["captured_at"], "2026-10-28T07:00:01Z")
             self.assertEqual(capture["full_sha256"], hashlib.sha256(full.read_bytes()).hexdigest())
-            self.assertEqual(module.check_recorded(exempt(), full.read_bytes(), capture)["captured_at"],
+            self.assertEqual(module.check_recorded(mitigated(), full.read_bytes(), capture)["captured_at"],
                              "2026-10-28T07:00:01Z")
-            with patch.object(module, "utc_now", return_value=datetime(2026, 12, 1, tzinfo=timezone.utc)):
-                Path(directory, module.CAPTURE_NAME).unlink()
-                self.assertEqual(module.main(["--full", str(full), "--full-exit-code", "1",
-                                              "--prod", str(prod), "--prod-exit-code", "0"]), 1)
+            for clock, code in ((datetime(2026, 12, 1, tzinfo=timezone.utc), 0),
+                                (datetime(2027, 3, 1, tzinfo=timezone.utc), 1)):
+                Path(directory, module.CAPTURE_NAME).unlink(missing_ok=True)
+                with patch.object(module, "utc_now", return_value=clock):
+                    self.assertEqual(module.main(CLI_REPO + ["--full", str(full), "--full-exit-code", "1",
+                                                  "--prod", str(prod), "--prod-exit-code", "0"]), code)
             self.assertFalse(Path(directory, module.CAPTURE_NAME).exists())
 
 
@@ -312,26 +328,33 @@ class RecordedEvidenceSites(unittest.TestCase):
             self.passes(site, dict(metadata=dict(vulnerabilities=dict(total=0))), None)  # legacy fixture shape
             self.fails(site, RC2_NPM_AUDIT, capture_for(RC2_NPM_AUDIT, full_code=1), "zero report, exit 1", "exit code 1 with zero findings")
 
-    def test_capture_before_expiry_passes_with_simulated_clock_after_expiry(self):
+    def test_c13d_v1_nonzero_capture_fails_at_every_site(self):
+        # C13d: back-dated v1 with findings is refused even before EXEMPTION_EXPIRES;
+        # all-zero v1 / no-capture still pass (covered elsewhere).
         for site in self.sites():
-            with patch.object(module, "utc_now", return_value=LATE_CLOCK):
-                self.passes(site, exempt(), capture_for(exempt(), captured_at=BEFORE))
-                self.passes(site, exempt(), capture_for(exempt(), captured_at=datetime(
-                    2026, 11, 30, 23, 59, 59, tzinfo=timezone.utc)))
+            self.fails(site, exempt(), capture_for(exempt(), captured_at=BEFORE),
+                       "v1 findings", "v1 capture with findings refused")
+            self.fails(site, exempt(), capture_for(exempt(), captured_at=datetime(
+                2026, 11, 30, 23, 59, 59, tzinfo=timezone.utc)),
+                       "v1 findings last day", "v1 capture with findings refused")
 
     def test_capture_after_expiry_fails(self):
         for site in self.sites():
-            self.fails(site, exempt(), capture_for(exempt(), captured_at=AFTER), "captured after expiry", "expired after 2026-11-30")
+            # C13d: non-zero v1 fails on the findings rule before the expiry message.
+            self.fails(site, exempt(), capture_for(exempt(), captured_at=AFTER),
+                       "v1 findings after expiry", "v1 capture with findings refused")
 
     def test_negative_cases_at_every_site(self):
         for site in self.sites():
-            self.passes(site, exempt(), capture_for(exempt()))
+            # C13d: non-zero v1 no longer passes; refuse with the findings message.
+            self.fails(site, exempt(), capture_for(exempt()), "v1 findings", "v1 capture with findings refused")
             self.fails(site, exempt(), None, "findings without capture record", "npm audit missing or vulnerable")
+            # Prod / shape faults still surface (checked before the findings refuse).
             self.fails(site, exempt(), capture_for(exempt(), prod=exempt(), prod_code=1), "prod not zero", "production npm audit is not zero")
             self.fails(site, exempt(), capture_for(exempt(), prod=report({}), prod_code=1), "prod exit 1", "production npm audit is not zero")
-            self.fails(site, different_advisory(), capture_for(different_advisory()), "different advisory", "advisory outside the exemption")
-            self.fails(site, moderate(), capture_for(moderate()), "moderate severity", "outside the exemption")
-            self.fails(site, extra_package(), capture_for(extra_package()), "extra package", "packages outside the exemption")
+            self.fails(site, different_advisory(), capture_for(different_advisory()), "different advisory", "v1 capture with findings refused")
+            self.fails(site, moderate(), capture_for(moderate()), "moderate severity", "v1 capture with findings refused")
+            self.fails(site, extra_package(), capture_for(extra_package()), "extra package", "v1 capture with findings refused")
             self.fails(site, exempt(), capture_for(extra_package()), "capture binds another report", "does not bind the recorded report")
             stale = capture_for(exempt())
             stale["captured_at"] = "2026-11-29"

@@ -38,13 +38,47 @@ HOOK = (b'    import rc_pretag_rc080.topology_profile as rc080\n'
         b'        return selected\n')
 MODES = (('100644', 'blob'), ('100755', 'blob'))
 PROFILE_CAP = 200
-DEPTH_LIMIT = 64
+# Required budget for a tip = first-parent distance tip -> main merge dffc3c6b (d)
+# + 1 (the merge row itself) + 13 (second parent d6a45088 is 13 first-parent steps below M)
+# + headroom; i.e. a tip is admitted iff d + 14 <= DEPTH_LIMIT. 128 left the C2-ad
+# line (d = 53 then) 61 commits; A1 C7pre raises it to 256 (need 112 at this change,
+# headroom 128 -> 144); A1 C29 raises it to 512 (need 241 at merge tip 50dbd850,
+# headroom 15 -> 271); self-tests fail once headroom < 16.
+DEPTH_LIMIT = 512
 DELTA_PATHS = 600
 DELTA_LINES = 40000
 
 
-def topology(ref, root, git, release, budget=DEPTH_LIMIT):
-    """Admit M and first-parent descendants of M within DEPTH_LIMIT; foreign merges fall through."""
+def topology(ref, root, git, release, budget=DEPTH_LIMIT, _memo=None):
+    """Admit M and first-parent descendants of M within DEPTH_LIMIT; foreign merges fall through.
+
+    C16 / C13d: second-parent walks are memoized per top-level call on the exact
+    key (ref, budget); root, git and release are fixed for the call. Only
+    successful depths are cached — TopologyError is never memoized, so a later
+    call with the same key still re-walks. Supported _memo values are False
+    (disable; equivalence tests only) or None (fresh per-call dict); any other
+    value is unsupported.
+    """
+    if _memo is False:
+        return _topology(ref, root, git, release, budget, None)
+    return _topology(ref, root, git, release, budget, {} if _memo is None else _memo)
+
+
+def _topology(ref, root, git, release, budget, memo):
+    if memo is not None:
+        key = (ref, budget)
+        if key in memo:
+            return memo[key]
+        try:
+            depth = _topology_walk(ref, root, git, release, budget, memo)
+        except o.TopologyError:
+            raise  # C13d: do not cache errors
+        memo[key] = depth
+        return depth
+    return _topology_walk(ref, root, git, release, budget, None)
+
+
+def _topology_walk(ref, root, git, release, budget, memo):
     if release != p.R:
         raise o.TopologyError('rc080_release_anchor')
     if ref == M:
@@ -60,7 +94,7 @@ def topology(ref, root, git, release, budget=DEPTH_LIMIT):
         if row[0] == M:
             return depth
         if len(row) == 3:
-            topology(row[2], root, git, release, budget - depth - 1)
+            _topology(row[2], root, git, release, budget - depth - 1, memo)
         elif len(row) != 2:
             raise o.TopologyError('rc080_candidate_parents')
     raise o.TopologyError('rc080_not_descendant')

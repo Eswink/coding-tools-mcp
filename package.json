@@ -1,6 +1,6 @@
 {
   "name": "coding-tools-mcp-desktop",
-  "version": "0.7.0",
+  "version": "0.8.0-rc.1",
   "description": "Coding Tools MCP desktop client",
   "type": "module",
   "scripts": {
@@ -29,6 +29,10 @@
     "svelte-check": "^4.7.4",
     "tailwindcss": "^4.0.0",
     "typescript": "^6.0.0",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "deepmerge": "file:vendor-js/deepmerge"
+  },
+  "overrides": {
+    "deepmerge": "$deepmerge"
   }
 }

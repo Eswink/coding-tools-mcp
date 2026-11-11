@@ -131,12 +131,18 @@ def audit_summary(value):
         proof = value['desktop_source']
         required = proof.get('required')
         need(type(required) is bool, 'invalid_desktop_proof_summary')
+        # Fail-closed (C24 S1b): this consumer has no authenticated DEB package_sha256, so an installed-bytes
+        # summary cannot be bound here; installed_desktop_bytes_verified=True is always rejected. True is
+        # confined to the GLib DEB lane (desktop_glib_installed.verify_installed_root via installed_gate).
+        need(proof.get('installed_desktop_bytes_verified', False) is False and 'installed_desktop_bytes' not in proof,
+             'invalid_desktop_proof_summary')
         summary = dict(required=required, source_backport_verified=required,
                        installed_desktop_bytes_verified=False)
         if required:
             need(proof.get('source_backport_verified') is True and proof.get('raw_zero_claim') is False and
-                 proof.get('release_approved') is False and proof.get('installed_desktop_bytes_verified') is False,
-                 'invalid_desktop_proof_summary')
+                 proof.get('release_approved') is False and proof.get('installed_desktop_bytes_verified') is False and
+                 proof.get('security_approved', False) is False and
+                 proof.get('publish_approved', False) is False, 'invalid_desktop_proof_summary')
             findings = proof.get('upstream_identity_vulnerabilities')
             need(type(findings) is list, 'invalid_desktop_proof_summary')
             summary.update(upstream_identity_raw_vulnerability_count=len(findings),

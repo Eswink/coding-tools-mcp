@@ -281,6 +281,7 @@ async fn snapshot_freshness_cannot_outlive_authenticated_channel_lease() {
         execution: ExecutionState::Online,
         grant: Some(h.lease.clone()),
         drained_grant: None,
+        workers: vec![],
     };
     let (p, sig) = h.signed(&value);
     let result = c

@@ -17,11 +17,11 @@ PREFIX = '/coding-tools'
 AGENT = PREFIX + '/agent'
 SUBPROTOCOL = 'coding-tools-agent.v1'
 SOURCE_HASHES = {
-    'services/cloud-gateway/src/channel/transport.rs': '2662be4f84b22cf6784d8392a9d1dcd2481128147657eed4d070dcbd62c3153d',
+    'services/cloud-gateway/src/channel/transport.rs': '3b11ed91f4ece5c630b61466e078926af24bb22a4dc5501051b427e5281cd107',
     'services/cloud-gateway/src/channel/protocol.rs': 'baefe29876c5034af951c012846246b99004051cbbed5b86cd99de8c592f9b53',
     'services/cloud-gateway/src/config.rs': '79207a0744d01f20c7abff595aa0d2a10c9edc7436766ac2abc8d1b332bf32a7',
-    'services/cloud-gateway/src/mcp/http.rs': '1034eebe6fff8e2036209646a4c7f3b821fd675f88240b9b3d49285f19f88421',
-    'services/cloud-gateway/src/mcp/protocol.rs': '607d2bea785fdde87fc2d36d1f937ced240d640977e5ff656bfd171747235254',
+    'services/cloud-gateway/src/mcp/http.rs': '943c80179806510868fdebe5e441daeb46b96cf0278c8f4474a6415e3fec0fec',
+    'services/cloud-gateway/src/mcp/protocol.rs': '2a2e2d01d4fc50e505ab2c17050f1085f381fafd0cff8f10bed2d8ffd59a374c',
 }
 INCLUDE = 'nginx-locations.current.review.conf'
 

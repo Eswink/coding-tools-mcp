@@ -1,0 +1,9 @@
+{
+  "name": "deepmerge",
+  "version": "4.3.1+ctm.1",
+  "description": "Vendored deepmerge 4.3.1 (MIT) with prototype-key guard; see PATCHES.md",
+  "license": "MIT",
+  "main": "dist/cjs.js",
+  "types": "index.d.ts",
+  "engines": { "node": ">=0.10.0" }
+}

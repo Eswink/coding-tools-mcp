@@ -82,6 +82,18 @@ mod tests {
         );
     }
     #[test]
+    fn c7_worker_id_cross_vector_is_fixed_on_both_codecs() {
+        // The expected digest is written out in both copies of canonical.rs
+        // (A1 C7): two files, locked byte-identical by the SHA-256 test
+        // c8_canonical_codec_copies_are_byte_identical (agent_wire_parity, A1 C8-1).
+        let d = digest_json(&json!({"worker_id":"ab".repeat(16),"path":"fixture"}), 4096).unwrap();
+        let hex: String = d.iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(
+            hex,
+            "372f47cab2323b920a9fef5027c2605da2e27b72b1175040a2f170e0274c08d9"
+        );
+    }
+    #[test]
     fn bounded_encoding_rejects_large_values() {
         assert!(digest_json(&json!({"x":"a".repeat(100)}), 16).is_err());
     }

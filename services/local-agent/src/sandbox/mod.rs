@@ -13,6 +13,13 @@ mod filter;
 mod linux;
 #[cfg(target_arch = "x86_64")]
 pub(crate) use linux::PreparedSandbox;
+#[cfg(target_arch = "x86_64")]
+mod resources;
+#[cfg(target_arch = "x86_64")]
+pub use resources::{
+    kill_worker_cgroup, release_worker_cgroup, ResourceReport, CPU_SECONDS, FALLBACK_DATA_BYTES,
+    MEMORY_MAX_BYTES, PIDS_MAX,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SandboxErrorKind {
@@ -44,6 +51,9 @@ impl fmt::Display for SandboxError {
 
 impl Error for SandboxError {}
 
+/// SPEC-A1 v5.3 §4.2 (C4-b): the worker child's file-creation mask.
+pub(crate) const WORKER_UMASK: u32 = 0o077;
+
 struct Root {
     path: PathBuf,
     file: File,
@@ -57,7 +67,16 @@ struct Root {
 #[derive(Clone)]
 pub struct LinuxSandbox {
     root: Arc<Root>,
+    /// Linked-worktree metadata (`[private, common]`), read-only. See `for_worktree`.
+    gitdirs: Option<Arc<[Root; 2]>>,
     read_only: bool,
+    /// SPEC-A1 v5.3 §4.2 (C4-b): file-creation mask installed in the child.
+    /// `for_worktree` (worker exec and worker Git) uses 0o077; `new` keeps the
+    /// inherited mask.
+    umask: Option<u32>,
+    /// SPEC-A1 v5.3 §4.2 (C4-b): the worker's cgroup v2 / rlimit limits.
+    #[cfg(target_arch = "x86_64")]
+    resources: Option<Arc<resources::WorkerResources>>,
 }
 
 impl LinuxSandbox {
@@ -66,12 +85,61 @@ impl LinuxSandbox {
         {
             Ok(Self {
                 root: Arc::new(linux::pin_root(workspace_root.as_ref())?),
+                gitdirs: None,
                 read_only: false,
+                umask: None,
+                resources: None,
             })
         }
         #[cfg(not(target_arch = "x86_64"))]
         {
             let _ = workspace_root;
+            Err(SandboxError {
+                kind: SandboxErrorKind::Unsupported,
+            })
+        }
+    }
+
+    /// SPEC-A1 v4 §4.2 (C4): a linked Git worktree whose metadata lives outside
+    /// the workspace root. The worktree root keeps exactly the rights `new`
+    /// grants. The private gitdir (`<common>/worktrees/<id>`) and the common
+    /// gitdir are added with read-file/read-dir only: never write, truncate,
+    /// create, remove or execute, and `read_only` cannot widen that. Git inside
+    /// the sandbox can therefore inspect the worktree (`status`, `diff`, `log`)
+    /// but `git commit`, `add` or index refreshes fail closed.
+    ///
+    /// A1 C4-b (SPEC-A1 v5.3 §4.2): the child also runs with umask 077, so a
+    /// file it creates is private to the desktop user (today only inside the
+    /// worktree; it takes effect on Git metadata only if workers are ever
+    /// allowed to write it).
+    ///
+    /// The caller (a trusted host) resolves the gitdirs; this constructor only
+    /// pins and validates their shape: the private gitdir must be a direct child
+    /// of `<common>/worktrees`, and neither gitdir may contain or be contained
+    /// by the workspace root.
+    pub fn for_worktree(
+        workspace_root: impl AsRef<std::path::Path>,
+        private_gitdir: impl AsRef<std::path::Path>,
+        common_gitdir: impl AsRef<std::path::Path>,
+    ) -> Result<Self, SandboxError> {
+        #[cfg(target_arch = "x86_64")]
+        {
+            let (root, gitdirs) = linux::pin_worktree(
+                workspace_root.as_ref(),
+                private_gitdir.as_ref(),
+                common_gitdir.as_ref(),
+            )?;
+            Ok(Self {
+                root: Arc::new(root),
+                gitdirs: Some(Arc::new(gitdirs)),
+                read_only: false,
+                umask: Some(WORKER_UMASK),
+                resources: None,
+            })
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        {
+            let _ = (workspace_root, private_gitdir, common_gitdir);
             Err(SandboxError {
                 kind: SandboxErrorKind::Unsupported,
             })
@@ -85,6 +153,53 @@ impl LinuxSandbox {
         self
     }
 
+    /// A1 C4-b (SPEC-A1 v5.3 §4.2): limit every child of this policy as worker
+    /// `worker_id` (`[A-Za-z0-9_-]{1,64}`): it joins `w-<worker_id>` in the
+    /// host's delegated cgroup v2 scope (memory.max 4 GiB, pids.max 256) as the
+    /// first `pre_exec` step, or, when no delegation/migration is possible,
+    /// runs under `RLIMIT_DATA` 8 GiB/`RLIMIT_CPU` with no process-count limit
+    /// (A1 C4-c D/E). Never fails: the outcome is in `resource_report`.
+    pub fn with_worker_resources(mut self, worker_id: &str) -> Self {
+        #[cfg(target_arch = "x86_64")]
+        {
+            self.resources = Some(resources::for_worker(worker_id));
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        let _ = worker_id;
+        self
+    }
+
+    /// The environment report for `with_worker_resources` policies.
+    #[cfg(target_arch = "x86_64")]
+    pub fn resource_report(&self) -> Option<ResourceReport> {
+        self.resources.as_deref().map(|r| r.report())
+    }
+
+    /// A1 C7pre: the environment report for a PTY worker under this policy:
+    /// its session-leader group has no holder, so no group kill is reported.
+    #[cfg(target_arch = "x86_64")]
+    pub fn pty_resource_report(&self) -> Option<ResourceReport> {
+        self.resources.as_deref().map(|r| r.pty_report())
+    }
+
+    /// A1 C7 (nit4): how a leader started under this policy has its group
+    /// cleaned: `pty` leaders use `pty_resource_report`, piped leaders
+    /// `resource_report`. A policy without worker resources has no cgroup, so
+    /// it reports the holder fallback or `"skipped_unsafe"`. Production callers
+    /// (local-agent dispatch, src-tauri worker exec) put this in their output.
+    #[cfg(target_arch = "x86_64")]
+    pub fn group_cleanup(&self, pty: bool) -> &'static str {
+        let report = if pty {
+            self.pty_resource_report()
+        } else {
+            self.resource_report()
+        };
+        report.map_or_else(
+            || resources::group_cleanup(crate::process_tree::host_holds_groups(), false, pty),
+            |r| r.group_cleanup,
+        )
+    }
+
     pub(crate) fn prepare(
         &self,
         executable: &std::path::Path,
@@ -92,11 +207,19 @@ impl LinuxSandbox {
     ) -> Result<PreparedSandbox, SandboxError> {
         #[cfg(target_arch = "x86_64")]
         {
-            linux::prepare(&self.root, executable, cwd, self.read_only)
+            linux::prepare(
+                &self.root,
+                self.gitdirs.as_deref(),
+                executable,
+                cwd,
+                self.read_only,
+                self.umask,
+                self.resources.as_deref().map(|r| r.prepare_child()),
+            )
         }
         #[cfg(not(target_arch = "x86_64"))]
         {
-            let _ = (executable, cwd, &self.root);
+            let _ = (executable, cwd, &self.root, &self.gitdirs);
             Err(SandboxError {
                 kind: SandboxErrorKind::Unsupported,
             })
