@@ -28,7 +28,7 @@ topology = kit.topology
 DOMAIN = 'gateway.example.invalid'
 CONNECTOR = '11111111-1111-4111-8111-111111111111'
 IMAGES = dict(gateway='sha256:' + 'a' * 64, ingress='nginx@sha256:' + 'b' * 64, postgres='postgres@sha256:' + 'c' * 64)
-ME = f'{os.getuid()}:{os.getgid()}'
+ME = f'{os.getuid()}:{os.getgid()}' if os.name == 'posix' else '0:0'
 DUMMY_CONFIG = dict(origin='https://' + DOMAIN, prefix='/coding-tools', connector=CONNECTOR,
                     owner_subject='22222222-2222-4222-8222-222222222222', client_id='dummy-client',
                     redirect_uri='https://client.example.invalid/callback', client_authentication='public',
@@ -63,6 +63,8 @@ def entropy(token):
     return -sum(n / len(token) * math.log2(n / len(token)) for n in counts.values())
 
 
+_POSIX_ONLY = unittest.skipUnless(os.name == 'posix', 'Linux-only deploy-script contract (POSIX APIs or LF-only source bytes); skipped on Windows')
+
 class KitFiles(unittest.TestCase):
     def test_kit_files_carry_placeholders_and_no_secrets(self):
         allowed = {'/coding-tools', 'public', '127.0.0.1:28880'}
@@ -83,6 +85,7 @@ class KitFiles(unittest.TestCase):
                     continue  # identifiers, paths and prose, not key material
                 self.assertLess(entropy(token), 4.0, (path.name, 'high_entropy_token'))
 
+    @_POSIX_ONLY
     def test_kit_never_drives_engines_remote_shells_services_or_reloads(self):
         source = (KIT / 'kit.py').read_text()
         for pattern in (r'(?i)\bdocker\b', r'(?i)\bpodman\b', r'(?i)\bssh\b', r'(?i)systemctl', r'(?i)nginx\s+-s',
@@ -113,6 +116,7 @@ class KitFiles(unittest.TestCase):
         self.assertFalse(json.loads(out.getvalue())['applied'])
 
 
+@_POSIX_ONLY
 class PrepareAndCheck(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
@@ -222,6 +226,7 @@ class TrustedProxies(unittest.TestCase):
         with self.assertRaises(kit.KitError) as error:kit.trusted_proxies(['0.0.0.0/0'])
         self.assertEqual(error.exception.code, 'invalid_trusted_proxy')
 
+    @_POSIX_ONLY
     def test_cli_trusted_proxy_is_repeatable_and_validated(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = ['render', '--private-root', '/srv/ctm-private', '--domain', DOMAIN, '--connector', CONNECTOR,
@@ -238,6 +243,7 @@ class TrustedProxies(unittest.TestCase):
             self.assertEqual(re.findall(r'set_real_ip_from (\S+);', text), ['172.18.0.1/32', 'fd00::/8'])
 
 
+@_POSIX_ONLY
 class RenderedIngress(unittest.TestCase):
     def config(self, trusted=()):return topology.ingress_config(DOMAIN, CONNECTOR, trusted_proxies=trusted, rate_limits=True)
 
@@ -511,6 +517,7 @@ def free_port():
 
 
 @unittest.skipUnless(NGINX and os.access(NGINX, os.X_OK), 'set CTM_TEST_NGINX to an nginx binary with realip')
+@_POSIX_ONLY
 class RealNginx(unittest.TestCase):
     """Offline functional proof against a stub upstream; the container job proves the shipped image."""
 
