@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "S256 S2/S3/S5/S6 CI workflow tip — LOCAL ONLY not pushed",
+  "review_reference": "C39 #217 512 off-by-one tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4838,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "d1ce4828c1599b06a3ec57b891b4ae8da57c05e5",
-        "sha256": "f48abbe90f92568704581e638f54d00f82bbddb5deffc07f24459e92d1912426"
+        "blob_sha": "7eda5bef83095444a84dadb7df73b3c89f8b445a",
+        "sha256": "64cef6aa92ff176618540c923c216f83cc4b888eace18e535c099385512cb834"
       }
     },
     {
@@ -10758,8 +10758,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "73d446229ff2971a4a4f333a05ed732b01d7e30e",
-        "sha256": "072f335a0cda7fa661f38484a3a4b800a0b3be7465087882ddac49af232b6fae"
+        "blob_sha": "f551395b5dc12d12cc5d2019b1a0f097643ed528",
+        "sha256": "b258c687aaa324b2132bf59cda528c0d78ff21072cf15417d636ae999ccb46fc"
       }
     },
     {
@@ -10768,8 +10768,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a6cf7dfe2122ae1476af3120a23dc50aa76251b4",
-        "sha256": "45828df8d0d0de18230045da1473c94e6c02c59c0c36622ff9ff6916592d71e2"
+        "blob_sha": "288eb5322af8418bbbd8f071e6188cc4b325d71f",
+        "sha256": "811fedc29b4afe51a1f26a9452a30ddcecd77da823cfe60ffa507c1572e9288d"
       }
     },
     {
