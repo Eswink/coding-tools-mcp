@@ -416,6 +416,9 @@ fn replaced_managed_junction_is_refused_before_creation() {
 #[path = "worktree_security_tests.rs"]
 mod security;
 
+#[path = "worktree_objects_lock_tests.rs"]
+mod objects_lock;
+
 #[cfg(windows)]
 #[path = "worktree_windows_tests.rs"]
 mod windows;
