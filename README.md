@@ -33,7 +33,7 @@
 
 校验文件：[SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS.txt)（同时覆盖 `cloud-linux-amd64.tar.gz`）。构建来源：tag `v0.7.0`（源码 `36e0c265`），所有二进制均来自打包 run [40814802175](https://github.com/Eswink/coding-tools-mcp/actions/runs/40814802175)，未在本地构建。Linux 包在 Ubuntu 22.04 上构建，并在 Ubuntu 22.04 与 24.04 上通过安装验收；Windows NSIS 通过标准用户安装验收。本次不提供 macOS、ARM 或无桌面 Linux Server 安装包。
 
-**已知问题（摘要）：** Windows 安装包未签名；不提供 macOS 安装包；与 rc.2 / rc.3 相同的 CI 基线失败、仅开发依赖的 deepmerge 告警豁免（2026-11-30 UTC 到期）等，详见 [v0.7.0 发行说明](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)。
+**已知问题（摘要）：** Windows 安装包未签名；不提供 macOS 安装包；与 rc.2 / rc.3 相同的 CI 基线失败、仅开发依赖的 deepmerge 告警（v1 豁免 2026-11-30 UTC 到期；vendored 缓解路径于 2027-02-28 UTC 前复核）等，详见 [v0.7.0 发行说明](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)。
 
 ### 云端组件：v0.7.0
 
@@ -232,7 +232,7 @@ Actions 仍是单独的 OpenAPI 网关：启动 Actions 服务、使用其实际
 
 已知限制：
 
-- **完整已知问题见发行说明**：与 rc.2 / rc.3 相同的 CI 基线失败、仅开发依赖的 deepmerge 告警豁免（2026-11-30 UTC 到期）等，见 [v0.7.0 发行说明](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)。
+- **完整已知问题见发行说明**：与 rc.2 / rc.3 相同的 CI 基线失败、仅开发依赖的 deepmerge 告警（v1 豁免 2026-11-30 UTC 到期；vendored 缓解路径于 2027-02-28 UTC 前复核）等，见 [v0.7.0 发行说明](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0)。
 - **Windows 安装包未签名**。
 - **云网关组合未经端到端测试**：v0.7.0 桌面端 + v0.7.0 网关镜像未在真实 VPS / 真实 ChatGPT 上测过，只通过了 CI 内的测试。
 - **网关没有动态客户端注册（DCR）**：客户端需由操作员用 `coding-tools-gateway register-client` 预先登记；ChatGPT 是否接受这种方式**尚未验证**。
