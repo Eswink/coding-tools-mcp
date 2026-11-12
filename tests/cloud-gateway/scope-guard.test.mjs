@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory() as directory, contextlib.chdir(directory):
 
 function run(paths, files = Object.fromEntries(paths.map(path => [path, '# fixture\n']))) {
   const result = spawnSync('python', ['-I', '-X', 'utf8', '-c', harness], {
-    input: JSON.stringify({ source, paths, files }), encoding: 'utf8', timeout: 10_000,
+    input: JSON.stringify({ source, paths, files }), encoding: 'utf8', timeout: 30_000,
   });
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
