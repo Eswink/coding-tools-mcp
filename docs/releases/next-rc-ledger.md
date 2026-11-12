@@ -288,3 +288,9 @@ All package source/version/architecture/installed payload checks remain separate
 - **Gap**: `develop/0.8.0` tip `ee165ebc` still carried product version **`0.7.0`** in desktop/package/tauri and service Cargo manifests/locks while the engineering line and user-approved FINAL target are 0.8. No `v0.8*` tag exists; Latest remains `v0.7.0`.
 - **Fix (NARROW)**: bump coherent product version fields **`0.7.0` → `0.8.0-rc.1`** (RC channel; `rc_version_gate` / six desktop fields + service Cargo.toml/lock project packages). Dual manifest cascade. Target tag (later GO): `v0.8.0-rc.1` prerelease, not Latest.
 - **Boundaries**: eng ≠ QUALIFIED ≠ FINAL; **no tag / no release / no main** in this batch; does **not** close [#85](https://github.com/Eswink/coding-tools-mcp/issues/85); ≠ Windows PASS/QUALIFIED; ≠ stable `0.8.0` / Latest. Integration/packaging/pretag remain subsequent FINAL steps.
+
+## v0.8.0 FINAL F1 — product version coherence → 0.8.0 (stable channel) — 2026-11-12 Asia/Shanghai
+
+- **Gap**: `develop/0.8.0` tip `226adf4f` carries product version **`0.8.0-rc.1`** (six desktop fields + service Cargo manifests/locks). Owner chose stable v0.8.0 + Latest (2026-11-12 15:32 Asia/Shanghai); Grok v0.8.0 FINAL SCOPE GO (F0→F5).
+- **Fix (NARROW)**: bump coherent product version fields **`0.8.0-rc.1` → `0.8.0`** (stable channel: `rc_version_gate` STABLE_VERSION / `发布版本校验v4` / `source_provenance_gate` → `stable`); `tests/app-version.test.mjs` pin; bilingual README points to v0.8.0 (hash-free; per-asset hashes live in the release notes). Dual manifest cascade.
+- **Boundaries**: eng ≠ QUALIFIED ≠ FINAL until F2–F4; **no tag / no release / no main** in this batch; does **not** close [#85](https://github.com/Eswink/coding-tools-mcp/issues/85) or [#215](https://github.com/Eswink/coding-tools-mcp/issues/215); ≠ Windows PASS/QUALIFIED. Historical `0.8.0-rc.1` ledger rows and the `v0.8.0-rc.1` tag/release stay unchanged.
