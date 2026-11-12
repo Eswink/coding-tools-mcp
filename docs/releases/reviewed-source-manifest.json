@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0",
-  "review_reference": "v0.8.0 FINAL F1 version coherence tip — LOCAL ONLY not pushed",
+  "review_reference": "v0.8.0 FINAL F2b-FIX rustix 1.1.6 tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -1136,8 +1136,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "1cca4b795c4d785fa7e878c1fecb12c55df8eef4",
-        "sha256": "d3f5531b7dbcb315fe8f201bcbad4ff7fe5c56a9d5b9cae957509c71f6cb6fae"
+        "blob_sha": "fddf020e7c897d2cd96137421999a386f1ed6c22",
+        "sha256": "8ff5b0f6b74789b0d6abf7b3501e53453f23d456950b5f8134d6bd7d3cce6de3"
       }
     },
     {
@@ -4838,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "011afc7c6f8bdb0ace14cb1a0e953c528becfe9c",
-        "sha256": "4069182cd78fda7545d7f8e3dda05b8ac65b2095dacd8779ca34e6b6ed740bef"
+        "blob_sha": "85ea044b5ae6c2b4162a8517af2dc72141b7f3a7",
+        "sha256": "96fd6398a8b9d43e5d7fb639973fb72d8adfad005bef7c535360c7d88952d3e6"
       }
     },
     {
@@ -8492,8 +8492,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "7a89449dffdd68f894b44c30a78cfda1bb191d54",
-        "sha256": "3cb7d05069ba0bf48844aa555e6c023468d46b5142cfc9e91e2ed9c0a171af05"
+        "blob_sha": "bce7d11ef6523eb67f93e0a6403f81f7e6c86bde",
+        "sha256": "ebc4098a1ca029fcd881e8d0821c43843b0c04ebf3a8c7eb0d954010bf827665"
       }
     },
     {

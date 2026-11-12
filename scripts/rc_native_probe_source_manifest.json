@@ -1452,11 +1452,11 @@
    "sha256": "506732019c8f0adbda5266ace56766715381e0316e19d8130a86ca3fcc4e2729"
   },
   {
-   "blob": "1cca4b795c4d785fa7e878c1fecb12c55df8eef4",
-   "bytes": 73750,
+   "blob": "fddf020e7c897d2cd96137421999a386f1ed6c22",
+   "bytes": 76024,
    "mode": "100644",
    "path": "docs/releases/next-rc-ledger.md",
-   "sha256": "d3f5531b7dbcb315fe8f201bcbad4ff7fe5c56a9d5b9cae957509c71f6cb6fae"
+   "sha256": "8ff5b0f6b74789b0d6abf7b3501e53453f23d456950b5f8134d6bd7d3cce6de3"
   },
   {
    "blob": "6d4f138f84d246307bfc473c3412a14ea1bfa471",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "8b3546cdcaaabb4ee0433c41e25dcc20a375c4fe",
-   "bytes": 447761,
+   "blob": "479f2052af16eef8c4e8a0de3ecc4115804c4407",
+   "bytes": 447754,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "d0a956f9dee51dc239e4af8a2bb9d42ffc5a08a372023f74da6442eca491ae05"
+   "sha256": "4d2ae7cabc984caa619a9d027a9c83eaeb626e205abb2ac06279a75383905830"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -9852,11 +9852,11 @@
    "sha256": "3b838470e7b5b5895e09f2fa2a20b44a230838a6bafbfdf61c6f4c74ccdb0c34"
   },
   {
-   "blob": "7a89449dffdd68f894b44c30a78cfda1bb191d54",
+   "blob": "bce7d11ef6523eb67f93e0a6403f81f7e6c86bde",
    "bytes": 158259,
    "mode": "100644",
    "path": "src-tauri/Cargo.lock",
-   "sha256": "3cb7d05069ba0bf48844aa555e6c023468d46b5142cfc9e91e2ed9c0a171af05"
+   "sha256": "ebc4098a1ca029fcd881e8d0821c43843b0c04ebf3a8c7eb0d954010bf827665"
   },
   {
    "blob": "7c084f5bad2a37afad2ec5764e7a945cc20a288b",
