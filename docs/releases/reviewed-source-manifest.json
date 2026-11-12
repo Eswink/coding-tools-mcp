@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
-  "version": "0.8.0-rc.1",
-  "review_reference": "C41 deepmerge exemption maintenance tip — LOCAL ONLY not pushed",
+  "version": "0.8.0",
+  "review_reference": "v0.8.0 FINAL F1 version coherence tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -602,8 +602,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "fb0560925e5a2c711d0bfde47ad1143ac0acad1b",
-        "sha256": "8c2450077786bb92b522b416dd7c833a4137c7e4fba862fe19310b19d79cbd5e"
+        "blob_sha": "8ec01d079c1cf360439f49d06bdc40a65437c846",
+        "sha256": "0face7715171cd3465d4b59ec2cf0286b3faacf3b3845054ca9ea071d8bc9a7d"
       }
     },
     {
@@ -616,8 +616,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "9aa6d264d6bfd98411b0f4a9f0916ccba062373c",
-        "sha256": "ac836e70764d1e5d559d8a74aea3f39e1ae3b57eaf6ddaff135dc423be212ea7"
+        "blob_sha": "ad2012909ff01b6e7a60e4b4cd58116512219f36",
+        "sha256": "261eb4752bb785b8c751faf08719abbd1c124f14f0e1680bf960b0a1c7315cb7"
       }
     },
     {
@@ -1136,8 +1136,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7811f0844ac30014113b0ba7461d86862ccb442f",
-        "sha256": "5b3d4656cf4314021c56fb120d7887418c761952e7e35f12d307129663e2cbd1"
+        "blob_sha": "1cca4b795c4d785fa7e878c1fecb12c55df8eef4",
+        "sha256": "d3f5531b7dbcb315fe8f201bcbad4ff7fe5c56a9d5b9cae957509c71f6cb6fae"
       }
     },
     {
@@ -3370,8 +3370,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "fd8db3126ed956069964a3d2ad6da7b621efefd7",
-        "sha256": "e77a173e7c280257db66647f1446ecc64438cfdc4fcb64e788737087d04b1d75"
+        "blob_sha": "7b58f75350555ec858a74eda600b4710e677aa46",
+        "sha256": "a4d1500a9b1fa784b1238f791503e8b960f38bda987353cb68cf28c426f2bbc6"
       }
     },
     {
@@ -3384,8 +3384,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "80df85414d8323d3615e8e6a75eacf8f8e22b388",
-        "sha256": "443dbaeae49896bb789d4f3c7851f4cce04fb0fcbef08b6db27ed565a807232e"
+        "blob_sha": "7179e7255dd81c95798bafab8dd7646fb0fce88a",
+        "sha256": "991aafe7169a44dceb9de92fb8dbf706cccfdc0f478eb4af2f6f4fa217ce1161"
       }
     },
     {
@@ -4838,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "174f10492a47848ef7e0bddeea03ca51e217be2b",
-        "sha256": "715b95fa567c20bf55f8b268203aeb2491796f67c5f2644694a64c7bd8a6004e"
+        "blob_sha": "011afc7c6f8bdb0ace14cb1a0e953c528becfe9c",
+        "sha256": "4069182cd78fda7545d7f8e3dda05b8ac65b2095dacd8779ca34e6b6ed740bef"
       }
     },
     {
@@ -6308,8 +6308,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "076e927e50e22fbbd5d10a12d2638e334bd45415",
-        "sha256": "dac5b633183ce6b795617ec74d67224961c374d95616bca4daef6318b97ec9ac"
+        "blob_sha": "84501b3b03804d469e1f181355a1d44be767cff3",
+        "sha256": "edacc6a37afffcdf685bd65aedb0e8fa81de4b5d9767df7c881e67f025167410"
       }
     },
     {
@@ -6318,8 +6318,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "f8357406088e0c32274103ef80cfa19219e61be4",
-        "sha256": "acb0f427b549e76ffad46b3db35a480f2cf6d0b02b76cc570e9d84359837ffab"
+        "blob_sha": "6c62ffdaa1b09c9ec2f6fb7f810ea4b2b3f092ce",
+        "sha256": "cb51ae5cdf182ae17fd631ee5547d0f2d4c38119fab1df676bfee10dbd6df50b"
       }
     },
     {
@@ -6728,8 +6728,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "832ba7d2a2bf38970551dd6ceacb3d186c2c9599",
-        "sha256": "f18712cce3fb2e8054ce8a1a0cc70cda8592d38e4afc2db11bd7c43b764f5bc4"
+        "blob_sha": "49c09ea0369f505329baa98b6e43a3fd9513b2d2",
+        "sha256": "6393bc1a8181e70152d9845ae2e7c0596508a1c7b7079b01afda3064bc07066c"
       }
     },
     {
@@ -6738,8 +6738,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fb4c6b8dc2a3ab2fd19b213fbf91eb0bfb69ab3f",
-        "sha256": "9e8e14d2d4d117914a37a72d92dba7b700a0dad39b3ccd0ff2c33d0a767b3d24"
+        "blob_sha": "9800cc68909034120db05273776b9af39e383018",
+        "sha256": "6f46fbb730286ad71a99f589a406583c954e1a9421313884574cccd78c56e994"
       }
     },
     {
@@ -7888,8 +7888,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "9387fde80d4a1cb374f6b95275747b074bbd12e1",
-        "sha256": "3a164792c4544518b0ff77edfb3ed1b5dc0844954d5efff3a0f241544f10dfd7"
+        "blob_sha": "3dd600091d7fb4be50810ef0f980b168274d44b8",
+        "sha256": "e526e6b59f0f3f5f71d2e8ca948d9ea2281a36e80835f3d3545bb49ddcea2e44"
       }
     },
     {
@@ -7898,8 +7898,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "fc553df5251e9df7aa484655f2f96cffe2c25dab",
-        "sha256": "b42d1438c6f126349c2be5d62a54be26df81d029ac1403edf93b11172bd18c38"
+        "blob_sha": "ea67d7e223e98d08d0032add1c1d4cad42e93aac",
+        "sha256": "7f124111d6d558fb5acc66d0b2a6576e20c5bf21ecf836d58dfdce3302505133"
       }
     },
     {
@@ -8492,8 +8492,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "cc0cca7f7959036de6be2da67713f426f82b6a7d",
-        "sha256": "6039ecbb6038a13f86471e6b4e7ebe167d53084c1364f593dcd661e85dd94ce4"
+        "blob_sha": "7a89449dffdd68f894b44c30a78cfda1bb191d54",
+        "sha256": "3cb7d05069ba0bf48844aa555e6c023468d46b5142cfc9e91e2ed9c0a171af05"
       }
     },
     {
@@ -8506,8 +8506,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "90d1203e7c3b784185f548c35f339ceb809aa943",
-        "sha256": "fb210339f40466e4de94f214913038026f497cb6cc5659f8b6b7c16b748c2572"
+        "blob_sha": "7c084f5bad2a37afad2ec5764e7a945cc20a288b",
+        "sha256": "8c4e0c453cd2b356b3f638f61189453df2b568a76acc24a3458628364d8dde11"
       }
     },
     {
@@ -11502,8 +11502,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "8b621de6019f312da6f583dd196ee7677f258399",
-        "sha256": "3d48c080fa9b12e9b2855b279b4da8e2715731073e12034c9f02adf9194878db"
+        "blob_sha": "012d7c8603a3b08fc223f280792f7858fb2c4c2c",
+        "sha256": "e16cc4fb7387c4dbd3cee9c522fdc369193ad04b395e4ac3b8535b9821d6e593"
       }
     },
     {
@@ -11832,8 +11832,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "144af289496c1a3af99b718ae892d68807180589",
-        "sha256": "8b42e1c6759314297c6a7237b6179efcef803117058c00bd11d4fc58d74d3cb6"
+        "blob_sha": "f458498b2b187704393f02fc1725362f3c872585",
+        "sha256": "2b9c7ee0df4851e42c8d9d955444659ebd001cb57eeec5949adb556c780b8ed1"
       }
     },
     {
