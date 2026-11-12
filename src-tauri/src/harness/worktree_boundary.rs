@@ -2,8 +2,9 @@
 use super::worktree::{WorktreeError, WorktreeResult};
 use std::{
     fs::{self, File, OpenOptions},
-    io::Read,
+    io::{self, Read},
     path::Path,
+    thread,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -116,6 +117,99 @@ pub(super) fn read_file(path: &Path, limit: u64) -> WorktreeResult<Vec<u8>> {
 }
 
 pub(super) fn validate_tree(root: &Path, max_entries: usize, max_bytes: u64) -> WorktreeResult<()> {
+    walk_validated_tree(root, max_entries, max_bytes, false)
+}
+
+/// Objects-scan walk used only by `open_source`. The sole exemption is the
+/// direct child named `maintenance.lock` of this objects directory.
+pub(super) fn validate_objects_tree(
+    root: &Path,
+    max_entries: usize,
+    max_bytes: u64,
+) -> WorktreeResult<()> {
+    walk_validated_tree(root, max_entries, max_bytes, true)
+}
+
+const OBJECTS_MAINTENANCE_LOCK: &str = "maintenance.lock";
+const OBJECTS_MAINTENANCE_LOCK_RETRIES: usize = 5;
+
+fn is_direct_objects_maintenance_lock(objects_root: &Path, path: &Path) -> bool {
+    path.file_name()
+        .is_some_and(|name| name == OBJECTS_MAINTENANCE_LOCK)
+        && path.parent().is_some_and(|parent| parent == objects_root)
+}
+
+fn open_objects_maintenance_lock(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        options
+            .custom_flags(0x0020_0000 | 0x0200_0000)
+            .share_mode(0x1 | 0x2);
+    }
+    options.open(path)
+}
+
+/// Skip `.git/objects/maintenance.lock` when it is absent or a regular file.
+/// Symlink, non-regular type, or nlink != 1 still fail closed.
+fn skip_objects_maintenance_lock(path: &Path) -> WorktreeResult<()> {
+    for attempt in 0..OBJECTS_MAINTENANCE_LOCK_RETRIES {
+        let last = attempt + 1 == OBJECTS_MAINTENANCE_LOCK_RETRIES;
+        match fs::symlink_metadata(path) {
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(_) if !last => {
+                thread::yield_now();
+                continue;
+            }
+            Err(_) => return Err(failure("BOUNDARY_VIOLATION")),
+            Ok(meta) => {
+                if meta.file_type().is_symlink() || !meta.is_file() {
+                    return Err(failure("BOUNDARY_VIOLATION"));
+                }
+                #[cfg(windows)]
+                {
+                    use std::os::windows::fs::MetadataExt;
+                    if meta.file_attributes() & 0x0400 != 0 {
+                        return Err(failure("BOUNDARY_VIOLATION"));
+                    }
+                }
+                match open_objects_maintenance_lock(path) {
+                    Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+                    Err(_) if !last => {
+                        thread::yield_now();
+                        continue;
+                    }
+                    Err(_) => return Ok(()),
+                    Ok(file) => {
+                        let actual = file.metadata().map_err(|_| failure("IO_FAILED"))?;
+                        if !actual.is_file() {
+                            return Err(failure("BOUNDARY_VIOLATION"));
+                        }
+                        if inspect(&file)?.1 != 1 {
+                            return Err(failure("BOUNDARY_VIOLATION"));
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn walk_validated_tree(
+    root: &Path,
+    max_entries: usize,
+    max_bytes: u64,
+    exempt_objects_maintenance_lock: bool,
+) -> WorktreeResult<()> {
     let before = identity(root)?;
     let mut pending = vec![root.to_path_buf()];
     let mut entries = 0usize;
@@ -132,10 +226,21 @@ pub(super) fn validate_tree(root: &Path, max_entries: usize, max_bytes: u64) -> 
         }
         if m.is_dir() {
             for entry in fs::read_dir(&path).map_err(|_| failure("IO_FAILED"))? {
-                pending.push(entry.map_err(|_| failure("IO_FAILED"))?.path());
+                let child = entry.map_err(|_| failure("IO_FAILED"))?.path();
+                if exempt_objects_maintenance_lock
+                    && is_direct_objects_maintenance_lock(root, &child)
+                {
+                    continue;
+                }
+                pending.push(child);
                 if pending.len() + entries > max_entries {
                     return Err(failure("OUTPUT_LIMIT"));
                 }
+            }
+            #[cfg(test)]
+            objects_scan_hooks::after_readdir(&path);
+            if exempt_objects_maintenance_lock && path == root {
+                skip_objects_maintenance_lock(&root.join(OBJECTS_MAINTENANCE_LOCK))?;
             }
         }
     }
@@ -143,4 +248,37 @@ pub(super) fn validate_tree(root: &Path, max_entries: usize, max_bytes: u64) -> 
         return Err(failure("BOUNDARY_VIOLATION"));
     }
     Ok(())
+}
+
+#[cfg(test)]
+pub(super) mod objects_scan_hooks {
+    use std::cell::Cell;
+    use std::path::Path;
+
+    thread_local! {
+        static AFTER_READDIR: Cell<Option<fn(&Path)>> = const { Cell::new(None) };
+    }
+
+    pub fn set_after_readdir(hook: Option<fn(&Path)>) {
+        AFTER_READDIR.with(|cell| cell.set(hook));
+    }
+
+    pub fn after_readdir(dir: &Path) {
+        if let Some(hook) = AFTER_READDIR.with(|cell| cell.get()) {
+            hook(dir);
+        }
+    }
+
+    pub struct Guard;
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            set_after_readdir(None);
+        }
+    }
+
+    pub fn install(hook: fn(&Path)) -> Guard {
+        set_after_readdir(Some(hook));
+        Guard
+    }
 }
