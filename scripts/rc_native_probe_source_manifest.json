@@ -899,18 +899,18 @@
    "sha256": "f80054a703d40eddb285dd18e1443eb12c1ed1932ec15e4a4808e9d5aa834fea"
   },
   {
-   "blob": "1b7d03083444c925690a4ab5b9540a7d75b60aa0",
-   "bytes": 24099,
+   "blob": "fb0560925e5a2c711d0bfde47ad1143ac0acad1b",
+   "bytes": 24233,
    "mode": "100644",
    "path": "README.en.md",
-   "sha256": "299f337735ea4c086e5be4b65626470a9cf746575c3773aeccca939ab2abe8b9"
+   "sha256": "8c2450077786bb92b522b416dd7c833a4137c7e4fba862fe19310b19d79cbd5e"
   },
   {
-   "blob": "d9c730caedc1f01eeab008c8138fc74ad831feaa",
-   "bytes": 22852,
+   "blob": "9aa6d264d6bfd98411b0f4a9f0916ccba062373c",
+   "bytes": 22964,
    "mode": "100644",
    "path": "README.md",
-   "sha256": "a85a4f87cf68290891565ee85f0d5b8e6e30d124728fd1f610efa8a66858ea26"
+   "sha256": "ac836e70764d1e5d559d8a74aea3f39e1ae3b57eaf6ddaff135dc423be212ea7"
   },
   {
    "blob": "7a60b85e148f80966a550e5ab6a762a907c69ca6",
@@ -1466,11 +1466,11 @@
    "sha256": "a6c0df11156c012bea3dfe03d7b381ab11d27d9f530c9a30d8ccbb6cd70ad8b5"
   },
   {
-   "blob": "6423aeaf1ec856e3c9df58d102bc34e055ced8b9",
-   "bytes": 447423,
+   "blob": "6dfd375dd6ea1f03b12a02615b92fc9e87b1ad08",
+   "bytes": 447759,
    "mode": "100644",
    "path": "docs/releases/reviewed-source-manifest.json",
-   "sha256": "d3b31583466f7f5aa7e9cd8c6f421ad84f276c43a562a2ec8b3ea3eab55effff"
+   "sha256": "2faab0b702060a98dc8bc382138321e4d611b9f99477acc0f4b501e88a3463d9"
   },
   {
    "blob": "1a5f0b11f7e234ba6f193fcccabcd129cc2b029d",
@@ -6982,11 +6982,11 @@
    "sha256": "2c5e2eb36d72f7f5f5eb0205a5242eb0d0dd3b29ee8583e9c2f8212e8a3603d5"
   },
   {
-   "blob": "4a78fbf4122798ae375ef1fe53839428eaa127ef",
-   "bytes": 24918,
+   "blob": "d4efd9bc8a2710119a073e240eeb0d62594e2d55",
+   "bytes": 25365,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate.py",
-   "sha256": "2cd447d62e19e022052a29470e9129077f15f3fc1fb082f5eba90500c96c4435"
+   "sha256": "a5caa1b31e1cc7e3b081f36d440c492bd297972835f7d0c15745fdee7a5991fe"
   },
   {
    "blob": "348e39528532908aef558c08f209bdb955e02ac2",
@@ -6996,11 +6996,11 @@
    "sha256": "2795119cd61eb1dc3b53eb9f8f5664a783cf5916499dc62541c985470063e254"
   },
   {
-   "blob": "a8ed2da3db305d99b3d500dd9344744451afd0fc",
-   "bytes": 17526,
+   "blob": "02e934fb52703f49b5b71f63a136704918064bbf",
+   "bytes": 21388,
    "mode": "100644",
    "path": "scripts/rc_npm_audit_gate_tests/rc_npm_audit_mitigation_tests.py",
-   "sha256": "b4bbaae050ee75c7aa3471ddf202076050cddb0b5d1a662bf9cdb326cb94454b"
+   "sha256": "baa921e3c7ef24a3bac2552b12fe0d49af6b7498b4438b6dc5652a654d1ce940"
   },
   {
    "blob": "b22714f5ea5a2577ccd43ae873324c7dd20d83e3",

@@ -27,7 +27,7 @@ This fork focuses on **personal, sustained development through ChatGPT**. OAuth 
 
 Checksums: [SHA256SUMS.txt](https://github.com/Eswink/coding-tools-mcp/releases/download/v0.7.0/SHA256SUMS.txt) (also covers `cloud-linux-amd64.tar.gz`). Built from tag `v0.7.0` (source `36e0c265`); every binary comes from packaging run [40814802175](https://github.com/Eswink/coding-tools-mcp/actions/runs/40814802175) and nothing was built locally. The Linux packages were built on Ubuntu 22.04 and install-accepted on Ubuntu 22.04 and 24.04; the Windows NSIS installer passed standard-user installed acceptance. No macOS, ARM or headless Linux Server packages are provided.
 
-**Known issues (summary):** the Windows installer is unsigned; there are no macOS packages; the CI baseline failures shared with rc.2 / rc.3, the dev-only deepmerge advisory exemption (expires 2026-11-30 UTC) and other items are listed in the [v0.7.0 release notes](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0).
+**Known issues (summary):** the Windows installer is unsigned; there are no macOS packages; the CI baseline failures shared with rc.2 / rc.3, the dev-only deepmerge advisory (the v1 exemption expires 2026-11-30 UTC; the vendored mitigation path is reviewed by 2027-02-28 UTC) and other items are listed in the [v0.7.0 release notes](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0).
 
 ### Cloud components: v0.7.0
 
@@ -224,7 +224,7 @@ Exit the old app and back up configuration plus the corresponding system account
 
 Known limitations:
 
-- **Full known issues are in the release notes**: the CI baseline failures shared with rc.2 / rc.3, the dev-only deepmerge advisory exemption (expires 2026-11-30 UTC) and more; see the [v0.7.0 release notes](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0).
+- **Full known issues are in the release notes**: the CI baseline failures shared with rc.2 / rc.3, the dev-only deepmerge advisory (the v1 exemption expires 2026-11-30 UTC; the vendored mitigation path is reviewed by 2027-02-28 UTC) and more; see the [v0.7.0 release notes](https://github.com/Eswink/coding-tools-mcp/releases/tag/v0.7.0).
 - **Windows installers are unsigned**.
 - **The cloud gateway combination is not tested end to end**: the v0.7.0 desktop app + the v0.7.0 gateway image have not been tested on a real VPS or with real ChatGPT; only in-CI tests passed.
 - **The gateway has no dynamic client registration (DCR)**: an operator must pre-register the client with `coding-tools-gateway register-client`; whether ChatGPT accepts this is **not verified**.

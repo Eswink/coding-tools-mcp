@@ -21,6 +21,11 @@ still reports them); both judge identically and expire only at MITIGATION_REVIEW
 Such runs write capture v2. C13d: a v1 capture record now only verifies an all-zero
 full report (total>0 under v1 is refused, closing the back-dated unpinned path); the
 no-capture all-zero rule is unchanged and the v1 schema itself is kept.
+
+C41: the two dates are separate. EXEMPTION_EXPIRES (2026-11-30) only bounds the v1 judge
+(check_findings, no vendored mitigation). The live gate (--verify-only, --no-capture, and the
+capture-v2 packaging run) goes through verify_vendored_mitigation/check_mitigated and is bounded
+only by MITIGATION_REVIEW_BY (2027-02-28), so 2026-12-01 does not stop CI.
 """
 from __future__ import annotations
 
@@ -37,6 +42,7 @@ EXEMPT_ADVISORY = 'https://github.com/advisories/GHSA-gcqx-w48m-w2h4'
 EXEMPT_PACKAGE = 'deepmerge'
 EXEMPT_SEVERITY = 'low'
 EXEMPT_CHAIN = frozenset({'@sveltejs/vite-plugin-svelte', '@sveltejs/kit', '@sveltejs/adapter-static'})
+# v1 judge only (check_findings); the live mitigated gate uses MITIGATION_REVIEW_BY below.
 EXEMPTION_EXPIRES = date(2026, 11, 30)  # last valid day (UTC); void from 2026-12-01
 MAX_REPORT_BYTES = 16 * 1024 * 1024
 CAPTURE_NAME = 'npm-audit-capture.json'

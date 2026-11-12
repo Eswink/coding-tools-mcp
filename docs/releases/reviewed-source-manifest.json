@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "C40 #215 objects maintenance.lock tip — LOCAL ONLY not pushed",
+  "review_reference": "C41 deepmerge exemption maintenance tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -602,8 +602,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "1b7d03083444c925690a4ab5b9540a7d75b60aa0",
-        "sha256": "299f337735ea4c086e5be4b65626470a9cf746575c3773aeccca939ab2abe8b9"
+        "blob_sha": "fb0560925e5a2c711d0bfde47ad1143ac0acad1b",
+        "sha256": "8c2450077786bb92b522b416dd7c833a4137c7e4fba862fe19310b19d79cbd5e"
       }
     },
     {
@@ -616,8 +616,8 @@
       },
       "after": {
         "mode": "100644",
-        "blob_sha": "d9c730caedc1f01eeab008c8138fc74ad831feaa",
-        "sha256": "a85a4f87cf68290891565ee85f0d5b8e6e30d124728fd1f610efa8a66858ea26"
+        "blob_sha": "9aa6d264d6bfd98411b0f4a9f0916ccba062373c",
+        "sha256": "ac836e70764d1e5d559d8a74aea3f39e1ae3b57eaf6ddaff135dc423be212ea7"
       }
     },
     {
@@ -4838,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "cd0cc4c502788ac716081376acc3aaa45cec600d",
-        "sha256": "8a7319b81812367fcfb67e9008ab6628886428397d4f03b169f8c86c2386cc24"
+        "blob_sha": "174f10492a47848ef7e0bddeea03ca51e217be2b",
+        "sha256": "715b95fa567c20bf55f8b268203aeb2491796f67c5f2644694a64c7bd8a6004e"
       }
     },
     {
@@ -4848,8 +4848,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "4a78fbf4122798ae375ef1fe53839428eaa127ef",
-        "sha256": "2cd447d62e19e022052a29470e9129077f15f3fc1fb082f5eba90500c96c4435"
+        "blob_sha": "d4efd9bc8a2710119a073e240eeb0d62594e2d55",
+        "sha256": "a5caa1b31e1cc7e3b081f36d440c492bd297972835f7d0c15745fdee7a5991fe"
       }
     },
     {
@@ -4868,8 +4868,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "a8ed2da3db305d99b3d500dd9344744451afd0fc",
-        "sha256": "b4bbaae050ee75c7aa3471ddf202076050cddb0b5d1a662bf9cdb326cb94454b"
+        "blob_sha": "02e934fb52703f49b5b71f63a136704918064bbf",
+        "sha256": "baa921e3c7ef24a3bac2552b12fe0d49af6b7498b4438b6dc5652a654d1ce940"
       }
     },
     {
