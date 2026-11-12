@@ -2,7 +2,7 @@
   "schema": 1,
   "base_commit": "758c60a6e74e624e144f9c19c5f19d04d17f7a13",
   "version": "0.8.0-rc.1",
-  "review_reference": "C39 #217 512 off-by-one tip — LOCAL ONLY not pushed",
+  "review_reference": "C40 #215 objects maintenance.lock tip — LOCAL ONLY not pushed",
   "entries": [
     {
       "path": ".github/workflows/ci.yml",
@@ -4838,8 +4838,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "7eda5bef83095444a84dadb7df73b3c89f8b445a",
-        "sha256": "64cef6aa92ff176618540c923c216f83cc4b888eace18e535c099385512cb834"
+        "blob_sha": "cd0cc4c502788ac716081376acc3aaa45cec600d",
+        "sha256": "8a7319b81812367fcfb67e9008ab6628886428397d4f03b169f8c86c2386cc24"
       }
     },
     {
@@ -9714,8 +9714,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "84949e366d58721ab058070efeff71f21c313da0",
-        "sha256": "4b346b2cf2dfc0b4295301a078d1a2ec40096269b3e4b3001eed48d3a9cea9e8"
+        "blob_sha": "411416b9ed8c0ecebe0220c0ec469592c3dbe5c0",
+        "sha256": "c0b5f26ab7991d70840dd5579366341cb3306ab8b56dba7906f1fefc29094868"
       }
     },
     {
@@ -9784,8 +9784,18 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "942eb730a77b84d45d4cb15f80d06466d3545274",
-        "sha256": "18c0e590fd746bdd29c69f0c8f188bcbe71de81d3bbf89cc6d87b3800328be43"
+        "blob_sha": "f9ef0b9243bfafd71f71e606496a9f5d1182d299",
+        "sha256": "a937a801244d8e42823b7f144d51a46515bd68923fc6350e60dcd687809ad3aa"
+      }
+    },
+    {
+      "path": "src-tauri/src/harness/worktree_objects_lock_tests.rs",
+      "status": "A",
+      "before": null,
+      "after": {
+        "mode": "100644",
+        "blob_sha": "2f62d19623e377ca0f7e0fbcb97db1a56fb495df",
+        "sha256": "9233c4e7e3a964ed31bea37665bd17514749834fb50afef209aebabcad0907d4"
       }
     },
     {
@@ -9824,8 +9834,8 @@
       "before": null,
       "after": {
         "mode": "100644",
-        "blob_sha": "6150e3010bf92c51c55d517cfdf9fa769853b3b8",
-        "sha256": "92a0d0e411c51e9658af74a1b85be75b107129d33af74db794e1720b51521ddd"
+        "blob_sha": "68e9e29954aeb5731ac5822ce50820dd7f13380f",
+        "sha256": "098716c9af61dfb74073accb3b5d4bfaf2ece789035fc264d23ee93324ea0d7a"
       }
     },
     {
