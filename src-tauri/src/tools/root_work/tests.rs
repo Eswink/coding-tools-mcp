@@ -1,4 +1,7 @@
 use super::*;
+// Every test below first takes `Harness::isolate_test_default_root()`, so its
+// trackers use a private native host store and `native-root-work-v1` ledger
+// instead of the process-wide test store shared with all other lib tests.
 fn fixture() -> (Arc<tempfile::TempDir>, Arc<ToolContext>) {
     // The process-private encrypted ledger deliberately retains Busy/Restore
     // records across cold tracker reopen. Retain their workspace directories for
@@ -20,6 +23,7 @@ fn fixture() -> (Arc<tempfile::TempDir>, Arc<ToolContext>) {
 }
 #[test]
 fn every_context_for_the_same_root_shares_quiescence_even_with_another_harness() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (root, ctx) = fixture();
     let other = root.path().join("other");
     std::fs::create_dir(&other).unwrap();
@@ -35,6 +39,7 @@ fn every_context_for_the_same_root_shares_quiescence_even_with_another_harness()
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lost_blocking_waiter_cannot_publish_root_quiescence() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (_root, ctx) = fixture();
     let tracker = ctx.root_work.as_ref().unwrap().clone();
     let (started, observed) = tokio::sync::oneshot::channel();
@@ -63,6 +68,7 @@ async fn lost_blocking_waiter_cannot_publish_root_quiescence() {
 }
 #[test]
 fn queued_registration_blocks_restore_and_cancellation_retires_without_effects() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (_root, ctx) = fixture();
     let tracker = ctx.root_work.as_ref().unwrap().clone();
     let queued = blocking_context(ctx, |_| panic!("must not execute"));
@@ -72,6 +78,7 @@ fn queued_registration_blocks_restore_and_cancellation_retires_without_effects()
 }
 #[test]
 fn running_guard_loss_persists_unknown_across_restart() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (root, ctx) = fixture();
     let path = ctx.workspace.root().to_path_buf();
     let _store = root.path().join("store");
@@ -86,6 +93,7 @@ fn running_guard_loss_persists_unknown_across_restart() {
 }
 #[test]
 fn restore_fences_new_admission_and_uncertain_mutation_survives_restart() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (root, ctx) = fixture();
     let path = ctx.workspace.root().to_path_buf();
     let _store = root.path().join("store");
@@ -101,6 +109,7 @@ fn restore_fences_new_admission_and_uncertain_mutation_survives_restart() {
 }
 #[test]
 fn clean_restore_releases_a_new_generation_and_stale_scope_cannot_fork() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (_root, ctx) = fixture();
     let tracker = ctx.root_work.as_ref().unwrap();
     let mut work = tracker.register().unwrap();
@@ -116,6 +125,7 @@ fn clean_restore_releases_a_new_generation_and_stale_scope_cannot_fork() {
 }
 #[test]
 fn actual_file_dispatch_uses_root_fence_and_never_changes_root() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (_root, ctx) = fixture();
     std::fs::write(ctx.workspace.root().join("a.txt"), "selected-root").unwrap();
     let out = crate::tools::call_tool(&ctx, "read_file", &json!({"path":"a.txt"}));
@@ -131,6 +141,7 @@ fn actual_file_dispatch_uses_root_fence_and_never_changes_root() {
 }
 #[test]
 fn restore_fences_overlapping_live_roots_and_durable_unknown_parent() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (root, parent) = fixture();
     let child = parent.workspace.root().join("child");
     std::fs::create_dir(&child).unwrap();
@@ -153,6 +164,7 @@ fn restore_fences_overlapping_live_roots_and_durable_unknown_parent() {
 }
 #[test]
 fn an_idle_approved_root_replacement_is_never_adopted() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (root, ctx) = fixture();
     let path = ctx.workspace.root().to_path_buf();
     std::fs::rename(&path, root.path().join("retained-original")).unwrap();
@@ -164,6 +176,7 @@ fn an_idle_approved_root_replacement_is_never_adopted() {
 }
 #[test]
 fn exclusive_broker_scope_rejects_other_chains_and_allows_own_descendants() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (_root, ctx) = fixture();
     let tracker = ctx.root_work.as_ref().unwrap();
     let mut other = tracker.register().unwrap();
@@ -189,6 +202,7 @@ fn exclusive_broker_scope_rejects_other_chains_and_allows_own_descendants() {
 }
 #[test]
 fn managed_reads_are_native_persistent_and_cannot_inherit_trusted_external_reading() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let (root, ctx) = fixture();
     let outside = root.path().join("outside.txt");
     std::fs::write(&outside, "outside-canary").unwrap();
@@ -233,6 +247,7 @@ fn managed_reads_are_native_persistent_and_cannot_inherit_trusted_external_readi
 
 #[test]
 fn uncertain_fixture_identity_survives_cleanup_without_blocking_unrelated_roots() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     for restoring in [false, true] {
         let (root, ctx) = fixture();
         let path = ctx.workspace.root().to_path_buf();
@@ -277,6 +292,7 @@ fn native_namespace(root: &Path) -> PathBuf {
 
 #[test]
 fn clean_deleted_roots_are_reclaimed_and_a_new_root_is_still_admitted_after_513() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let mut leftovers = Vec::with_capacity(513);
     for _ in 0..513 {
         let temp = tempfile::tempdir().unwrap();
@@ -314,6 +330,7 @@ fn clean_deleted_roots_are_reclaimed_and_a_new_root_is_still_admitted_after_513(
 
 #[test]
 fn a_non_clean_entry_whose_root_was_deleted_is_not_reclaimed() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let busy = tempfile::tempdir().unwrap();
     let busy_workspace = busy.path().join("workspace");
     std::fs::create_dir(&busy_workspace).unwrap();
@@ -344,6 +361,7 @@ fn a_non_clean_entry_whose_root_was_deleted_is_not_reclaimed() {
 
 #[test]
 fn a_clean_entry_with_a_replaced_root_identity_is_reclaimed_when_not_live() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path().join("workspace");
     std::fs::create_dir(&workspace).unwrap();
@@ -394,6 +412,7 @@ fn plant_kept_clean_ledger_entry(parent: &Path) -> tempfile::TempDir {
 
 #[test]
 fn remaining_cap_allows_512_kept_entries_and_fail_closes_on_the_513th() {
+    let _native = crate::harness::Harness::isolate_test_default_root();
     let parent = tempfile::tempdir().unwrap();
     let mut kept_roots = Vec::with_capacity(513);
     for _ in 0..512 {
