@@ -1,0 +1,283 @@
+name: F5 exact-source frontend verification (NOT RELEASE)
+'on':
+  push:
+    branches:
+    - ci/v080-f5-frontend-validation
+    paths:
+    - .github/workflows/f5-frontend-validation.yml
+permissions:
+  contents: read
+concurrency:
+  group: f5-frontend-validation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    name: ${{ matrix.kind }} (${{ matrix.os }})
+    if: github.repository == 'Eswink/coding-tools-mcp' && github.ref == 'refs/heads/ci/v080-f5-frontend-validation' &&
+      github.run_attempt == 1
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - kind: audit
+          os: ubuntu-24.04
+          timeout: 20
+        - kind: native-build
+          os: ubuntu-22.04
+          timeout: 60
+        - kind: native-build
+          os: windows-2025
+          timeout: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: source
+    env:
+      TESTED_SOURCE_SHA: 434198c1d9b8a58ab757fe33afbf5573c5e17a84
+      TESTED_SOURCE_TREE: f7073a02ab5b856fd383da71d94c93efff1ad191
+      EXPECTED_LOCK_SHA256: 9bf60ff37b51629144c15f87fe652a39fdb7459c8d2ec13da38ebae9b1c0393d
+      VALIDATION_KIND: ${{ matrix.kind }}
+      PYTHONUTF8: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      CARGO_TERM_COLOR: never
+      CARGO_INCREMENTAL: '0'
+    steps:
+    - name: Initialize Actions-only evidence
+      env:
+        EVIDENCE_DIR: ${{ runner.temp }}/f5-frontend-${{ matrix.kind }}-${{ matrix.os }}
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import os, json
+        from pathlib import Path
+        out = Path(os.environ['EVIDENCE_DIR']); out.mkdir(parents=True, exist_ok=False)
+        with Path(os.environ['GITHUB_ENV']).open('a', encoding='utf-8') as env_file:
+            env_file.write('EVIDENCE_DIR=' + str(out) + '\n')
+        (out / 'job.json').write_text(json.dumps({
+            'orchestration_sha': os.environ['GITHUB_SHA'], 'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'],
+            'run_id': os.environ['GITHUB_RUN_ID'], 'attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+            'runner_os': os.environ['RUNNER_OS'], 'kind': os.environ['VALIDATION_KIND'],
+            'artifact_status': 'NOT_RELEASE_NOT_QUALIFIED'
+        }, indent=2) + '\n', encoding='utf-8')
+        PY
+    - name: Preserve exact checkout bytes on Windows and Linux
+      working-directory: ${{ github.workspace }}
+      run: |
+        set -euo pipefail
+        git config --global core.autocrlf false
+    - name: Checkout immutable product source
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        ref: 434198c1d9b8a58ab757fe33afbf5573c5e17a84
+        path: source
+        persist-credentials: false
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+      with:
+        python-version: '3.12'
+    - name: Enforce product identity before work
+      env:
+        SOURCE_PHASE: before
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import os, json, hashlib, subprocess
+        from pathlib import Path
+        root = Path(os.environ['GITHUB_WORKSPACE']) / 'source'
+        out = Path(os.environ['EVIDENCE_DIR']); out.mkdir(parents=True, exist_ok=True)
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+        sha, tree = git('rev-parse', 'HEAD'), git('rev-parse', 'HEAD^{tree}')
+        lock = hashlib.sha256((root / 'package-lock.json').read_bytes()).hexdigest()
+        status = git('status', '--porcelain=v1', '--untracked-files=no')
+        record = {
+            'phase': os.environ['SOURCE_PHASE'], 'orchestration_sha': os.environ['GITHUB_SHA'],
+            'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'], 'run_id': os.environ['GITHUB_RUN_ID'],
+            'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'tested_source_sha': sha,
+            'tested_source_tree': tree, 'lock_sha256': lock, 'tracked_status': status,
+            'blobs': {p: git('rev-parse', 'HEAD:' + p) for p in [
+                'package.json', 'package-lock.json', 'tests/cloud-gateway-deployment/test_kit.py']},
+            'scope': 'NOT_RELEASE; no installed desktop acceptance or Rust root tests'
+        }
+        (out / ('source-' + os.environ['SOURCE_PHASE'] + '.json')).write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+        assert sha == os.environ['TESTED_SOURCE_SHA'], record
+        assert tree == os.environ['TESTED_SOURCE_TREE'], record
+        assert lock == os.environ['EXPECTED_LOCK_SHA256'], record
+        assert not status, record
+        assert os.environ['GITHUB_SHA'] != sha, 'Orchestration and product commits must be distinct'
+        assert os.environ['GITHUB_RUN_ATTEMPT'] == '1', 'No reruns are permitted'
+        PY
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: 22.23.4
+    - name: Select exact npm and record tools
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/node-toolchain.log") 2>&1
+        npm install --global npm@10.9.9
+        test "$(node --version)" = 'v22.23.4'
+        test "$(npm --version)" = '10.9.9'
+        node --version
+        npm --version
+        python --version
+    - name: Select exact native Rust toolchain
+      if: matrix.kind == 'native-build'
+      uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+      with:
+        toolchain: 1.98.1
+    - name: Record and enforce native Rust tools
+      if: matrix.kind == 'native-build'
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/rust-toolchain.log") 2>&1
+        rustc --version --verbose
+        cargo --version
+        python - <<'PY'
+        import subprocess
+        v = subprocess.check_output(['rustc', '--version'], text=True).split()
+        assert v[1] == '1.98.1', v
+        PY
+    - name: Install Linux native compile dependencies
+      if: matrix.kind == 'native-build' && runner.os == 'Linux'
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/linux-build-dependencies.log") 2>&1
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev patchelf
+    - name: Fresh platform-local locked dependencies
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/npm-ci.log") 2>&1
+        npm ci
+        npm ls --all --json > "$EVIDENCE_DIR/npm-ls.json"
+    - name: Original vendor integrity and gate regressions
+      if: matrix.kind == 'audit'
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/vendor-and-gate-tests.log") 2>&1
+        node --test tests/deepmerge-vendor.test.mjs
+        python scripts/rc_npm_audit_gate.py --verify-only --repo .
+        cd scripts/rc_npm_audit_gate_tests
+        python -m unittest rc_npm_audit_gate_tests rc_stable_channel_tests rc_npm_audit_mitigation_tests
+    - name: Raw full and production audits judged by unchanged original gate
+      if: matrix.kind == 'audit'
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/audit-gate.log") 2>&1
+        set +e
+        npm audit --json > "$EVIDENCE_DIR/npm-audit.json"
+        full_exit=$?
+        npm audit --omit=dev --json > "$EVIDENCE_DIR/npm-audit-prod.json"
+        prod_exit=$?
+        set -e
+        printf '{"full_exit_code":%s,"prod_exit_code":%s}\n' "$full_exit" "$prod_exit" > "$EVIDENCE_DIR/npm-audit-exit-codes.json"
+        python scripts/rc_npm_audit_gate.py --repo . --no-capture \
+          --full "$EVIDENCE_DIR/npm-audit.json" --full-exit-code "$full_exit" \
+          --prod "$EVIDENCE_DIR/npm-audit-prod.json" --prod-exit-code "$prod_exit" \
+          --npm-version "$(npm --version)" --node-version "$(node --version)"
+    - name: Complete frontend check build and actual-source regressions
+      if: matrix.kind == 'native-build'
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/frontend-check-build-regressions.log") 2>&1
+        npm run check
+        npm run build
+        node scripts/前端完整回归v4.mjs
+    - name: Compile native application without bundling or installing
+      if: matrix.kind == 'native-build'
+      run: |
+        set -euo pipefail
+        exec > >(tee "$EVIDENCE_DIR/native-compile.log") 2>&1
+        if [ "$RUNNER_OS" = Linux ]; then
+          npm run tauri -- build --ci --no-bundle --config src-tauri/Ubuntu桌面v1.json -- --locked
+        else
+          npm run tauri -- build --ci --no-bundle -- --locked
+        fi
+    - name: Record native executable and embedded frontend input bytes
+      if: matrix.kind == 'native-build'
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import os, json, hashlib, shutil
+        from pathlib import Path
+        out = Path(os.environ['EVIDENCE_DIR'])
+        exe = Path('src-tauri/target/release/coding-tools-mcp-desktop' + ('.exe' if os.name == 'nt' else ''))
+        assert exe.is_file(), str(exe)
+        frontend = Path('build'); assert (frontend / 'index.html').is_file()
+        files = sorted(p for p in frontend.rglob('*') if p.is_file())
+        assert files
+        manifest = {str(p.relative_to(frontend)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+        (out / 'frontend-files.sha256.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+        record = {'status': 'NOT_RELEASE_NOT_INSTALLED_NOT_QUALIFIED',
+                  'tested_source_sha': os.environ['TESTED_SOURCE_SHA'],
+                  'orchestration_sha': os.environ['GITHUB_SHA'], 'native_path': str(exe),
+                  'native_size': exe.stat().st_size, 'native_sha256': hashlib.sha256(exe.read_bytes()).hexdigest(),
+                  'frontend_file_count': len(files), 'bundling_performed': False}
+        (out / 'native-build-receipt.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+        shutil.copy2(exe, out / ('NOT_RELEASE-' + exe.name))
+        PY
+    - name: Enforce unchanged product identity after success or failure
+      if: always()
+      working-directory: ${{ github.workspace }}
+      env:
+        SOURCE_PHASE: after
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import os, json, hashlib, subprocess
+        from pathlib import Path
+        root = Path(os.environ['GITHUB_WORKSPACE']) / 'source'
+        out = Path(os.environ['EVIDENCE_DIR']); out.mkdir(parents=True, exist_ok=True)
+        def git(*args):
+            return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+        sha, tree = git('rev-parse', 'HEAD'), git('rev-parse', 'HEAD^{tree}')
+        lock = hashlib.sha256((root / 'package-lock.json').read_bytes()).hexdigest()
+        status = git('status', '--porcelain=v1', '--untracked-files=no')
+        record = {
+            'phase': os.environ['SOURCE_PHASE'], 'orchestration_sha': os.environ['GITHUB_SHA'],
+            'workflow_ref': os.environ['GITHUB_WORKFLOW_REF'], 'run_id': os.environ['GITHUB_RUN_ID'],
+            'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'tested_source_sha': sha,
+            'tested_source_tree': tree, 'lock_sha256': lock, 'tracked_status': status,
+            'blobs': {p: git('rev-parse', 'HEAD:' + p) for p in [
+                'package.json', 'package-lock.json', 'tests/cloud-gateway-deployment/test_kit.py']},
+            'scope': 'NOT_RELEASE; no installed desktop acceptance or Rust root tests'
+        }
+        (out / ('source-' + os.environ['SOURCE_PHASE'] + '.json')).write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+        assert sha == os.environ['TESTED_SOURCE_SHA'], record
+        assert tree == os.environ['TESTED_SOURCE_TREE'], record
+        assert lock == os.environ['EXPECTED_LOCK_SHA256'], record
+        assert not status, record
+        assert os.environ['GITHUB_SHA'] != sha, 'Orchestration and product commits must be distinct'
+        assert os.environ['GITHUB_RUN_ATTEMPT'] == '1', 'No reruns are permitted'
+        PY
+    - name: Seal all collected evidence even on failure
+      if: always()
+      working-directory: ${{ github.workspace }}
+      env:
+        MATRIX_JOB_STATUS: ${{ job.status }}
+      run: |
+        set -euo pipefail
+        python - <<'PY'
+        import os, json, hashlib
+        from pathlib import Path
+        out = Path(os.environ['EVIDENCE_DIR']); out.mkdir(parents=True, exist_ok=True)
+        (out / 'job-outcome.json').write_text(json.dumps({
+            'status_before_sealing': os.environ['MATRIX_JOB_STATUS'],
+            'tested_source_sha': os.environ['TESTED_SOURCE_SHA'], 'orchestration_sha': os.environ['GITHUB_SHA'],
+            'run_id': os.environ['GITHUB_RUN_ID'], 'attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+            'classification': 'NOT_RELEASE_NOT_QUALIFIED'
+        }, indent=2) + '\n', encoding='utf-8')
+        files = sorted(p for p in out.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt')
+        (out / 'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + str(p.relative_to(out)).replace('\\', '/') + '\n' for p in files), encoding='utf-8')
+        PY
+    - name: Preserve NOT_RELEASE Actions-only verification evidence
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: NOT_RELEASE-f5-frontend-${{ matrix.kind }}-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt
+          }}
+        path: ${{ env.EVIDENCE_DIR }}/
+        retention-days: 14
+        if-no-files-found: error
