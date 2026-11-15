@@ -75,7 +75,7 @@ class KitFiles(unittest.TestCase):
         self.assertEqual(set(json.loads((KIT / 'config.example.json').read_text())), kit.CONFIG_KEYS)
         self.assertEqual(set(json.loads((KIT / 'runtime.example.json').read_text())), kit.RUNTIME_KEYS)
         for path in sorted(p for p in KIT.iterdir() if p.is_file()):
-            text = path.read_text()
+            text = path.read_text(encoding='utf-8')
             self.assertNotRegex(text, r'(?i)(postgres(ql)?://[^<\s]+:[^<\s@]+@)', path.name)
             self.assertNotRegex(text, r"(?i)\bPASSWORD\s+'", path.name)
             self.assertNotRegex(text, r'-----BEGIN [A-Z ]*PRIVATE KEY-----', path.name)
@@ -373,7 +373,7 @@ class SqlTemplate(unittest.TestCase):
         self.assertNotRegex(bootstrap, r'(?<![:\w]):[a-z_]')
 
     def test_runbook_bootstrap_never_writes_a_secret_file(self):
-        runbook = (KIT / 'RUNBOOK.md').read_text()
+        runbook = (KIT / 'RUNBOOK.md').read_text(encoding='utf-8')
         self.assertNotIn('bootstrap.sql', runbook.replace('不要把这一步改写成先写 `bootstrap.sql`', ''))
         self.assertNotRegex(runbook, r"<<'PY'\s*>")
         self.assertNotIn('shred', runbook)
@@ -606,6 +606,31 @@ class RealNginx(unittest.TestCase):
         self.start(('10.0.0.0/8',))
         self.burst(lambda index: f'198.51.100.{index + 1}')
         self.assertEqual(self.request('POST', '/coding-tools/oauth/token', '198.51.100.200'), 429)
+
+
+class TextReadEncodingRegression(unittest.TestCase):
+    def test_tagged_runbook_requires_utf8_not_cp1252(self):
+        data = (KIT / 'RUNBOOK.md').read_bytes()
+        with self.assertRaises(UnicodeDecodeError):
+            data.decode('cp1252')
+        self.assertIn('不要', data.decode('utf-8', errors='strict'))
+
+    def test_kit_checks_survive_a_cp1252_default(self):
+        # Exercise the actual failing checks; emulate only the OS-default read
+        # boundary so this regression is useful on Linux as well as Windows.
+        original = Path.read_text
+
+        def windows_default(path, encoding=None, errors=None):
+            return original(path, encoding=encoding or 'cp1252', errors=errors)
+
+        cases = (
+            KitFiles('test_kit_files_carry_placeholders_and_no_secrets'),
+            SqlTemplate('test_runbook_bootstrap_never_writes_a_secret_file'),
+        )
+        result = unittest.TestResult()
+        with patch.object(Path, 'read_text', windows_default):
+            unittest.TestSuite(cases).run(result)
+        self.assertTrue(result.wasSuccessful(), result.errors + result.failures)
 
 
 if __name__ == '__main__':
