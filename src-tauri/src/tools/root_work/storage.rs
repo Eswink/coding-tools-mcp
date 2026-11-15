@@ -88,19 +88,28 @@ pub(super) fn persisted_conflict(
         .map(|p| format!("{:x}", Sha256::digest(p.to_string_lossy().as_bytes())))
         .collect();
     let reader = crate::data::AuthDocumentReader::default();
-    for (index, entry) in std::fs::read_dir(parent)
+    // Collect first so reclaim can unlink entries without perturbing the walk.
+    // The 512 cap applies to entries that remain after eligible Clean leftovers
+    // are reclaimed, not to the raw pre-reclaim directory count. After each
+    // increment, reject with remaining > 512 so 512 remaining entries are
+    // still admitted and the 513th fail-closes (same as the historical
+    // 0-based `index >= 512` check). Comparing with greater-or-equal after
+    // the increment was an off-by-one that only allowed 511.
+    let entries = std::fs::read_dir(parent)
         .map_err(|_| RootWorkError)?
-        .enumerate()
-    {
-        if index >= 512 {
-            return Err(RootWorkError);
-        }
-        let entry = entry.map_err(|_| RootWorkError)?;
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| RootWorkError)?;
+    let mut remaining = 0usize;
+    for entry in entries {
         let name = entry.file_name().to_string_lossy().into_owned();
         if name.len() != 64 || !name.bytes().all(|b| b.is_ascii_hexdigit()) {
             return Err(RootWorkError);
         }
         if known.contains(&name) {
+            remaining = remaining.checked_add(1).ok_or(RootWorkError)?;
+            if remaining > 512 {
+                return Err(RootWorkError);
+            }
             continue;
         }
         let path = entry.path();
@@ -127,6 +136,15 @@ pub(super) fn persisted_conflict(
         if doc.ancestors.len() > 128 || doc.ancestors.first() != Some(&doc.identity) {
             return Err(RootWorkError);
         }
+        // A1 C39 (#217): inside the REGISTRY lock, after proving the namespace
+        // is not live and while holding auth.lock, reclaim a Clean leftover
+        // whose workspace root is gone or no longer matches its recorded
+        // identity. Non-Clean, live, corrupted, or verification-failed
+        // entries are never reclaimed; those stay fail-closed.
+        if doc.phase == Phase::Clean && clean_leftover_reclaimable(&doc) {
+            reclaim_clean_leftover(parent, &path, disk)?;
+            continue;
+        }
         if doc.phase != Phase::Clean
             && (overlaps(root, &doc.root)
                 || anchor.ancestors.contains(&doc.identity)
@@ -134,7 +152,70 @@ pub(super) fn persisted_conflict(
         {
             return Err(RootWorkError);
         }
+        remaining = remaining.checked_add(1).ok_or(RootWorkError)?;
+        if remaining > 512 {
+            return Err(RootWorkError);
+        }
     }
+    Ok(())
+}
+
+fn clean_leftover_reclaimable(doc: &Document) -> bool {
+    match std::fs::symlink_metadata(&doc.root) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
+        Err(_) => false,
+        Ok(meta) => {
+            if !meta.is_dir() || meta.file_type().is_symlink() {
+                return false;
+            }
+            let Ok(canonical) = doc.root.canonicalize() else {
+                return false;
+            };
+            if canonical != doc.root {
+                return false;
+            }
+            match super::identity::RootIdentity::open(&doc.root) {
+                Ok(identity) => identity.key != doc.identity,
+                Err(_) => false,
+            }
+        }
+    }
+}
+
+fn reclaim_clean_leftover(
+    parent: &Path,
+    namespace: &Path,
+    disk: AuthDocument,
+) -> Result<(), RootWorkError> {
+    let mut saw_json = false;
+    let mut saw_lock = false;
+    for entry in std::fs::read_dir(namespace).map_err(|_| RootWorkError)? {
+        let name = entry.map_err(|_| RootWorkError)?.file_name();
+        if name == "auth.json" {
+            saw_json = true;
+        } else if name == "auth.lock" {
+            saw_lock = true;
+        } else {
+            return Err(RootWorkError);
+        }
+    }
+    if !saw_json || !saw_lock {
+        return Err(RootWorkError);
+    }
+    let auth_json = namespace.join("auth.json");
+    let auth_lock = namespace.join("auth.lock");
+    regular(&auth_json)?;
+    regular(&auth_lock)?;
+    std::fs::remove_file(&auth_json).map_err(|_| RootWorkError)?;
+    std::fs::remove_file(&auth_lock).map_err(|_| RootWorkError)?;
+    drop(disk);
+    std::fs::remove_dir(namespace).map_err(|_| RootWorkError)?;
+    #[cfg(unix)]
+    std::fs::File::open(parent)
+        .and_then(|f| f.sync_all())
+        .map_err(|_| RootWorkError)?;
+    #[cfg(not(unix))]
+    let _ = parent;
     Ok(())
 }
 

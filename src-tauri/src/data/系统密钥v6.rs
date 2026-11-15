@@ -102,6 +102,7 @@ mod root_work_reclaim_tests {
 
     #[test]
     fn failed_first_key_write_leaves_no_namespace_and_recovers_for_every_root() {
+        let _native = crate::harness::Harness::isolate_test_default_root();
         // Workspace directories outlive the process ledger (inode identities).
         let temp = Box::leak(Box::new(tempfile::tempdir().unwrap()));
         let root = temp.path().join("first");

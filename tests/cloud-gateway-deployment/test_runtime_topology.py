@@ -1,6 +1,7 @@
 """Pure topology contracts; actual Docker proof belongs to the dedicated CI job."""
 import copy
 import importlib.util
+import os
 from pathlib import Path
 import re
 import sys
@@ -14,10 +15,12 @@ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 IMAGES=dict(gateway='sha256:'+'a'*64,ingress='nginx@sha256:'+'b'*64,postgres='postgres@sha256:'+'c'*64)
 CONNECTOR='00000000-0000-0000-0000-000000000001'
 
+_POSIX_ONLY = unittest.skipUnless(os.name == 'posix', 'Linux-only deploy-script contract (POSIX APIs or LF-only source bytes); skipped on Windows')
 
 class RuntimeTopologyTests(unittest.TestCase):
     def value(self):return module.compose(Path('/tmp/private-fixture'),IMAGES,'gateway.example.invalid',CONNECTOR,28880)
 
+    @_POSIX_ONLY
     def test_only_namespace_publishes_explicit_loopback(self):
         services=self.value()['services']
         self.assertEqual(services['namespace']['ports'],[dict(target=8080,published='28880',host_ip='127.0.0.1',protocol='tcp')])
@@ -25,6 +28,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(services['ingress']['network_mode'],'service:namespace')
         self.assertNotIn('networks',services['ingress'])
 
+    @_POSIX_ONLY
     def test_nonroot_private_db_and_no_host_network(self):
         value=self.value();self.assertTrue(value['networks']['database']['internal'])
         for name,service in value['services'].items():
@@ -35,12 +39,14 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertEqual(value['services']['postgres']['networks'],['database'])
         self.assertEqual(value['services']['operator']['networks'],['database'])
 
+    @_POSIX_ONLY
     def test_operator_secret_documents_never_use_service_logging(self):
         service=self.value()['services']['operator']
         self.assertEqual(service['logging'],{'driver':'none'})
         self.assertEqual(service['profiles'],['operator']);self.assertEqual(service['restart'],'no')
         self.assertEqual(service['command'],['--help'])
 
+    @_POSIX_ONLY
     def test_actual_json_cli_and_directory_mount_contract(self):
         gateway=self.value()['services']['gateway']
         self.assertEqual(gateway['command'],['serve','--config','/run/gateway/config.json','--secrets-file','/run/gateway/runtime.json'])
@@ -49,6 +55,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertTrue(volume['read_only']);self.assertFalse(volume['bind']['create_host_path'])
         self.assertEqual(volume['target'],'/run/gateway')
 
+    @_POSIX_ONLY
     def test_proxy_target_host_headers_and_no_query_logs(self):
         value=module.ingress_config('gateway.example.invalid',CONNECTOR)
         self.assertEqual(value.count('proxy_pass http://127.0.0.1:28880;'),4)
@@ -70,6 +77,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         self.assertNotIn('listen 443',value)
         self.assertEqual(value.count('proxy_set_header Upgrade $http_upgrade;'),1)
 
+    @_POSIX_ONLY
     def test_ingress_embeds_exact_reviewed_locations_after_source_validation(self):
         domain='gateway.example.invalid'
         expected=module.current.locations(domain,CONNECTOR,28880)
@@ -91,6 +99,7 @@ class RuntimeTopologyTests(unittest.TestCase):
                     module.ingress_config('gateway.example.invalid',CONNECTOR)
                 locations.assert_not_called()
 
+    @_POSIX_ONLY
     def test_upgrade_route_matches_shipped_managed_channel(self):
         import re
         transport=(ROOT/'services/cloud-gateway/src/channel/transport.rs').read_text()
@@ -238,6 +247,7 @@ class RuntimeTopologyTests(unittest.TestCase):
         value=fixture.command_diagnostic(['docker','top','private-value','-eo','pid,uid,gid'],result,item.compose)
         self.assertEqual(value,dict(operation='docker_top',exit_code=1,category='container_not_running'))
 
+    @_POSIX_ONLY
     def test_identity_observer_does_not_relax_anchor_limits_or_spawn_id(self):
         import ast
         self.assertEqual(self.value()['services']['namespace']['pids_limit'],4)

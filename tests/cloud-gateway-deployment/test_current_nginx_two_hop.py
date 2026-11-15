@@ -19,6 +19,7 @@ sys.path.pop(0)
 DOMAIN = runtime.DOMAIN
 CONNECTOR = '00000000-0000-0000-0000-000000000001'
 
+_POSIX_ONLY = unittest.skipUnless(os.name == 'posix', 'Linux-only deploy-script contract (POSIX APIs or LF-only source bytes); skipped on Windows')
 
 class TwoHopHelperTests(unittest.TestCase):
     def setUp(self):
@@ -58,6 +59,7 @@ class TwoHopHelperTests(unittest.TestCase):
                                                    body=None, headers={'Host': DOMAIN})
         connection.close.assert_called_once_with()
 
+    @_POSIX_ONLY
     def test_constructor_renders_owned_private_outer_to_unchanged_inner_port(self):
         with patch.object(runtime.subprocess, 'Popen') as popen:
             outer = runtime.OuterProxy(self.fixture, self.nginx)
@@ -114,6 +116,7 @@ class TwoHopHelperTests(unittest.TestCase):
                 runtime.OuterProxy(self.fixture, self.nginx)
         popen.assert_not_called(); self.fixture.exec.assert_not_called()
 
+    @_POSIX_ONLY
     def test_start_checks_exact_binary_and_keeps_owned_foreground_process(self):
         outer = runtime.OuterProxy(self.fixture, self.nginx)
         process = Mock(); process.poll.return_value = None
@@ -131,6 +134,7 @@ class TwoHopHelperTests(unittest.TestCase):
         self.assertTrue(any(command == [str(self.nginx), '-v'] for command in commands))
         request.assert_called_once_with(28882, '/', [('Host', DOMAIN)])
 
+    @_POSIX_ONLY
     def test_startup_readiness_has_finite_attempts_and_retains_process_for_cleanup(self):
         outer = runtime.OuterProxy(self.fixture, self.nginx)
         process = Mock(); process.poll.return_value = None
@@ -144,6 +148,7 @@ class TwoHopHelperTests(unittest.TestCase):
         self.assertTrue(all(args == call(.05) for args in sleep.call_args_list))
         self.assertIs(outer.process, process)
 
+    @_POSIX_ONLY
     def test_dead_outer_process_cannot_pass_readiness(self):
         outer = runtime.OuterProxy(self.fixture, self.nginx)
         process = Mock(); process.poll.return_value = 1
@@ -154,6 +159,7 @@ class TwoHopHelperTests(unittest.TestCase):
         request.assert_not_called()
         self.assertIs(outer.process, process)
 
+    @_POSIX_ONLY
     def test_cleanup_reaps_only_owned_process_and_is_idempotent(self):
         outer = runtime.OuterProxy(self.fixture, self.nginx)
         process = Mock(); process.poll.side_effect = [None, 0]
@@ -163,6 +169,7 @@ class TwoHopHelperTests(unittest.TestCase):
         process.kill.assert_not_called(); self.assertIsNone(outer.process)
         self.assertTrue((self.root / 'current-outer-private').is_dir())
 
+    @_POSIX_ONLY
     def test_cleanup_uses_bounded_kill_after_terminate_timeout(self):
         outer = runtime.OuterProxy(self.fixture, self.nginx)
         process = Mock(); process.poll.side_effect = [None, -9]
@@ -172,6 +179,7 @@ class TwoHopHelperTests(unittest.TestCase):
         self.assertEqual(process.wait.call_args_list, [call(timeout=5), call(timeout=5)])
         self.assertIsNone(outer.process)
 
+    @_POSIX_ONLY
     def test_cleanup_failure_remains_terminal_and_keeps_process_handle(self):
         outer = runtime.OuterProxy(self.fixture, self.nginx)
         process = Mock(); process.poll.return_value = None
@@ -230,6 +238,7 @@ class TwoHopHelperTests(unittest.TestCase):
                 self.assertEqual(order, ['outer'] if cleanup_fails else ['outer', 'fixture'])
                 self.assertEqual(f.port, 28881); install.assert_not_called()
 
+    @_POSIX_ONLY
     def test_running_inner_config_drift_refuses_evidence_before_image_lookup(self):
         self.fixture.dc = Mock(return_value=SimpleNamespace(stdout=b'0' * 64 + b'  /run/ingress/nginx.conf\n'))
         self.fixture.container = Mock()
@@ -328,6 +337,7 @@ class TwoHopHelperTests(unittest.TestCase):
         with self.assertRaisesRegex(container_fixture.FixtureFailure, 'duplicate_json_field'):
             json.loads('{"id":1,"id":2,"op":"inspect"}', object_pairs_hook=agent.unique_json)
 
+    @_POSIX_ONLY
     def test_agent_ca_private_owner_and_bad_modes(self):
         root = self.root / 'private'; root.mkdir(mode=0o700)
         ca = root / 'ca.der'; ca.write_bytes(b'public test certificate'); ca.chmod(0o600)

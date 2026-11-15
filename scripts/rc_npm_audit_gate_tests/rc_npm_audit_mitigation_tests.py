@@ -340,5 +340,65 @@ class RecordedV2Tests(unittest.TestCase):
                 module.check_mitigated(report_fault(REPORT_FAULTS[fault]), 1, NOW.date())
 
 
+LAST_V1_SECOND = datetime(2026, 11, 30, 23, 59, 59, tzinfo=timezone.utc)
+DEC1_LATE = datetime(2026, 12, 1, 23, 59, 59, tzinfo=timezone.utc)
+
+
+def no_v1_judge(*_args, **_kwargs):
+    raise AssertionError("live gate must not reach the v1 check_findings / EXEMPTION_EXPIRES path")
+
+
+class ClockPinnedDec1Tests(unittest.TestCase):
+    """C41: the v1 exemption ends 2026-11-30; the live gate is governed by MITIGATION_REVIEW_BY only."""
+
+    def test_dates_are_unchanged(self):
+        self.assertEqual(module.EXEMPTION_EXPIRES, date(2026, 11, 30))
+        self.assertEqual(module.MITIGATION_REVIEW_BY, date(2027, 2, 28))
+
+    def test_live_verify_only_passes_with_clock_pinned_to_dec1(self):
+        import io
+        for clock in (DEC1, DEC1_LATE):
+            with self.subTest(clock=clock), patch.object(module, "utc_now", return_value=clock), \
+                    patch.object(module, "check_findings", side_effect=no_v1_judge), \
+                    patch("sys.stdout", new_callable=io.StringIO) as out:
+                self.assertEqual(module.main(["--verify-only", "--repo", str(REPO)]), 0)
+                result = json.loads(out.getvalue())
+                self.assertEqual((result["passed"], result["verify_only"], result["review_by"]),
+                                 (True, True, "2027-02-28"))
+
+    def test_live_mitigated_cli_passes_with_clock_pinned_to_dec1(self):
+        for shape, (make, code) in SHAPES.items():
+            for clock in (DEC1, DEC1_LATE):
+                for capture in (False, True):  # --no-capture (vendor guard) and capture v2 (packaging)
+                    with self.subTest(shape=shape, clock=clock, capture=capture), \
+                            patch.object(module, "check_findings", side_effect=no_v1_judge):
+                        self.assertEqual(run_cli(REPO, make(), code, clock, capture=capture), 0)
+
+    def test_v1_nonzero_capture_after_nov30_is_rejected(self):
+        for captured_at in (DEC1, DEC1_LATE, datetime(2027, 1, 15, tzinfo=timezone.utc)):
+            with self.subTest(captured_at=captured_at), patch.object(module, "utc_now", side_effect=no_clock), \
+                    self.assertRaises(module.GateError):
+                module.check_recorded(exempt(), encode(exempt()), capture_for(exempt(), captured_at=captured_at))
+        # The v1 judge itself also voids the exemption from 2026-12-01 (by the date it is given).
+        with self.assertRaisesRegex(module.GateError, "expired after 2026-11-30"):
+            module.check_full(exempt(), 1, DEC1.date())
+
+    def test_v1_historical_records_on_or_before_nov30_still_pass(self):
+        # Judged by the recorded capture time, never the (Dec 1) clock: no_clock proves it is not read.
+        zero = report({})
+        for captured_at in (datetime(2026, 10, 28, 7, 0, 1, tzinfo=timezone.utc), LAST_V1_SECOND):
+            with self.subTest(captured_at=captured_at), patch.object(module, "utc_now", side_effect=no_clock):
+                result = module.check_recorded(zero, encode(zero), capture_for(zero, captured_at=captured_at))
+                self.assertEqual(result["captured_at"], captured_at.strftime("%Y-%m-%dT%H:%M:%SZ"))
+                self.assertEqual(result["total"], 0)
+        with patch.object(module, "utc_now", side_effect=no_clock):
+            self.assertEqual(module.check_recorded(zero, encode(zero), None)["total"], 0)
+        # The v1 judge still accepts the exact exemption on its last valid day.
+        self.assertEqual(module.check_full(exempt(), 1, LAST_V1_SECOND.date())["expires"], "2026-11-30")
+        # C13d (unchanged): a v1 capture with findings is refused even on or before 2026-11-30.
+        with patch.object(module, "utc_now", side_effect=no_clock), self.assertRaises(module.GateError):
+            module.check_recorded(exempt(), encode(exempt()), capture_for(exempt(), captured_at=LAST_V1_SECOND))
+
+
 if __name__ == "__main__":
     unittest.main()

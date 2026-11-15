@@ -1,7 +1,7 @@
 //! Config-free, network-free Git object access. No Repository::open or subprocesses.
 use super::{
     worktree::WorktreeResult,
-    worktree_boundary::{failure, identity, read_file, validate_tree},
+    worktree_boundary::{failure, identity, read_file, validate_objects_tree, validate_tree},
 };
 use git2::{Oid, Repository, StatusOptions, StatusShow, TreeWalkMode, TreeWalkResult};
 use std::{
@@ -47,7 +47,7 @@ pub(super) fn open_source(root: &Path) -> WorktreeResult<Source> {
             return Err(failure("BOUNDARY_VIOLATION"));
         }
     }
-    validate_tree(&objects, 50_000, 256 * 1024 * 1024)?;
+    validate_objects_tree(&objects, 50_000, 256 * 1024 * 1024)?;
     let odb = git2::Odb::new().map_err(|_| failure("GIT_FAILED"))?;
     odb.add_disk_alternate(objects.to_str().ok_or_else(|| failure("PARSE_FAILED"))?)
         .map_err(|_| failure("GIT_FAILED"))?;

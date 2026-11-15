@@ -163,7 +163,7 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "coding-tools-cloud-agent"
-version = "0.8.0-rc.1"
+version = "0.8.0"
 dependencies = [
  "base64",
  "futures-util",
@@ -181,7 +181,7 @@ dependencies = [
 
 [[package]]
 name = "coding-tools-cloud-gateway"
-version = "0.8.0-rc.1"
+version = "0.8.0"
 dependencies = [
  "argon2",
  "axum",

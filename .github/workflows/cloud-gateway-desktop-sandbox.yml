@@ -36,7 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev
+          sudo apt-get install -y build-essential pkg-config libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libdbus-1-dev dbus-x11 gnome-keyring
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
         with:
           toolchain: '1.98.1'
@@ -62,7 +62,19 @@ jobs:
         id: desktop
         run: |
           set -euo pipefail
-          cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop.txt
+          if [ "$RUNNER_OS" = Linux ]; then export PATH="/usr/bin:$PATH"; fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            export XDG_RUNTIME_DIR="$RUNNER_TEMP/native-runtime" XDG_DATA_HOME="$RUNNER_TEMP/native-data"
+            export XDG_CONFIG_HOME="$RUNNER_TEMP/native-config" XDG_STATE_HOME="$RUNNER_TEMP/native-state"
+            mkdir -p "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            chmod 700 "$XDG_RUNTIME_DIR" "$XDG_DATA_HOME" "$XDG_CONFIG_HOME" "$XDG_STATE_HOME"
+            dbus-run-session -- bash -euo pipefail -c '
+              printf "%s" "isolated-rc-ci-fixture" | gnome-keyring-daemon --unlock --components=secrets
+              cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop.txt
+            '
+          else
+            cargo test --locked --manifest-path src-tauri/Cargo.toml 2>&1 | tee evidence/desktop.txt
+          fi
           cargo rustc --locked --lib --manifest-path src-tauri/Cargo.toml -- -D warnings 2>&1 | tee evidence/production.txt
       - name: Original authenticated MCP containment assertions
         id: probe
@@ -79,7 +91,7 @@ jobs:
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests -- --list | tee evidence/git-list.txt
           grep -q 'git_diff_does_not_execute_repository_external_diff' evidence/git-list.txt
           cargo test --locked --manifest-path src-tauri/Cargo.toml --lib tools::git_runner::tests 2>&1 | tee evidence/git-boundary.txt
-          grep -q '6 passed; 0 failed; 0 ignored' evidence/git-boundary.txt
+          grep -q '12 passed; 0 failed; 0 ignored' evidence/git-boundary.txt
       - name: Complete shared runtime, kernel and dispatcher regression
         id: runtime
         if: success() || failure()

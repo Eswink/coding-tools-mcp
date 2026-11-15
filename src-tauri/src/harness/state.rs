@@ -43,6 +43,9 @@ impl Harness {
     // never delete/reinitialize a production ledger to make a test pass.
     #[cfg(all(test, not(feature = "native-keyring-tests")))]
     pub fn default_root() -> HarnessResult<PathBuf> {
+        if let Some(root) = TEST_NATIVE_ROOT.with(|root| root.borrow().clone()) {
+            return Ok(root);
+        }
         static ROOT: std::sync::OnceLock<Result<tempfile::TempDir, String>> =
             std::sync::OnceLock::new();
         let root = ROOT.get_or_init(|| {
@@ -54,6 +57,36 @@ impl Harness {
         root.as_ref()
             .map(|root| root.path().join("harness"))
             .map_err(|error| HarnessError::new("STORE_UNAVAILABLE", error.clone()))
+    }
+
+    /// Test-only: give the calling test thread its own private native host
+    /// store (and thus its own `native-root-work-v1` ledger) until the guard
+    /// drops. Parallel tests otherwise share one process-wide ledger, where
+    /// unrelated fixtures' drops, Busy leftovers and recycled inodes interfere.
+    /// The directory is retained for the process lifetime (never deleted), so
+    /// persisted physical identities cannot be recycled. Non-test builds keep
+    /// exactly one immutable native store; this item does not exist there.
+    #[cfg(test)]
+    pub(crate) fn isolate_test_default_root() -> IsolatedTestDefaultRoot {
+        #[cfg(not(feature = "native-keyring-tests"))]
+        {
+            static RETAINED: std::sync::OnceLock<std::sync::Mutex<Vec<tempfile::TempDir>>> =
+                std::sync::OnceLock::new();
+            let dir = tempfile::Builder::new()
+                .prefix("coding-tools-unit-host-isolated-")
+                .tempdir()
+                .expect("isolated unit host store");
+            let root = dir.path().join("harness");
+            RETAINED
+                .get_or_init(Default::default)
+                .lock()
+                .unwrap()
+                .push(dir);
+            let previous = TEST_NATIVE_ROOT.with(|slot| slot.replace(Some(root)));
+            IsolatedTestDefaultRoot { previous }
+        }
+        #[cfg(feature = "native-keyring-tests")]
+        IsolatedTestDefaultRoot {}
     }
 
     #[cfg(any(not(test), feature = "native-keyring-tests"))]
@@ -651,5 +684,27 @@ mod tests {
             .join(harness.workspace_id())
             .join("snapshots")
             .exists());
+    }
+}
+
+// Test-only per-thread native host store override; see
+// `Harness::isolate_test_default_root`. Absent from non-test builds.
+#[cfg(all(test, not(feature = "native-keyring-tests")))]
+thread_local! {
+    static TEST_NATIVE_ROOT: std::cell::RefCell<Option<PathBuf>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) struct IsolatedTestDefaultRoot {
+    #[cfg(not(feature = "native-keyring-tests"))]
+    previous: Option<PathBuf>,
+}
+
+#[cfg(all(test, not(feature = "native-keyring-tests")))]
+impl Drop for IsolatedTestDefaultRoot {
+    fn drop(&mut self) {
+        let previous = self.previous.take();
+        let _ = TEST_NATIVE_ROOT.try_with(|slot| slot.replace(previous));
     }
 }
